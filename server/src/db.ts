@@ -3,10 +3,11 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { ScamReportInput } from "../../shared/types";
 
 mkdirSync(new URL("../data/", import.meta.url), { recursive: true });
-const db = new DatabaseSync(new URL("../data/dealdig.db", import.meta.url).pathname);
+const db = new DatabaseSync(fileURLToPath(new URL("../data/dealdig.db", import.meta.url)));
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS reports (

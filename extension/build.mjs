@@ -11,7 +11,7 @@ cpSync("public", "dist", { recursive: true });
 const options = {
   entryPoints: {
     background: "src/background.ts",
-    "content-poshmark": "src/content/poshmark.ts",
+    content: "src/content/main.ts",
     sidepanel: "src/sidepanel/main.tsx",
   },
   outdir: "dist",

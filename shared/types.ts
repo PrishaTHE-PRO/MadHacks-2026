@@ -1,23 +1,39 @@
 // Types shared by the extension and the server.
-// Every site adapter (Poshmark, eBay, Depop, ...) produces a `Listing`,
-// and the server always answers with a `RiskReport`.
+// Every site adapter (Poshmark, eBay, Facebook Marketplace, ...) produces a
+// `Listing`, and the server always answers with a `RiskReport`.
 
-export type Platform = "poshmark";
+export const PLATFORMS = ["poshmark", "ebay", "facebook"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
+export const PLATFORM_NAMES: Record<Platform, string> = {
+  poshmark: "Poshmark",
+  ebay: "eBay",
+  facebook: "Facebook Marketplace",
+};
 
 export interface SellerInfo {
   platform: Platform;
+  /** The platform's own seller id (from the profile URL). Empty if the page didn't show one. */
   id: string;
-  username: string;
+  username: string; // handle where the site has one; otherwise the display name
   displayName?: string;
   profileUrl: string;
   joinedAt?: string; // ISO date
+  /** Some sites only show "Joined in 2015" or "Member since Mar 2014". */
+  joinedPrecision?: "day" | "month" | "year";
   lastActiveAt?: string; // ISO date
   location?: string;
+  // Poshmark
   ordersShipped?: number;
   fiveStarReviews?: number;
   listingsCount?: number;
   followers?: number;
   itemsSoldDisplay?: string; // e.g. "2500+"
+  // eBay
+  feedbackScore?: number;
+  positiveFeedbackPercent?: number;
+  // Facebook Marketplace
+  ratingsCount?: number;
 }
 
 export interface Listing {
@@ -34,7 +50,8 @@ export interface Listing {
   originalPrice?: number; // seller-entered "retail" price, not verified
   currency: string;
   photos: string[]; // full-size image URLs
-  listedAt?: string; // ISO date
+  listedAt?: string; // ISO date (approximate when the site shows "3 days ago")
+  location?: string; // where the item is, e.g. "Madison, WI"
   likes?: number;
   comments?: number;
   status?: string; // "available", "sold", ...

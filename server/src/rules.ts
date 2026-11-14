@@ -1,7 +1,7 @@
 // Rule checks that run instantly with no API key. They produce signals and
 // a base score; Claude (if configured) then reviews the listing on top of them.
 
-import type { Listing, Signal } from "../../shared/types";
+import { PLATFORM_NAMES, type Listing, type Signal } from "../../shared/types";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -34,7 +34,7 @@ const COUNTERFEIT_FLOORS: Record<string, number> = {
   supreme: 40,
 };
 
-// Asking to pay or talk outside Poshmark voids buyer protection: the #1 scam pattern.
+// Asking to pay or talk outside the platform voids buyer protection: the #1 scam pattern.
 const OFF_PLATFORM = [
   /\bvenmo\b/i,
   /\bzelle\b/i,
@@ -77,12 +77,39 @@ export function runRules(listing: Listing, communityReports: number): RuleResult
   }
 
   // --- Seller account ---
+  const site = PLATFORM_NAMES[listing.platform];
+  // Facebook's join date is for the Facebook account, not Marketplace.
+  const where = listing.platform === "facebook" ? "Facebook" : site;
   if (s.joinedAt) {
-    const ageDays = (now - Date.parse(s.joinedAt)) / DAY;
-    if (ageDays < 14) add("new-account", "danger", `Seller account is only ${Math.max(0, Math.round(ageDays))} days old.`, 25);
-    else if (ageDays < 90) add("young-account", "caution", `Seller account is ${Math.round(ageDays)} days old.`, 10);
-    else if (ageDays > 365 * 2) add("old-account", "good", `Seller has been on Poshmark since ${new Date(s.joinedAt).getFullYear()}.`, -5);
+    const joined = Date.parse(s.joinedAt);
+    const year = new Date(joined).getUTCFullYear();
+    if (s.joinedPrecision === "year") {
+      // "Joined in 2026" could mean yesterday, so only the current year is a warning.
+      if (year === new Date(now).getUTCFullYear())
+        add("young-account", "caution", `Seller joined ${where} this year (${year}).`, 15);
+      else if (now - joined > 365 * 3 * DAY) add("old-account", "good", `Seller has been on ${where} since ${year}.`, -5);
+    } else {
+      // For month precision, measure from the end of that month so we never overstate the age.
+      const end = s.joinedPrecision === "month" ? Date.UTC(year, new Date(joined).getUTCMonth() + 1, 1) : joined;
+      const ageDays = (now - end) / DAY;
+      if (ageDays < 14) add("new-account", "danger", `Seller account is only ${Math.max(0, Math.round(ageDays))} days old.`, 25);
+      else if (ageDays < 90) add("young-account", "caution", `Seller account is ${Math.round(ageDays)} days old.`, 10);
+      else if (ageDays > 365 * 2) add("old-account", "good", `Seller has been on ${where} since ${year}.`, -5);
+    }
   }
+
+  // eBay feedback
+  if (s.feedbackScore !== undefined) {
+    if (s.feedbackScore < 5) add("little-feedback", "caution", `Seller has only ${s.feedbackScore} feedback.`, 12);
+    else if (s.feedbackScore >= 500 && (s.positiveFeedbackPercent ?? 0) >= 98)
+      add("track-record", "good", `Seller has ${s.feedbackScore.toLocaleString()} feedback, ${s.positiveFeedbackPercent}% positive.`, -8);
+  }
+  if (s.positiveFeedbackPercent !== undefined && s.positiveFeedbackPercent < 95 && (s.feedbackScore ?? 10) >= 10) {
+    add("low-positive", "caution", `Only ${s.positiveFeedbackPercent}% positive feedback.`, 10);
+  }
+
+  // Facebook Marketplace ratings
+  if (s.ratingsCount === 0) add("no-ratings", "caution", "Seller has no Marketplace ratings yet.", 10);
 
   if (s.ordersShipped !== undefined) {
     if (s.ordersShipped === 0) add("no-sales", "caution", "Seller hasn't shipped any orders yet.", 12);
@@ -127,7 +154,7 @@ export function runRules(listing: Listing, communityReports: number): RuleResult
     add(
       "off-platform",
       "danger",
-      "Listing mentions paying or contacting outside Poshmark. That removes your buyer protection.",
+      `Listing mentions paying or contacting outside ${site}. That removes your buyer protection.`,
       30,
     );
   }

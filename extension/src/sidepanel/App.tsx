@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
-import type { Listing, RiskReport, Severity } from "../../../shared/types";
+import { PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
 
 function useActiveTabState(): TabState | null {
   const [tabId, setTabId] = useState<number | null>(null);
@@ -44,11 +44,35 @@ export function App() {
 }
 
 function Empty() {
-  return <p className="muted">Open a Poshmark listing and DealDig will check it automatically.</p>;
+  return <p className="muted">Open a Poshmark, eBay or Facebook Marketplace listing and DealDig will check it automatically.</p>;
+}
+
+/** "@handle" on sites with handles; Facebook only has a display name. */
+const sellerName = (l: Listing) =>
+  l.platform === "facebook" ? l.seller.displayName || l.seller.username || "Unknown seller" : `@${l.seller.username}`;
+
+function sellerFacts(l: Listing): string[] {
+  const s = l.seller;
+  const facts: string[] = [];
+  if (s.positiveFeedbackPercent !== undefined) facts.push(`${s.positiveFeedbackPercent}% positive`);
+  if (s.feedbackScore !== undefined) facts.push(`${s.feedbackScore.toLocaleString()} feedback`);
+  if (s.ratingsCount !== undefined) facts.push(s.ratingsCount ? `${s.ratingsCount} ratings` : "no ratings");
+  if (s.joinedAt) {
+    const d = new Date(s.joinedAt);
+    facts.push(
+      `joined ${
+        s.joinedPrecision === "year"
+          ? d.getUTCFullYear()
+          : d.toLocaleDateString(undefined, { month: "short", year: "numeric", timeZone: "UTC" })
+      }`,
+    );
+  }
+  return facts;
 }
 
 function ListingCard({ listing }: { listing: Listing }) {
   const s = listing.seller;
+  const facts = sellerFacts(listing);
   return (
     <section className="card listing">
       {listing.photos[0] && <img src={listing.photos[0]} alt="" />}
@@ -58,10 +82,20 @@ function ListingCard({ listing }: { listing: Listing }) {
           ${listing.price}
           {listing.originalPrice ? ` · listed retail $${listing.originalPrice}` : ""}
           {listing.brand ? ` · ${listing.brand}` : ""}
+          {listing.condition ? ` · ${listing.condition}` : ""}
         </div>
         <div className="muted">
-          Seller <a href={s.profileUrl} target="_blank" rel="noreferrer">@{s.username}</a>
+          {PLATFORM_NAMES[listing.platform]} · Seller{" "}
+          {s.profileUrl ? (
+            <a href={s.profileUrl} target="_blank" rel="noreferrer">
+              {sellerName(listing)}
+            </a>
+          ) : (
+            sellerName(listing)
+          )}
+          {facts.length ? ` · ${facts.join(" · ")}` : ""}
         </div>
+        {listing.location && <div className="muted">{listing.location}</div>}
       </div>
     </section>
   );
@@ -142,6 +176,8 @@ function ReportSeller({ listing }: { listing: Listing }) {
     }
   };
 
+  if (!listing.seller.id)
+    return <p className="muted small">Couldn't identify the seller on this page, so they can't be reported yet.</p>;
   if (status === "sent") return <p className="muted">Thanks. This seller will be flagged for other DealDig users.</p>;
   if (!open)
     return (
@@ -151,7 +187,7 @@ function ReportSeller({ listing }: { listing: Listing }) {
     );
   return (
     <section className="card">
-      <h2>Report @{listing.seller.username}</h2>
+      <h2>Report {sellerName(listing)}</h2>
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}
