@@ -6,6 +6,7 @@ import { SERVER_URL } from "./config";
 import { tabKey, type AnalyzeResponse, type ExtensionMessage, type TabState } from "./messages";
 import type { Listing, RiskReport } from "../../shared/types";
 import { dhashFromRgba } from "../../shared/photohash";
+import { saveCheckToHistory } from "./history";
 
 const CACHE_MS = 10 * 60 * 1000;
 const HASHED_PHOTOS = 4;
@@ -71,6 +72,8 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
       await setTab(tabId, { status: "loading", listing });
       try {
         const report = await analyze(listing);
+        // Personal history stays on this device (chrome.storage.local).
+        await saveCheckToHistory(listing, report).catch((e) => console.warn("[DealDig] history not saved", e));
         await setTab(tabId, { status: "done", listing, report });
         sendResponse({ ok: true, report } satisfies AnalyzeResponse);
       } catch (err) {

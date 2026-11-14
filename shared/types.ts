@@ -115,19 +115,67 @@ export interface RiskReport {
   signals: Signal[];
   item?: NormalizedItem;
   priceCheck?: PriceCheck;
-  communityReports: number;
+  communityReports: number; // distinct people who reported this seller (last 12 months)
+  community?: CommunityInfo;
   /** Listings by other sellers with the same photos (spec §3.1). Omitted when photos couldn't be fingerprinted. */
   photoMatches?: PhotoMatch[];
   aiUsed: boolean;
   checkedAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Community reports (spec §7.1, §7.2)
+// ---------------------------------------------------------------------------
+
+export const REPORT_CATEGORIES = {
+  "off-platform-payment": "Asked to pay outside the platform (Zelle, gift cards, wire...)",
+  "deposit-before-viewing": "Asked for a deposit before I could see it",
+  "fake-item": "Fake, counterfeit or not as described",
+  "no-show": "Took payment and never delivered or showed up",
+  "stolen-photos": "Used someone else's photos",
+  "fake-documents": "Sent fake receipts, IDs or documents",
+  "overpayment": "Overpaid and asked for money back",
+  "other": "Something else",
+} as const;
+export type ReportCategory = keyof typeof REPORT_CATEGORIES;
+
+/** Short labels for showing report counts to other users. */
+export const REPORT_CATEGORY_SHORT: Record<ReportCategory, string> = {
+  "off-platform-payment": "asked to pay off-platform",
+  "deposit-before-viewing": "asked for a deposit before viewing",
+  "fake-item": "fake or not as described",
+  "no-show": "took payment, never delivered",
+  "stolen-photos": "used stolen photos",
+  "fake-documents": "sent fake documents",
+  "overpayment": "overpayment scam",
+  "other": "other",
+};
+
 export interface ScamReportInput {
   platform: Platform;
   sellerId: string;
   sellerUsername: string;
   listingId?: string;
-  reason: string;
+  category: ReportCategory;
+  /** Optional details. Stored for moderation only: never shown to other users or sent to AI. */
+  details?: string;
+  /** Random id made on the user's device, so one person counts once per seller. Hashed before storing. */
+  reporterId: string;
+}
+
+export interface CommunityInfo {
+  /** Distinct people who reported this seller in the last 12 months. */
+  reporters: number;
+  reportersLast30Days: number;
+  /** 3+ different people in 30 days. A warning to the buyer, not a block. */
+  flagged: boolean;
+  /** How many reporters picked each reason, biggest first. */
+  categories: { category: ReportCategory; count: number }[];
+}
+
+export interface ReportResponse {
+  ok: true;
+  community: CommunityInfo;
 }
 
 // ---------------------------------------------------------------------------

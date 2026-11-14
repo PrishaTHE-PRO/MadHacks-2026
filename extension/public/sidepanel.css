@@ -140,3 +140,26 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .ela { display: flex; flex-direction: column; gap: 6px; }
 .ela img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
 .verify { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+
+/* Community flag, earlier visits, reports, history */
+.flag { border: 2px solid var(--high); background: color-mix(in srgb, var(--high) 8%, var(--card)); }
+.flag .title { font-weight: 700; color: var(--high); }
+.flag ul, .earlier ul { margin: 4px 0; padding-left: 18px; }
+.flag p, .earlier p { margin: 4px 0; }
+.earlier { border-color: var(--accent); }
+.report-form { display: flex; flex-direction: column; gap: 8px; }
+.report-form h2, .report-form p { margin: 0; }
+.report-form textarea { margin: 0; }
+.options { display: flex; flex-direction: column; gap: 4px; }
+.options label { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; }
+.options input { margin-top: 3px; accent-color: var(--accent); }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.history summary { cursor: pointer; list-style: none; }
+.history summary h2 { display: inline; margin: 0; }
+.history summary::before { content: "▸ "; color: var(--muted); }
+.history[open] summary::before { content: "▾ "; }
+.history ul { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.history li { display: flex; gap: 8px; align-items: flex-start; }
+.history .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pill { font-weight: 800; font-size: 12px; min-width: 30px; text-align: center; padding: 2px 6px; border-radius: 999px; color: #fff; }
+.pill.low { background: var(--low); } .pill.medium { background: var(--medium); } .pill.high { background: var(--high); }

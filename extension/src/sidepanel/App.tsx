@@ -1,7 +1,30 @@
 import { useEffect, useState } from "react";
 import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
-import { LOCAL_PLATFORMS, PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
+import {
+  LOCAL_PLATFORMS,
+  PLATFORM_NAMES,
+  REPORT_CATEGORIES,
+  REPORT_CATEGORY_SHORT,
+  type CommunityInfo,
+  type Listing,
+  type ReportCategory,
+  type ReportResponse,
+  type RiskReport,
+  type Severity,
+} from "../../../shared/types";
+import {
+  clearHistory,
+  earlierVisits,
+  forgetSeller,
+  HISTORY_DAYS,
+  loadHistory,
+  myReport,
+  reporterId,
+  setMyReport,
+  type HistoryEntry,
+  type MyReport,
+} from "../history";
 import { MeetupHelper } from "./Meetup";
 import { DocCheck } from "./DocCheck";
 import { reverseSearchLinks } from "../../../shared/photohash";
@@ -34,6 +57,7 @@ function useActiveTabState(): TabState | null {
 
 export function App() {
   const state = useActiveTabState();
+  const history = useHistory();
   return (
     <main>
       <header className="brand">DealDig</header>
@@ -41,8 +65,9 @@ export function App() {
       {state && <ListingCard listing={state.listing} />}
       {state?.status === "loading" && <p className="muted">Digging into this listing…</p>}
       {state?.status === "error" && <p className="error">{state.error}</p>}
-      {state?.status === "done" && <Report report={state.report} listing={state.listing} />}
+      {state?.status === "done" && <Report report={state.report} listing={state.listing} history={history} />}
       <DocCheck />
+      <HistoryCard history={history} />
     </main>
   );
 }
@@ -110,11 +135,12 @@ const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
 const ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 const ICON: Record<Severity, string> = { danger: "⛔", caution: "⚠️", info: "ℹ️", good: "✅" };
 
-function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
+function Report({ report, listing, history }: { report: RiskReport; listing: Listing; history: HistoryEntry[] }) {
   const signals = [...report.signals].sort((a, b) => b.points - a.points || ORDER[a.severity] - ORDER[b.severity]);
   const p = report.priceCheck;
   return (
     <>
+      <CommunityFlag community={report.community} />
       <section className={`card score ${report.level}`}>
         <div className="num">{report.score}</div>
         <div>
@@ -131,6 +157,8 @@ function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
           )}
         </div>
       </section>
+
+      <EarlierVisits listing={listing} history={history} />
 
       {report.item && (
         <p className="muted small">
@@ -240,53 +268,259 @@ function PhotoCheck({ report, listing }: { report: RiskReport; listing: Listing 
   );
 }
 
-function ReportSeller({ listing }: { listing: Listing }) {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+const ago = (ms: number) => {
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 60) return `${Math.max(1, mins)} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+};
 
-  const submit = async () => {
+const LEVEL_LABEL = { low: "low risk", medium: "be careful", high: "high risk" } as const;
+
+/** Live view of this device's history (it changes when the background saves a check). */
+function useHistory(): HistoryEntry[] {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  useEffect(() => {
+    void loadHistory().then(setHistory);
+    const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === "local" && "history" in changes) void loadHistory().then(setHistory);
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
+  }, []);
+  return history;
+}
+
+/** "You looked at this 3 days ago" and other listings from the same seller (spec §7.1). */
+function EarlierVisits({ listing, history }: { listing: Listing; history: HistoryEntry[] }) {
+  const { previous, otherListings } = earlierVisits(history, listing);
+  if (!previous && !otherListings.length) return null;
+  return (
+    <section className="card earlier">
+      {previous && (
+        <p>
+          You looked at this listing {ago(previous.seenAt)}: score {previous.score} ({LEVEL_LABEL[previous.level]}).
+        </p>
+      )}
+      {otherListings.length > 0 && (
+        <>
+          <p>
+            You've seen {otherListings.length === 1 ? "another listing" : `${otherListings.length} other listings`} from this
+            seller:
+          </p>
+          <ul>
+            {otherListings.slice(0, 3).map((h) => (
+              <li key={h.listingId}>
+                <a href={h.url} target="_blank" rel="noreferrer">
+                  {h.title}
+                </a>{" "}
+                <span className="muted">
+                  · score {h.score} · {ago(h.lastSeenAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="muted small">From your history on this device.</p>
+    </section>
+  );
+}
+
+/** Shown when 3+ different people reported the seller in 30 days. A warning, never a block. */
+function CommunityFlag({ community }: { community?: CommunityInfo }) {
+  if (!community?.flagged) return null;
+  return (
+    <section className="card flag">
+      <div className="title">⚑ Flagged by {community.reportersLast30Days} people in the last 30 days</div>
+      <ul>
+        {community.categories.slice(0, 3).map((c) => (
+          <li key={c.category}>
+            {c.count} said: {REPORT_CATEGORY_SHORT[c.category]}
+          </li>
+        ))}
+      </ul>
+      <p className="small muted">
+        Reports come from other DealDig users and can be wrong. DealDig doesn't block sellers, so weigh this with everything
+        else.
+      </p>
+    </section>
+  );
+}
+
+function ReportSeller({ listing }: { listing: Listing }) {
+  const { platform, id: listingId } = listing;
+  const sellerId = listing.seller.id;
+  const [mine, setMine] = useState<MyReport | undefined>();
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<ReportCategory | null>(null);
+  const [details, setDetails] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [community, setCommunity] = useState<CommunityInfo | null>(null);
+
+  useEffect(() => {
+    setOpen(false);
+    setCategory(null);
+    setDetails("");
+    setStatus("idle");
+    setCommunity(null);
+    setMine(undefined);
+    if (sellerId) void myReport(platform, sellerId).then(setMine);
+  }, [platform, sellerId, listingId]);
+
+  const send = async (method: "POST" | "DELETE") => {
     setStatus("sending");
     try {
+      const id = await reporterId();
+      const body =
+        method === "POST"
+          ? { platform, sellerId, sellerUsername: listing.seller.username, listingId, category, details: details.trim() || undefined, reporterId: id }
+          : { platform, sellerId, reporterId: id };
       const res = await fetch(`${SERVER_URL}/report`, {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform: listing.platform,
-          sellerId: listing.seller.id,
-          sellerUsername: listing.seller.username,
-          listingId: listing.id,
-          reason,
-        }),
+        body: JSON.stringify(body),
       });
-      setStatus(res.ok ? "sent" : "error");
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as ReportResponse;
+      const next = method === "POST" && category ? { category, at: Date.now() } : null;
+      await setMyReport(platform, sellerId, next);
+      // Drop the cached score so the next check includes this report.
+      await chrome.storage.session.remove(`report:${platform}:${listingId}`);
+      setMine(next ?? undefined);
+      setCommunity(data.community);
+      setOpen(false);
+      setStatus("idle");
     } catch {
       setStatus("error");
     }
   };
 
-  if (!listing.seller.id)
+  if (!sellerId)
     return <p className="muted small">Couldn't identify the seller on this page, so they can't be reported yet.</p>;
-  if (status === "sent") return <p className="muted">Thanks. This seller will be flagged for other DealDig users.</p>;
+
+  const othersLine = community && (
+    <p className="muted small">
+      {community.reporters} {community.reporters === 1 ? "person has" : "people have"} reported this seller.
+      {community.flagged ? " Other buyers will see a warning." : ""}
+    </p>
+  );
+  const errorLine = status === "error" && <p className="error">Couldn't reach the DealDig server. Is it running?</p>;
+
+  if (mine && !open)
+    return (
+      <section className="card">
+        <p>
+          You reported this seller {ago(mine.at)}: {REPORT_CATEGORY_SHORT[mine.category]}.
+        </p>
+        {othersLine}
+        <div className="row">
+          <button className="ghost" onClick={() => setOpen(true)}>
+            Change reason
+          </button>
+          <button className="secondary" disabled={status === "sending"} onClick={() => void send("DELETE")}>
+            {status === "sending" ? "Removing…" : "Undo report"}
+          </button>
+        </div>
+        {errorLine}
+      </section>
+    );
+
   if (!open)
     return (
-      <button className="secondary" onClick={() => setOpen(true)}>
-        Report this seller
-      </button>
+      <>
+        {othersLine}
+        <button className="secondary" onClick={() => setOpen(true)}>
+          Report this seller
+        </button>
+      </>
     );
+
   return (
-    <section className="card">
+    <section className="card report-form">
       <h2>Report {sellerName(listing)}</h2>
+      <p className="muted small">
+        Anonymous: DealDig doesn't know who you are. A random code on this device makes sure you count once per seller.
+      </p>
+      <div className="options">
+        {(Object.keys(REPORT_CATEGORIES) as ReportCategory[]).map((c) => (
+          <label key={c}>
+            <input type="radio" name="category" checked={category === c} onChange={() => setCategory(c)} />
+            {REPORT_CATEGORIES[c]}
+          </label>
+        ))}
+      </div>
       <textarea
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="What happened? e.g. asked me to pay over Zelle"
-        rows={3}
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        placeholder="Optional details. Only used to review reports; never shown to other users or sent to AI."
+        rows={2}
+        maxLength={1000}
       />
-      <button disabled={!reason.trim() || status === "sending"} onClick={submit}>
-        {status === "sending" ? "Sending…" : "Submit report"}
-      </button>
-      {status === "error" && <p className="error">Couldn't send the report. Is the server running?</p>}
+      <div className="row">
+        <button disabled={!category || status === "sending"} onClick={() => void send("POST")}>
+          {status === "sending" ? "Sending…" : mine ? "Update report" : "Submit report"}
+        </button>
+        <button className="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+      <p className="muted small">When 3 different people report a seller, other buyers see a warning. Sellers aren't blocked.</p>
+      {errorLine}
     </section>
+  );
+}
+
+/** Everything this device has checked, with Forget seller and Clear all (spec §7.1). */
+function HistoryCard({ history }: { history: HistoryEntry[] }) {
+  const [confirmClear, setConfirmClear] = useState(false);
+  if (!history.length) return null;
+  return (
+    <details className="card history">
+      <summary>
+        <h2>Your history ({history.length})</h2>
+      </summary>
+      <p className="muted small">Saved only on this device for {HISTORY_DAYS} days. Clearing it doesn't remove reports you've sent.</p>
+      <ul>
+        {history.slice(0, 30).map((h) => (
+          <li key={`${h.platform}:${h.listingId}`}>
+            <span className={`pill ${h.level}`}>{h.score}</span>
+            <div className="grow">
+              <a href={h.url} target="_blank" rel="noreferrer">
+                {h.title}
+              </a>
+              <div className="muted small">
+                {PLATFORM_NAMES[h.platform]} · {h.sellerName || "unknown seller"} · {ago(h.lastSeenAt)}
+              </div>
+            </div>
+            <button className="link small" onClick={() => void forgetSeller(h.platform, h.sellerId, h.listingId)}>
+              Forget seller
+            </button>
+          </li>
+        ))}
+      </ul>
+      {confirmClear ? (
+        <div className="row">
+          <button
+            className="secondary"
+            onClick={() => {
+              void clearHistory();
+              setConfirmClear(false);
+            }}
+          >
+            Yes, clear all
+          </button>
+          <button className="ghost" onClick={() => setConfirmClear(false)}>
+            Keep it
+          </button>
+        </div>
+      ) : (
+        <button className="secondary" onClick={() => setConfirmClear(true)}>
+          Clear all history
+        </button>
+      )}
+    </details>
   );
 }

@@ -1,11 +1,11 @@
 import express from "express";
 import { z } from "zod";
 import { analyzeListing } from "./analyze";
-import { addReport } from "./db";
+import { addReport, communityStats, withdrawReport } from "./db";
 import { aiEnabled } from "./claude";
 import { findSpots, MeetupError } from "./meetup";
 import { draftSafeReply } from "./reply";
-import { PLATFORMS, type Listing } from "../../shared/types";
+import { PLATFORMS, REPORT_CATEGORIES, type Listing, type ReportCategory, type ReportResponse } from "../../shared/types";
 import { isPhotoHash } from "../../shared/photohash";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -30,12 +30,23 @@ const ListingBody = z.object({
   photoHashes: z.array(z.string().refine(isPhotoHash).nullable()).max(20).optional(),
 });
 
+// The device's random reporter id: 128+ bits as hex, never tied to an account.
+const ReporterId = z.string().regex(/^[0-9a-f]{32,64}$/);
+
 const ReportBody = z.object({
   platform: z.enum(PLATFORMS),
-  sellerId: z.string().min(1),
-  sellerUsername: z.string(),
-  listingId: z.string().optional(),
-  reason: z.string().trim().min(1).max(1000),
+  sellerId: z.string().min(1).max(200),
+  sellerUsername: z.string().max(200),
+  listingId: z.string().max(200).optional(),
+  category: z.enum(Object.keys(REPORT_CATEGORIES) as [ReportCategory, ...ReportCategory[]]),
+  details: z.string().trim().max(1000).optional(),
+  reporterId: ReporterId,
+});
+
+const WithdrawBody = z.object({
+  platform: z.enum(PLATFORMS),
+  sellerId: z.string().min(1).max(200),
+  reporterId: ReporterId,
 });
 
 const SpotsBody = z
@@ -81,7 +92,19 @@ app.post("/report", (req, res) => {
     return;
   }
   addReport(parsed.data);
-  res.json({ ok: true });
+  res.json({ ok: true, community: communityStats(parsed.data.platform, parsed.data.sellerId) } satisfies ReportResponse);
+});
+
+// Undo: the reporter changed their mind or reported the wrong seller.
+app.delete("/report", (req, res) => {
+  const parsed = WithdrawBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", issues: parsed.error.issues });
+    return;
+  }
+  const { platform, sellerId, reporterId } = parsed.data;
+  withdrawReport(platform, sellerId, reporterId);
+  res.json({ ok: true, community: communityStats(platform, sellerId) } satisfies ReportResponse);
 });
 
 app.post("/meetup/spots", async (req, res) => {
