@@ -6,6 +6,7 @@ import { aiEnabled } from "./claude";
 import { findSpots, MeetupError } from "./meetup";
 import { draftSafeReply } from "./reply";
 import { PLATFORMS, type Listing } from "../../shared/types";
+import { isPhotoHash } from "../../shared/photohash";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const app = express();
@@ -25,6 +26,8 @@ const ListingBody = z.object({
       seller: z.object({ id: z.string(), username: z.string() }).loose(),
     })
     .loose(),
+  /** dHash per photo (same order as listing.photos), null where the extension couldn't read it. */
+  photoHashes: z.array(z.string().refine(isPhotoHash).nullable()).max(20).optional(),
 });
 
 const ReportBody = z.object({
@@ -66,7 +69,7 @@ app.post("/analyze-listing", async (req, res) => {
   }
   const listing = parsed.data.listing as unknown as Listing;
   const started = Date.now();
-  const report = await analyzeListing(listing);
+  const report = await analyzeListing(listing, parsed.data.photoHashes);
   console.log(`[analyze] ${listing.platform}/${listing.id} → ${report.score} (${report.level}) in ${Date.now() - started}ms`);
   res.json(report);
 });

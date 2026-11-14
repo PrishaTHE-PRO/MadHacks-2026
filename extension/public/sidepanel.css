@@ -121,3 +121,22 @@ button.chip {
 }
 button.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chips .sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+
+/* Photo check */
+.matches { margin: 0 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.photo-search { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.photo-search figure { margin: 0; text-align: center; }
+.photo-search img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+
+/* Screenshot / document check */
+.doccheck { display: flex; flex-direction: column; gap: 8px; }
+.doccheck h2, .doccheck p { margin: 0; }
+.doccheck.dragging { border-color: var(--accent); border-style: dashed; }
+.doccheck .title { font-weight: 600; overflow-wrap: anywhere; }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; text-decoration: underline; }
+.details { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+.details div { display: contents; }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+.ela { display: flex; flex-direction: column; gap: 6px; }
+.ela img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+.verify { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }

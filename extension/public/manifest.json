@@ -7,7 +7,13 @@
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
   "permissions": ["sidePanel", "storage", "tabs"],
-  "host_permissions": ["https://poshmark.com/*", "http://localhost:8787/*"],
+  "host_permissions": [
+    "https://poshmark.com/*",
+    "http://localhost:8787/*",
+    "https://di2ponv0v5otw.cloudfront.net/*",
+    "https://i.ebayimg.com/*",
+    "https://*.fbcdn.net/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://poshmark.com/*", "https://www.ebay.com/itm/*", "https://www.facebook.com/*"],

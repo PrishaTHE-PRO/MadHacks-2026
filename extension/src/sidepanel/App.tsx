@@ -3,6 +3,8 @@ import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
 import { LOCAL_PLATFORMS, PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
 import { MeetupHelper } from "./Meetup";
+import { DocCheck } from "./DocCheck";
+import { reverseSearchLinks } from "../../../shared/photohash";
 
 function useActiveTabState(): TabState | null {
   const [tabId, setTabId] = useState<number | null>(null);
@@ -40,6 +42,7 @@ export function App() {
       {state?.status === "loading" && <p className="muted">Digging into this listing…</p>}
       {state?.status === "error" && <p className="error">{state.error}</p>}
       {state?.status === "done" && <Report report={state.report} listing={state.listing} />}
+      <DocCheck />
     </main>
   );
 }
@@ -171,6 +174,8 @@ function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
         </section>
       )}
 
+      <PhotoCheck report={report} listing={listing} />
+
       {LOCAL_PLATFORMS.includes(listing.platform) && <MeetupHelper listing={listing} report={report} />}
 
       <ReportSeller listing={listing} />
@@ -179,6 +184,59 @@ function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
         {new Date(report.checkedAt).toLocaleTimeString()}
       </p>
     </>
+  );
+}
+
+const SEARCHABLE_PHOTOS = 4;
+
+/** Stolen-photo check (spec §3.1): matches from the shared index, plus free web search links. */
+function PhotoCheck({ report, listing }: { report: RiskReport; listing: Listing }) {
+  const matches = report.photoMatches;
+  const photos = listing.photos.slice(0, SEARCHABLE_PHOTOS);
+  if (!photos.length) return null;
+  return (
+    <section className="card">
+      <h2>Photos</h2>
+      {matches === undefined && <p className="muted small">Couldn't fingerprint these photos, so they weren't compared.</p>}
+      {matches?.length === 0 && <p className="muted small">No other listing checked with DealDig uses these photos.</p>}
+      {matches && matches.length > 0 && (
+        <ul className="matches">
+          {matches.map((m) => (
+            <li key={`${m.photoIndex}-${m.platform}-${m.listingUrl}`}>
+              Photo {m.photoIndex + 1}
+              {m.mirrored ? " (flipped)" : ""} is also in{" "}
+              <a href={m.listingUrl} target="_blank" rel="noreferrer">
+                {m.listingTitle || "another listing"}
+              </a>{" "}
+              <span className="muted">
+                · {PLATFORM_NAMES[m.platform]} · {m.platform === "facebook" ? m.sellerUsername : `@${m.sellerUsername}`} · checked{" "}
+                {new Date(m.seenAt).toLocaleDateString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="small">Search the web for a photo, to see if it was taken from somewhere else:</p>
+      <div className="photo-search">
+        {photos.map((url, i) => {
+          const links = reverseSearchLinks(url);
+          return (
+            <figure key={url}>
+              <img src={url} alt={`Photo ${i + 1}`} />
+              <figcaption className="small">
+                <a href={links.lens} target="_blank" rel="noreferrer">
+                  Lens
+                </a>{" "}
+                ·{" "}
+                <a href={links.tineye} target="_blank" rel="noreferrer">
+                  TinEye
+                </a>
+              </figcaption>
+            </figure>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
