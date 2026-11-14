@@ -81,3 +81,43 @@ button.secondary { background: transparent; color: var(--high); border: 1px soli
 .reasons li { margin: 2px 0; }
 .signals .grow { flex: 1; }
 .signals .points { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+
+/* Meetup helper */
+.meetup { display: flex; flex-direction: column; gap: 10px; }
+.meetup h2 { margin-bottom: 0; }
+.meetup p { margin: 0; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-weight: 600; }
+.row { display: flex; gap: 6px; }
+.row input { flex: 1; min-width: 0; }
+input[type="text"], .meetup input:not([type]) {
+  font: inherit;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.meetup textarea { margin-bottom: 0; }
+.note { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--medium) 12%, transparent); }
+.note.high { background: color-mix(in srgb, var(--high) 14%, transparent); }
+
+.spots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.spots li { border: 1px solid var(--border); border-radius: 10px; }
+.spots li.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.spots label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; cursor: pointer; }
+.spots input { margin-top: 3px; accent-color: var(--accent); }
+.spots .title { font-weight: 600; }
+.spots .grow { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button.chip {
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chips .sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
