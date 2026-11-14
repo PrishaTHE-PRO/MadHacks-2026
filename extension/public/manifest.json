@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "DealDig",
+  "version": "0.1.0",
+  "description": "Checks online listings, chats and deals for scams before money changes hands.",
+  "action": { "default_title": "Open DealDig" },
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "permissions": ["sidePanel", "storage", "tabs"],
+  "host_permissions": ["https://poshmark.com/*", "http://localhost:8787/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://poshmark.com/*"],
+      "js": ["content-poshmark.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

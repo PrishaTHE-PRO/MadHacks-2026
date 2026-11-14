@@ -1,0 +1,15 @@
+{
+  "name": "dealdig",
+  "private": true,
+  "workspaces": [
+    "server",
+    "extension"
+  ],
+  "scripts": {
+    "server": "npm run dev -w server",
+    "ext": "npm run dev -w extension",
+    "build": "npm run build -w extension",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w extension",
+    "test": "npm test -w server"
+  }
+}
