@@ -93,6 +93,18 @@ export interface NormalizedItem {
 
 export type RiskLevel = "low" | "medium" | "high";
 
+/** Another listing that uses the same (or a mirrored) photo, from DealDig's shared index. */
+export interface PhotoMatch {
+  photoIndex: number; // which photo of this listing matched
+  platform: Platform;
+  sellerId: string;
+  sellerUsername: string;
+  listingUrl: string;
+  listingTitle: string;
+  seenAt: string; // ISO date the other listing was checked
+  mirrored: boolean;
+}
+
 export interface RiskReport {
   listingId: string;
   platform: Platform;
@@ -104,6 +116,8 @@ export interface RiskReport {
   item?: NormalizedItem;
   priceCheck?: PriceCheck;
   communityReports: number;
+  /** Listings by other sellers with the same photos (spec §3.1). Omitted when photos couldn't be fingerprinted. */
+  photoMatches?: PhotoMatch[];
   aiUsed: boolean;
   checkedAt: string;
 }

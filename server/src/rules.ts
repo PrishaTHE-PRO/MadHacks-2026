@@ -7,7 +7,7 @@
 // can do. This runs with no API key; Claude's findings and price data are
 // optional inputs.
 
-import { PLATFORM_NAMES, type Listing, type PriceCheck, type Signal } from "../../shared/types";
+import { PLATFORM_NAMES, type Listing, type PhotoMatch, type PriceCheck, type Signal } from "../../shared/types";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -25,9 +25,13 @@ export const POINTS = {
   reportsMax: 30, // ...capped at +30
   overpricedNewClaim: 5,
   fewPhotos: 5,
+  photoReused: 25, // spec §3.1: same photo in another seller's listing on the same site
+  photoReusedOtherSite: 10, // same, on another site: could be the seller crossposting
 } as const;
-// Not wired yet (need later features): photo found on another listing +25
-// (image hashes, spec §3.1) and verified handshakes -5 each, max -20 (§4.4).
+// Not wired yet (needs a later feature): verified handshakes -5 each, max -20 (§4.4).
+
+/** A photo used by this many other sellers is a stock or catalog photo, not a stolen one. */
+export const STOCK_PHOTO_SELLERS = 4;
 
 /** A seller with this many reports in the last 30 days counts as blocklisted. */
 export const BLOCKLIST_REPORTS = 3;
@@ -96,6 +100,8 @@ export interface AiFindings {
 
 export interface RuleInput {
   community?: CommunityStats;
+  /** Other sellers' listings with the same photos (already excludes this seller). */
+  photoMatches?: PhotoMatch[];
   price?: PriceCheck;
   ai?: AiFindings;
   now?: number;
@@ -269,6 +275,36 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
       add(`ai-${i}`, remaining > 0 ? "caution" : "info", flag, remaining, "ai");
       remaining = 0;
     });
+  }
+
+  // --- Photos reused from other sellers' listings ---
+  const photoMatches = input.photoMatches ?? [];
+  if (photoMatches.length) {
+    const sellers = new Set(photoMatches.map((m) => `${m.platform}:${m.sellerId}`));
+    const sameSite = photoMatches.filter((m) => m.platform === listing.platform);
+    const first = sameSite[0] ?? photoMatches[0];
+    const who = `${first.platform === "facebook" ? first.sellerUsername : `@${first.sellerUsername}`}`;
+    const flipped = photoMatches.some((m) => m.mirrored) ? " (one is flipped)" : "";
+    if (sellers.size >= STOCK_PHOTO_SELLERS) {
+      add("stock-photo", "info", `These photos are used by ${sellers.size} other sellers, so they're likely stock or catalog photos.`, 0, "community");
+    } else if (sameSite.length) {
+      const others = new Set(sameSite.map((m) => m.sellerId)).size;
+      add(
+        "photo-reused",
+        "danger",
+        `A photo here is also in a listing by ${others > 1 ? `${others} other sellers` : `another ${site} seller, ${who}`}${flipped}. Copied photos are a common scam.`,
+        POINTS.photoReused,
+        "community",
+      );
+    } else {
+      add(
+        "photo-reused-other-site",
+        "caution",
+        `A photo here is also in a ${PLATFORM_NAMES[first.platform]} listing by ${who}${flipped}. Could be the same person crossposting; ask the seller.`,
+        POINTS.photoReusedOtherSite,
+        "community",
+      );
+    }
   }
 
   // --- Listing basics ---

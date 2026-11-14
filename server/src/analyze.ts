@@ -9,16 +9,31 @@ import type { RiskLevel, RiskReport } from "../../shared/types";
 import { runRules, levelFor, type AiFindings, type RuleResult } from "./rules";
 import { aiEnabled, analyzeListing as analyzeWithClaude, explainScore, type ListingAnalysis } from "./claude";
 import { priceReference } from "./prices";
-import { communityStats, recentReports, saveCheck } from "./db";
-import type { Listing } from "../../shared/types";
+import { communityStats, otherListingPhotos, recentReports, saveCheck, savePhotoHashes } from "./db";
+import { matchPhotos, otherSellerMatches } from "./photos";
+import type { Listing, PhotoMatch } from "../../shared/types";
 
-export async function analyzeListing(listing: Listing): Promise<RiskReport> {
+/**
+ * `photoHashes[i]` is the dHash of `listing.photos[i]` (null where the
+ * extension couldn't fingerprint it). Undefined means no photo check ran.
+ */
+export async function analyzeListing(listing: Listing, photoHashes?: (string | null)[]): Promise<RiskReport> {
   const sellerId = listing.seller.id;
   const community = sellerId ? communityStats(listing.platform, sellerId) : { reports: 0, reportsLast30Days: 0 };
 
+  // Stolen-photo check: match against the shared index, then add this listing to it.
+  let photoMatches: PhotoMatch[] | undefined;
+  if (photoHashes?.some(Boolean)) {
+    photoMatches = otherSellerMatches(listing, matchPhotos(photoHashes, otherListingPhotos(listing.platform, listing.id)));
+    savePhotoHashes(
+      { platform: listing.platform, id: listing.id, url: listing.url, title: listing.title, sellerId, sellerUsername: listing.seller.username },
+      photoHashes,
+    );
+  }
+
   let analysis: ListingAnalysis | null = null;
   if (aiEnabled()) {
-    const base = runRules(listing, { community });
+    const base = runRules(listing, { community, photoMatches });
     try {
       analysis = await analyzeWithClaude(listing, base.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
     } catch (err) {
@@ -34,7 +49,7 @@ export async function analyzeListing(listing: Listing): Promise<RiskReport> {
   const ai: AiFindings | undefined = analysis
     ? { brand: analysis.item.brand, redFlags: analysis.red_flags, riskAdjust: analysis.risk_adjust }
     : undefined;
-  const result = runRules(listing, { community, price, ai });
+  const result = runRules(listing, { community, price, ai, photoMatches });
   const level = levelFor(result.score);
 
   let summary = fallbackSummary(result, level);
@@ -64,6 +79,7 @@ export async function analyzeListing(listing: Listing): Promise<RiskReport> {
     item: analysis?.item,
     priceCheck: price,
     communityReports: community.reports,
+    photoMatches: photoMatches?.slice(0, 10),
     aiUsed: Boolean(analysis) || explained,
     checkedAt: new Date().toISOString(),
   };

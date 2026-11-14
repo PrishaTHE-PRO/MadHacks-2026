@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "../shared", "../extension/src/adapters"]
+  "include": ["src", "test", "../shared", "../extension/src/adapters", "../extension/src/tamper/metadata.ts"]
 }
