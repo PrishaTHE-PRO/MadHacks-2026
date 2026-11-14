@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
-import { PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
+import { LOCAL_PLATFORMS, PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
+import { MeetupHelper } from "./Meetup";
 
 function useActiveTabState(): TabState | null {
   const [tabId, setTabId] = useState<number | null>(null);
@@ -169,6 +170,8 @@ function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
           </p>
         </section>
       )}
+
+      {LOCAL_PLATFORMS.includes(listing.platform) && <MeetupHelper listing={listing} report={report} />}
 
       <ReportSeller listing={listing} />
       <p className="muted small">

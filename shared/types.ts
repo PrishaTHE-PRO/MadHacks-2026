@@ -115,3 +115,65 @@ export interface ScamReportInput {
   listingId?: string;
   reason: string;
 }
+
+// ---------------------------------------------------------------------------
+// Meetup helper (implementation spec §4.2, §4.3)
+// ---------------------------------------------------------------------------
+
+/** Platforms where buyers and sellers meet in person. Shipping platforms
+ *  (Poshmark, eBay) are safer kept on-platform, so they don't get the helper. */
+export const LOCAL_PLATFORMS: readonly Platform[] = ["facebook"];
+
+export type SpotKind = "police" | "library" | "grocery" | "bank" | "community" | "cafe";
+
+export interface MeetupSpot {
+  id: string;
+  name: string;
+  kind: SpotKind;
+  address?: string;
+  lat: number;
+  lng: number;
+  distanceKm: number; // from the meeting point (midpoint)
+  /** One line on why this place is a good pick. */
+  why: string;
+  openingHours?: string; // raw OSM opening_hours when known
+  mapUrl: string;
+  source: "osm" | "curated";
+}
+
+export interface MeetupSpotsInput {
+  /** Free text the user typed: neighborhood, zip or cross streets. Never their GPS. */
+  area: string;
+  listingLocation?: string;
+  price?: number;
+  riskLevel?: RiskLevel;
+}
+
+export interface MeetupSpotsResponse {
+  spots: MeetupSpot[];
+  /** Where we searched around, and how we got there. */
+  center: { lat: number; lng: number; label: string };
+  /** Sunrise/sunset (ISO) for today and tomorrow at the center, for daylight times. */
+  daylight: { sunrise: string; sunset: string }[];
+  /** Short notes for the user, e.g. "High-value item: meet at a police station lobby." */
+  notes: string[];
+}
+
+export type ReplyTone = "friendly" | "firm";
+export type DealRole = "buyer" | "seller";
+
+export interface DraftReplyInput {
+  listing: { title: string; price: number; platform: Platform };
+  role: DealRole;
+  tone: ReplyTone;
+  spot: { name: string; address?: string };
+  time: string; // human text, e.g. "Saturday 2:00 PM"
+  /** Optional: the other person's latest message, pasted by the user. */
+  theirMessage?: string;
+  riskReasons?: string[];
+}
+
+export interface DraftReplyResponse {
+  reply: string;
+  aiUsed: boolean;
+}
