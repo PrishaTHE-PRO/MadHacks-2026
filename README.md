@@ -8,7 +8,7 @@ A browser extension that checks online listings for scams and counterfeits befor
 npm install
 
 # 1. Server (terminal 1)
-cp server/.env.example server/.env    # add ANTHROPIC_API_KEY (optional: rules-only without it)
+cp server/.env.example server/.env    # add ANTHROPIC_API_KEY, optionally eBay keys (rules-only without them)
 npm run server                        # http://localhost:8787
 
 # 2. Extension (terminal 2)
@@ -29,16 +29,18 @@ marketplace page
        Poshmark: re-fetches the page HTML → adapters/poshmark.ts
        eBay, Facebook: content/collect.ts copies the DOM into PageData → adapters/ebay.ts, facebook.ts
        └─ background worker (extension/src/background.ts) ── POST /analyze-listing ──▶ server
-            stores the result per tab                                  rules.ts   instant checks, no key needed
-            └─ side panel (React) renders it                           claude.ts  photos + text review (Claude)
+            stores the result per tab                                  rules.ts   risk score: points per signal, no key needed
+            └─ side panel (React) renders it                           claude.ts  item ID, price estimate, red flags, 1-line why
+                                                                       prices.ts  eBay Browse API price comparisons
                                                                        db.ts      SQLite: reports + check history
 ```
 
 - **Why re-fetch the page?** Poshmark puts all listing and seller data in an inline `window.__INITIAL_STATE__` script that deletes itself after running, so the content script can't read it from the DOM. Fetching the same URL again gets the HTML with that script still in it, and it keeps working when you click between listings without a full page load.
 - **eBay:** title, price, condition and photos come from the JSON-LD `Product` eBay server-renders; seller name, feedback score, % positive and join date come from the seller card.
 - **Facebook Marketplace:** class names are obfuscated, so the adapter only uses headings, links to `/marketplace/profile/<id>`, and text Facebook shows every user ("Listed 3 days ago in ...", "Condition", "Joined Facebook in 2015"). og: tags are used only when `og:url` is the current item, because they go stale as you click between listings. The content script waits until a new item has rendered before reading it.
-- **Score:** 0 is safe, 100 is very risky. Rule checks give a base score. When Claude is on, the final score blends the two (40% rules, 60% Claude). If a seller has community reports, the score never drops below the rules score.
-- **Price check:** right now this is Claude's estimate, labeled as such in the UI. Swapping in real sold-listing data (e.g. the eBay Browse API) is a good next step.
+- **Score** (spec §2.4): 0 is safe, 100 is very risky. It's computed in `rules.ts` as the sum of points per signal, so every point is explainable (the side panel shows them): blocklisted seller +40, price under 50% of typical or under a brand's counterfeit floor +20, account under 30 days +15, no ratings/sales/feedback +10, poor feedback +10, prior DealDig reports +10 each (max +30), text red flags up to +15, one photo +5. Bands: 0-29 low, 30-59 be careful, 60+ high. A seller counts as blocklisted with 3+ reports in 30 days.
+- **Claude's part:** Sonnet 5.5 identifies the item (brand, model, category), estimates its usual price, and lists red flags in the text and photos. It can add at most 15 points, shared with the regex off-platform check, so a prompt-injected listing can't talk its way to a low score. Haiku 5.5 then writes the one-line explanation of the final score. Without a key, the summary is the level plus the biggest reason.
+- **Price check:** with `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` set, the server compares against the median of up to 20 similar eBay listings (Browse API, asking prices). Otherwise it uses Claude's estimate, labeled as one; a low-confidence estimate only adds half the bait points.
 
 ## Layout
 
@@ -48,8 +50,9 @@ marketplace page
 | `extension/src/adapters/` | One file per site. Pure functions (HTML or `PageData` → `Listing`), testable in Node. `page.ts` has the shared `PageData` type and parsing helpers. |
 | `extension/src/content/` | The content script (`main.ts`), the DOM collector (`collect.ts`) and the on-page badge. |
 | `extension/src/sidepanel/` | React side panel. |
-| `server/src/rules.ts` | Rule checks (account age, counterfeit price floors, off-platform payment, ...). |
-| `server/src/claude.ts` | Claude prompt and output schema. |
+| `server/src/rules.ts` | The risk score: `POINTS` table, rule checks, top reasons. |
+| `server/src/prices.ts` | Price reference: eBay Browse API comps, or Claude's estimate. |
+| `server/src/claude.ts` | Claude prompts and output schemas (listing analysis, score explanation). |
 | `server/src/db.ts` | SQLite tables `reports` and `listing_checks`. |
 
 ## API

@@ -101,11 +101,13 @@ function ListingCard({ listing }: { listing: Listing }) {
   );
 }
 
+const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
+
 const ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 const ICON: Record<Severity, string> = { danger: "⛔", caution: "⚠️", info: "ℹ️", good: "✅" };
 
 function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
-  const signals = [...report.signals].sort((a, b) => ORDER[a.severity] - ORDER[b.severity]);
+  const signals = [...report.signals].sort((a, b) => b.points - a.points || ORDER[a.severity] - ORDER[b.severity]);
   const p = report.priceCheck;
   return (
     <>
@@ -116,29 +118,55 @@ function Report({ report, listing }: { report: RiskReport; listing: Listing }) {
             {report.level === "low" ? "Low risk" : report.level === "medium" ? "Be careful" : "High risk"}
           </div>
           <div className="summary">{report.summary}</div>
+          {report.topReasons.length > 0 && (
+            <ol className="reasons">
+              {report.topReasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ol>
+          )}
         </div>
       </section>
+
+      {report.item && (
+        <p className="muted small">
+          Identified as{" "}
+          <strong>
+            {[report.item.brand, report.item.model].filter(Boolean).join(" ") || report.item.category}
+          </strong>
+          {report.item.brand || report.item.model ? ` (${report.item.category})` : ""}
+        </p>
+      )}
 
       <section className="card">
         <h2>What we found</h2>
         <ul className="signals">
           {signals.map((s) => (
             <li key={s.id} className={s.severity}>
-              <span aria-hidden>{ICON[s.severity]}</span> {s.text}
+              <span aria-hidden>{ICON[s.severity]}</span>
+              <span className="grow">{s.text}</span>
+              {s.points > 0 && <span className="points">+{s.points}</span>}
             </li>
           ))}
         </ul>
+        <p className="muted small">Score = sum of the points above, capped at 100.</p>
       </section>
 
-      {p && (p.typicalLow !== null || p.note) && (
+      {p && (p.median !== null || p.note) && (
         <section className="card">
           <h2>Price check</h2>
           {p.typicalLow !== null && p.typicalHigh !== null && (
             <p>
-              Usually ${p.typicalLow}–${p.typicalHigh} used. This one: ${listing.price}.
+              Usually {fmt(p.typicalLow)}–{fmt(p.typicalHigh)}
+              {p.median !== null ? ` (typical ${fmt(p.median)})` : ""}. This one: {fmt(listing.price)}.
             </p>
           )}
-          <p className="muted">{p.note} (AI estimate, not live sales data.)</p>
+          <p className="muted">
+            {p.note}{" "}
+            {p.basis === "ai-estimate"
+              ? `(AI estimate, ${p.confidence} confidence, not live sales data.)`
+              : `(${p.confidence} confidence.)`}
+          </p>
         </section>
       )}
 

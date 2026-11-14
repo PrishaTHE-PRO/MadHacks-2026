@@ -76,3 +76,8 @@ button {
 }
 button:disabled { opacity: .5; cursor: default; }
 button.secondary { background: transparent; color: var(--high); border: 1px solid var(--border); }
+
+.reasons { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.reasons li { margin: 2px 0; }
+.signals .grow { flex: 1; }
+.signals .points { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }

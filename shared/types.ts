@@ -65,13 +65,30 @@ export interface Signal {
   severity: Severity;
   text: string; // one line, shown to the user
   source: "rules" | "ai" | "community";
+  /** Risk points this signal added to the score (0 for good/info signals). */
+  points: number;
 }
+
+export type Confidence = "low" | "medium" | "high";
 
 export interface PriceCheck {
   typicalLow: number | null;
   typicalHigh: number | null;
+  /** What we compare the asking price against. */
+  median: number | null;
+  confidence: Confidence;
+  /** "ebay-listings": live eBay Browse API prices. "ai-estimate": Claude's estimate. */
+  basis: "ebay-listings" | "ai-estimate";
+  sampleSize?: number; // number of eBay listings behind the numbers
   note: string;
-  basis: "ai-estimate"; // later: "sold-comps" once a real comps source is wired in
+}
+
+/** What Claude thinks the item actually is, used for brand and price checks. */
+export interface NormalizedItem {
+  brand: string | null;
+  model: string | null;
+  category: string;
+  condition: string | null;
 }
 
 export type RiskLevel = "low" | "medium" | "high";
@@ -79,10 +96,12 @@ export type RiskLevel = "low" | "medium" | "high";
 export interface RiskReport {
   listingId: string;
   platform: Platform;
-  score: number; // 0 (safe) - 100 (very risky)
-  level: RiskLevel;
-  summary: string;
+  score: number; // 0 (safe) - 100 (very risky), computed in code from `signals[].points`
+  level: RiskLevel; // 0-29 low, 30-59 medium (caution), 60+ high
+  summary: string; // one line explaining the score (Claude when available)
+  topReasons: string[]; // up to 3 biggest contributors, one line each
   signals: Signal[];
+  item?: NormalizedItem;
   priceCheck?: PriceCheck;
   communityReports: number;
   aiUsed: boolean;

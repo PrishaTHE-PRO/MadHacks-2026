@@ -1,63 +1,78 @@
-import type { Listing, RiskReport, Signal } from "../../shared/types";
-import { runRules, clamp, levelFor } from "./rules";
-import { reviewListing, aiEnabled } from "./claude";
-import { countReports, recentReports, saveCheck } from "./db";
+// Listing risk score pipeline (implementation spec §2):
+//   1. rules on the listing + community history (instant, no key needed)
+//   2. Claude identifies the item, estimates its price, and adds red flags
+//   3. price reference: live eBay listings if configured, else Claude's estimate
+//   4. rules again with everything, so the score is computed in code
+//   5. Claude explains the final score in one line
+
+import type { RiskLevel, RiskReport } from "../../shared/types";
+import { runRules, levelFor, type AiFindings, type RuleResult } from "./rules";
+import { aiEnabled, analyzeListing as analyzeWithClaude, explainScore, type ListingAnalysis } from "./claude";
+import { priceReference } from "./prices";
+import { communityStats, recentReports, saveCheck } from "./db";
+import type { Listing } from "../../shared/types";
 
 export async function analyzeListing(listing: Listing): Promise<RiskReport> {
   const sellerId = listing.seller.id;
-  const communityReports = sellerId ? countReports(listing.platform, sellerId) : 0;
-  const rules = runRules(listing, communityReports);
+  const community = sellerId ? communityStats(listing.platform, sellerId) : { reports: 0, reportsLast30Days: 0 };
 
-  let score = rules.score;
-  let summary = summarizeRules(rules.signals, score);
-  let signals: Signal[] = rules.signals;
-  let priceCheck: RiskReport["priceCheck"];
-  let aiUsed = false;
-
+  let analysis: ListingAnalysis | null = null;
   if (aiEnabled()) {
+    const base = runRules(listing, { community });
     try {
-      const verdict = await reviewListing(listing, rules.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
-      if (verdict) {
-        aiUsed = true;
-        // Rules are hard evidence, Claude is judgment: blend them, and never let
-        // the AI talk a seller with community reports below the rules' floor.
-        score = clamp(communityReports > 0 ? Math.max(rules.score, verdict.score) : 0.4 * rules.score + 0.6 * verdict.score);
-        summary = verdict.summary;
-        signals = [
-          ...rules.signals,
-          ...verdict.signals.map((s, i) => ({ id: `ai-${i}`, severity: s.severity, text: s.text, source: "ai" as const })),
-        ];
-        priceCheck = {
-          typicalLow: verdict.price.typical_low,
-          typicalHigh: verdict.price.typical_high,
-          note: verdict.price.note,
-          basis: "ai-estimate",
-        };
-      }
+      analysis = await analyzeWithClaude(listing, base.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
     } catch (err) {
-      console.error("[analyze] Claude review failed, using rules only:", err);
+      console.error("[analyze] Claude analysis failed, using rules only:", err);
     }
   }
 
-  const level = levelFor(score);
-  saveCheck(listing.platform, listing.id, listing.seller.id, score, level);
+  const price = await priceReference(listing, {
+    searchQuery: analysis?.search_query,
+    aiEstimate: analysis?.price_estimate,
+  });
+
+  const ai: AiFindings | undefined = analysis
+    ? { brand: analysis.item.brand, redFlags: analysis.red_flags, riskAdjust: analysis.risk_adjust }
+    : undefined;
+  const result = runRules(listing, { community, price, ai });
+  const level = levelFor(result.score);
+
+  let summary = fallbackSummary(result, level);
+  let explained = false;
+  if (aiEnabled()) {
+    try {
+      const line = await explainScore({ listing, score: result.score, level, signals: result.signals, price });
+      if (line) {
+        summary = line;
+        explained = true;
+      }
+    } catch (err) {
+      console.error("[analyze] Claude explanation failed, using fallback summary:", err);
+    }
+  }
+
+  saveCheck(listing.platform, listing.id, sellerId, result.score, level);
 
   return {
     listingId: listing.id,
     platform: listing.platform,
-    score,
+    score: result.score,
     level,
     summary,
-    signals,
-    priceCheck,
-    communityReports,
-    aiUsed,
+    topReasons: result.topReasons,
+    signals: result.signals,
+    item: analysis?.item,
+    priceCheck: price,
+    communityReports: community.reports,
+    aiUsed: Boolean(analysis) || explained,
     checkedAt: new Date().toISOString(),
   };
 }
 
-function summarizeRules(signals: Signal[], score: number): string {
-  const worst = signals.find((s) => s.severity === "danger") ?? signals.find((s) => s.severity === "caution");
-  if (worst) return worst.text;
-  return score < 30 ? "No red flags found in the listing or seller history." : "A few things are worth double-checking.";
+/** The one-liner when Claude isn't available: the level plus the biggest reason. */
+export function fallbackSummary(result: RuleResult, level: RiskLevel): string {
+  const top = result.signals.filter((s) => s.points > 0).sort((a, b) => b.points - a.points)[0];
+  if (!top) return "No red flags found in the listing or seller history.";
+  const lead = level === "high" ? "High risk" : level === "medium" ? "Be careful" : "Mostly fine";
+  return `${lead}: ${top.text}`;
 }

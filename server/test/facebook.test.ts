@@ -122,9 +122,9 @@ test("handles Free items, no ratings and a brand-new account", () => {
   assert.ok(l);
   assert.equal(l.price, 0);
   assert.equal(l.seller.ratingsCount, 0);
-  const ids = runRules(l, 0).signals.map((s) => s.id);
-  assert.ok(ids.includes("no-ratings"), ids.join(", "));
-  assert.ok(ids.includes("young-account"), ids.join(", "));
+  const ids = runRules(l, { now: NOW }).signals.map((s) => s.id);
+  assert.ok(ids.includes("no-track-record"), ids.join(", "));
+  assert.ok(ids.includes("joined-this-year"), ids.join(", "));
 });
 
 test("returns null before the item has rendered", () => {

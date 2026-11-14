@@ -108,14 +108,14 @@ test("returns null when there's no title or price", () => {
 });
 
 test("rules use eBay feedback", () => {
-  const good = runRules(parseEbayPage(base())!, 0);
+  const good = runRules(parseEbayPage(base())!);
   assert.ok(good.signals.some((s) => s.id === "track-record"));
   assert.ok(good.signals.some((s) => s.id === "old-account"));
 
   const risky = parseEbayPage(
     base({ sections: { seller: { text: "x (2)\n90% positive\nJoined Nov 2026", links: [] } } }),
   )!;
-  const ids = runRules(risky, 0).signals.map((s) => s.id);
-  assert.ok(ids.includes("little-feedback"), ids.join(", "));
+  const ids = runRules(risky).signals.map((s) => s.id);
+  assert.ok(ids.includes("no-track-record"), ids.join(", "));
   assert.ok(ids.includes("new-account"), ids.join(", "));
 });

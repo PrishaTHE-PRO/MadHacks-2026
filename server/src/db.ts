@@ -45,6 +45,18 @@ export function countReports(platform: string, sellerId: string): number {
   return row.n;
 }
 
+/** Total reports, and reports in the last 30 days (for the blocklist rule). */
+export function communityStats(platform: string, sellerId: string): { reports: number; reportsLast30Days: number } {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS recent
+       FROM reports WHERE platform = ? AND seller_id = ?`,
+    )
+    .get(platform, sellerId) as { total: number; recent: number | null };
+  return { reports: row.total, reportsLast30Days: row.recent ?? 0 };
+}
+
 export function recentReports(platform: string, sellerId: string, limit = 5): string[] {
   return (
     db
