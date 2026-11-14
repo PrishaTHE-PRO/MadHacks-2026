@@ -21,6 +21,8 @@ After you change extension code, click the reload icon on the extension card and
 
 `npm test` runs the parser and rule tests. `npm run typecheck` checks both packages.
 
+**Chat safety demo:** with the server running, open `http://localhost:8787/demo/chat` (a fictional sublet chat) and click **Next message from Jordan**. Warnings appear under each scam message and in the side panel's Chat section. Start the server with `DEMO_MODE=1 npm run server` to replay cached Claude results for the scripted messages (`server/demo/chat-cache.json`), so the demo works without Wi-Fi or an API key.
+
 ## How it works
 
 ```
@@ -61,6 +63,7 @@ marketplace page
 |---|---|---|
 | `GET /health` | | `{ ok, ai }` |
 | `POST /analyze-listing` | `{ listing: Listing }` | `RiskReport` |
+| `POST /analyze-chat` | `{ ctx: ChatContext }` (max 10 messages, 2,000 chars each) | `ChatReport`: regex flags from `shared/chatPatterns.ts` plus Claude Haiku's, merged in `server/src/chat.ts` |
 | `POST /report` | `{ platform, sellerId, sellerUsername, listingId?, reason }` | `{ ok }` |
 
 ## Adding another site

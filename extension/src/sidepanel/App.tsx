@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
+import { ChatCheck } from "./ChatCheck";
+import { ChatPanel, useChatState } from "./ChatPanel";
 import { PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
 
-function useActiveTabState(): TabState | null {
+function useActiveTabState(): { tabId: number | null; state: TabState | null } {
   const [tabId, setTabId] = useState<number | null>(null);
   const [state, setState] = useState<TabState | null>(null);
 
@@ -26,25 +28,32 @@ function useActiveTabState(): TabState | null {
     return () => chrome.storage.onChanged.removeListener(onChange);
   }, [tabId]);
 
-  return state;
+  return { tabId, state };
 }
 
 export function App() {
-  const state = useActiveTabState();
+  const { tabId, state } = useActiveTabState();
+  const chat = useChatState(tabId);
   return (
     <main>
       <header className="brand">DealDig</header>
-      {!state && <Empty />}
+      {chat && <ChatPanel state={chat} />}
+      {!state && !chat && <Empty />}
       {state && <ListingCard listing={state.listing} />}
       {state?.status === "loading" && <p className="muted">Digging into this listing…</p>}
       {state?.status === "error" && <p className="error">{state.error}</p>}
       {state?.status === "done" && <Report report={state.report} listing={state.listing} />}
+      <ChatCheck key={chat ? "collapsed" : "open"} startOpen={!state && !chat} />
     </main>
   );
 }
 
 function Empty() {
-  return <p className="muted">Open a Poshmark, eBay or Facebook Marketplace listing and DealDig will check it automatically.</p>;
+  return (
+    <p className="muted">
+      Open a Poshmark, eBay or Facebook Marketplace listing, or a marketplace chat, and DealDig will check it automatically.
+    </p>
+  );
 }
 
 /** "@handle" on sites with handles; Facebook only has a display name. */

@@ -3,8 +3,18 @@
 // side panel can render them and survives the worker being shut down.
 
 import { SERVER_URL } from "./config";
-import { tabKey, type AnalyzeResponse, type ExtensionMessage, type TabState } from "./messages";
-import type { Listing, RiskReport } from "../../shared/types";
+import {
+  chatKey,
+  flagKey,
+  tabKey,
+  type AnalyzeResponse,
+  type ChatTabState,
+  type ContentMessage,
+  type ExtensionMessage,
+  type TabState,
+} from "./messages";
+import { prefilter } from "../../shared/chatPatterns";
+import type { ChatContext, ChatFlag, ChatReport, Listing, RiskReport } from "../../shared/types";
 
 const CACHE_MS = 10 * 60 * 1000;
 
@@ -57,6 +67,11 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
     return true; // keep the channel open for the async response
   }
 
+  if (msg.type === "ANALYZE_CHAT" && tabId !== undefined) {
+    void onChat(tabId, msg.ctx);
+    return false;
+  }
+
   if (msg.type === "OPEN_PANEL" && tabId !== undefined) {
     chrome.sidePanel.open({ tabId }).catch(() => {
       // Chrome only allows this right after a user gesture; the toolbar icon always works.
@@ -66,5 +81,116 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void chrome.storage.session.remove(tabKey(tabId));
+  void chrome.storage.session.remove([tabKey(tabId), chatKey(tabId)]);
 });
+
+// ---------------------------------------------------------------------------
+// Chat safety
+// ---------------------------------------------------------------------------
+// State per tab lives in chrome.storage.session under chat:<tabId> so the side
+// panel can render it. Server calls are rate limited per thread (one per 3 s,
+// coalesced to the latest messages). If the server is down, the regex flags
+// stay and the status says the AI check is unavailable.
+
+const CHAT_MIN_INTERVAL_MS = 3000;
+const CHAT_TIMEOUT_MS = 20_000;
+
+interface ThreadCalls {
+  lastCall: number;
+  timer?: ReturnType<typeof setTimeout>;
+  pending?: ChatContext; // latest context waiting for its turn
+}
+const threadCalls = new Map<string, ThreadCalls>(); // `${tabId}:${threadId}`
+
+// One storage update at a time per tab, so concurrent results don't clobber each other.
+const tabQueues = new Map<number, Promise<unknown>>();
+function serialize<T>(tabId: number, fn: () => Promise<T>): Promise<T> {
+  const next = (tabQueues.get(tabId) ?? Promise.resolve()).then(fn, fn);
+  tabQueues.set(tabId, next.catch(() => {}));
+  return next;
+}
+
+const messageOrder = (flags: ChatFlag[], order: string[]) => {
+  const idx = new Map(order.map((id, i) => [id, i]));
+  return [...flags].sort((a, b) => (idx.get(a.messageId) ?? -1) - (idx.get(b.messageId) ?? -1));
+};
+
+/** Apply an update to the tab's chat state, then tell the content script. */
+function updateChat(
+  tabId: number,
+  ctx: ChatContext,
+  update: (state: ChatTabState) => void,
+): Promise<ChatTabState> {
+  return serialize(tabId, async () => {
+    const key = chatKey(tabId);
+    const prev = (await chrome.storage.session.get(key))[key] as ChatTabState | undefined;
+    const fresh = !prev || prev.threadId !== ctx.threadId || prev.platform !== ctx.platform;
+    const state: ChatTabState = fresh
+      ? { platform: ctx.platform, threadId: ctx.threadId, url: ctx.url, role: ctx.role, flags: [], quotes: {}, status: "checking", aiUsed: false, updatedAt: 0 }
+      : prev;
+    // A new role means the old flags for these messages no longer apply.
+    if (!fresh && state.role !== ctx.role) {
+      const ids = new Set(ctx.messages.map((m) => m.id));
+      state.flags = state.flags.filter((f) => !ids.has(f.messageId));
+      state.role = ctx.role;
+    }
+    for (const m of ctx.messages) state.quotes[m.id] = m.text;
+    state.url = ctx.url;
+    state.otherParty = ctx.otherParty;
+    update(state);
+    state.flags = messageOrder(state.flags, Object.keys(state.quotes));
+    state.updatedAt = Date.now();
+    await chrome.storage.session.set({ [key]: state });
+    const note: ContentMessage = { type: "CHAT_RESULT", threadId: state.threadId, flags: state.flags, status: state.status };
+    chrome.tabs.sendMessage(tabId, note).catch(() => {});
+    return state;
+  });
+}
+
+async function onChat(tabId: number, ctx: ChatContext) {
+  // Regex flags right away (the content script has them too; this is for the side panel).
+  await updateChat(tabId, ctx, (state) => {
+    const have = new Set(state.flags.map(flagKey));
+    for (const f of prefilter(ctx)) if (!have.has(flagKey(f))) state.flags.push(f);
+    state.status = "checking";
+  });
+
+  const id = `${tabId}:${ctx.threadId}`;
+  const calls = threadCalls.get(id) ?? { lastCall: 0 };
+  threadCalls.set(id, calls);
+  calls.pending = ctx;
+  if (calls.timer) return; // a call is already scheduled; it'll use the latest context
+  const wait = Math.max(0, calls.lastCall + CHAT_MIN_INTERVAL_MS - Date.now());
+  calls.timer = setTimeout(() => {
+    calls.timer = undefined;
+    const latest = calls.pending!;
+    calls.pending = undefined;
+    calls.lastCall = Date.now();
+    void callChatServer(tabId, latest);
+  }, wait);
+}
+
+async function callChatServer(tabId: number, ctx: ChatContext) {
+  try {
+    const res = await fetch(`${SERVER_URL}/analyze-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ctx }),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const report = (await res.json()) as ChatReport;
+    await updateChat(tabId, ctx, (state) => {
+      // The server's answer covers these messages completely (its regex + AI flags).
+      const ids = new Set(ctx.messages.map((m) => m.id));
+      state.flags = [...state.flags.filter((f) => !ids.has(f.messageId)), ...report.flags];
+      state.status = "done";
+      state.aiUsed = report.aiUsed;
+    });
+  } catch (err) {
+    console.warn("[DealDig] chat check failed, keeping regex flags:", err);
+    await updateChat(tabId, ctx, (state) => {
+      state.status = "offline";
+    });
+  }
+}

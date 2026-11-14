@@ -8,6 +8,8 @@
 // optional inputs.
 
 import { PLATFORM_NAMES, type Listing, type PriceCheck, type Signal } from "../../shared/types";
+// Off-platform payment/contact regexes, shared with the chat check.
+import { OFF_PLATFORM } from "../../shared/chatPatterns";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -63,22 +65,6 @@ const COUNTERFEIT_FLOORS: Record<string, number> = {
   dyson: 80,
 };
 
-// Asking to pay or talk outside the platform voids buyer protection.
-const OFF_PLATFORM = [
-  /\bvenmo\b/i,
-  /\bzelle\b/i,
-  /\bcash ?app\b/i,
-  /\bpaypal\b/i,
-  /\bf\s?&\s?f\b|friends (and|&) family/i,
-  /\bgift ?cards?\b/i,
-  /\bwire transfer\b|\bwestern union\b/i,
-  /\bwhats ?app\b/i,
-  /\btelegram\b/i,
-  /\b(text|call|email|dm) me\b/i,
-  /\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b/, // phone number
-  /[\w.+-]+@[\w-]+\.[a-z]{2,}/i, // email address
-  /\b(ig|insta(gram)?)\s*[:@]/i,
-];
 
 const NEW_CLAIM = /\b(brand new|sealed|new in box|nib|bnib|bnwt|nwt|unopened)\b/i;
 

@@ -81,3 +81,48 @@ button.secondary { background: transparent; color: var(--high); border: 1px soli
 .reasons li { margin: 2px 0; }
 .signals .grow { flex: 1; }
 .signals .points { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+
+/* Chat check (paste box) */
+.chat-check textarea { margin-bottom: 8px; }
+.chat-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+select {
+  font: inherit;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button {
+  flex: 1;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  padding: 6px 4px;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: #fff; }
+.chat-feed { margin-top: 12px; }
+.chat-feed ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.chat-feed li {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.chat-feed li.danger { border-left-color: var(--high); }
+.chat-feed li.caution { border-left-color: var(--medium); }
+.chat-feed li.danger strong { color: var(--high); }
+.chat-feed li.caution strong { color: var(--medium); }
+.flag-head { display: flex; gap: 6px; align-items: center; margin-bottom: 2px; }
+.flag-head .grow { flex: 1; }
+.tag { font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+.chat-feed blockquote { margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--border); color: var(--muted); font-size: 13px; }
+button.link { background: none; color: var(--accent); padding: 4px 0 0; font-weight: 600; font-size: 13px; }
+.why { margin: 4px 0 0; font-size: 13px; }
+
+/* Live chat section */
+.chat-panel .seg { margin-bottom: 4px; }
+button.secondary-plain { background: transparent; color: var(--accent); border: 1px solid var(--border); }

@@ -5,10 +5,22 @@
 export const PLATFORMS = ["poshmark", "ebay", "facebook"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
-export const PLATFORM_NAMES: Record<Platform, string> = {
+/**
+ * Sites where DealDig can check chats. Separate from `PLATFORMS` (listing
+ * checks): a site can have chat support before it has a listing adapter.
+ * "generic" is the paste box and any site without a chat adapter.
+ */
+export const CHAT_PLATFORMS = ["facebook", "poshmark", "ebay", "etsy", "depop", "mercari", "generic"] as const;
+export type ChatPlatform = (typeof CHAT_PLATFORMS)[number];
+
+export const PLATFORM_NAMES: Record<Platform | ChatPlatform, string> = {
   poshmark: "Poshmark",
   ebay: "eBay",
   facebook: "Facebook Marketplace",
+  etsy: "Etsy",
+  depop: "Depop",
+  mercari: "Mercari",
+  generic: "this chat",
 };
 
 export interface SellerInfo {
@@ -114,4 +126,60 @@ export interface ScamReportInput {
   sellerUsername: string;
   listingId?: string;
   reason: string;
+}
+
+// --- Chat safety (docs/chat-safety-task.md) ---
+// Pattern definitions, regexes and reason text live in shared/chatPatterns.ts.
+
+export type ChatRole = "buyer" | "seller" | "unknown";
+
+export const CHAT_PATTERN_IDS = [
+  "deposit_before_viewing",
+  "overpayment_refund",
+  "off_platform",
+  "verification_code",
+  "fake_payment_notice",
+  "shipping_agent",
+  "unprotected_payment",
+  "urgency_pressure",
+  "suspicious_link",
+  "personal_info_request",
+] as const;
+export type ChatPatternId = (typeof CHAT_PATTERN_IDS)[number];
+
+export interface ChatMessage {
+  /** Stable per message: the platform's message id if present, else hash(author + text + index). */
+  id: string;
+  fromMe: boolean;
+  author?: string; // display name, if shown
+  text: string;
+  sentAt?: string; // ISO, if shown
+}
+
+export interface ChatContext {
+  platform: ChatPlatform;
+  threadId: string; // from the URL or thread element
+  url: string;
+  role: ChatRole; // from the side panel toggle, default "unknown"
+  otherParty?: { id?: string; username?: string; profileUrl?: string };
+  listing?: { title?: string; price?: number; url?: string }; // if the thread shows it
+  messages: ChatMessage[]; // last 10, oldest first
+}
+
+export interface ChatFlag {
+  pattern: ChatPatternId;
+  severity: Severity;
+  reason: string; // one line
+  messageId: string; // which message triggered it
+  source: "rules" | "ai";
+}
+
+export interface ChatReport {
+  threadId: string;
+  platform: ChatPlatform;
+  flags: ChatFlag[];
+  aiUsed: boolean;
+  /** Prior DealDig reports about the other party, when the thread shows their id. */
+  communityReports?: number;
+  checkedAt: string;
 }

@@ -1,0 +1,22 @@
+{
+  "_note": "DEMO_MODE cache for the demo chat (server/src/demoCache.ts). The first entries were written by hand for the scripted messages; delete this file and run the demo once with DEMO_MODE=1 and an API key to record real Claude output.",
+  "Hi! Is the room still available for spring?": [],
+  "Yes it is! It's a great spot, 5 minutes from campus and the rent includes utilities.": [],
+  "Great, could I come see it this weekend?": [],
+  "I'm out of town for work so I can't show it in person, but I can hold it for you.": [
+    {
+      "pattern": "deposit_before_viewing",
+      "severity": "caution",
+      "reason": "Won't show the room in person but offers to hold it: the usual lead-in to a deposit request."
+    }
+  ],
+  "Send a $300 deposit on Zelle to hold it, and text me on WhatsApp at [phone] so we can sort out the keys.": [],
+  "Honestly three other students are asking about it, so I'd need it locked in by tonight.": [
+    {
+      "pattern": "urgency_pressure",
+      "severity": "caution",
+      "reason": "Claims three others want it so you'll commit tonight without seeing the room."
+    }
+  ],
+  "If Zelle doesn't work for you, Apple gift cards are fine too.": []
+}

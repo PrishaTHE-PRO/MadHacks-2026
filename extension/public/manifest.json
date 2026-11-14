@@ -10,7 +10,17 @@
   "host_permissions": ["https://poshmark.com/*", "http://localhost:8787/*"],
   "content_scripts": [
     {
-      "matches": ["https://poshmark.com/*", "https://www.ebay.com/itm/*", "https://www.facebook.com/*"],
+      "matches": [
+        "https://poshmark.com/*",
+        "https://www.ebay.com/itm/*",
+        "https://www.ebay.com/mesg/*",
+        "https://mesg.ebay.com/*",
+        "https://www.facebook.com/*",
+        "https://www.etsy.com/messages/*",
+        "https://www.depop.com/messages/*",
+        "https://www.mercari.com/*",
+        "http://localhost:8787/demo/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
