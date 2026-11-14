@@ -3,7 +3,7 @@ import { z } from "zod";
 import { analyzeListing } from "./analyze";
 import { addReport } from "./db";
 import { aiEnabled } from "./claude";
-import type { Listing } from "../../shared/types";
+import { PLATFORMS, type Listing } from "../../shared/types";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const app = express();
@@ -13,19 +13,20 @@ app.use(express.json({ limit: "1mb" }));
 const ListingBody = z.object({
   listing: z
     .object({
-      platform: z.literal("poshmark"),
+      platform: z.enum(PLATFORMS),
       id: z.string().min(1),
       url: z.string(),
       title: z.string(),
       price: z.number(),
       photos: z.array(z.string()),
-      seller: z.object({ id: z.string().min(1), username: z.string() }).loose(),
+      // Some pages (e.g. Facebook before the seller card loads) don't show a seller id.
+      seller: z.object({ id: z.string(), username: z.string() }).loose(),
     })
     .loose(),
 });
 
 const ReportBody = z.object({
-  platform: z.literal("poshmark"),
+  platform: z.enum(PLATFORMS),
   sellerId: z.string().min(1),
   sellerUsername: z.string(),
   listingId: z.string().optional(),

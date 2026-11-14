@@ -10,8 +10,8 @@
   "host_permissions": ["https://poshmark.com/*", "http://localhost:8787/*"],
   "content_scripts": [
     {
-      "matches": ["https://poshmark.com/*"],
-      "js": ["content-poshmark.js"],
+      "matches": ["https://poshmark.com/*", "https://www.ebay.com/itm/*", "https://www.facebook.com/*"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ]

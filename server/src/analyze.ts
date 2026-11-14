@@ -4,7 +4,8 @@ import { reviewListing, aiEnabled } from "./claude";
 import { countReports, recentReports, saveCheck } from "./db";
 
 export async function analyzeListing(listing: Listing): Promise<RiskReport> {
-  const communityReports = countReports(listing.platform, listing.seller.id);
+  const sellerId = listing.seller.id;
+  const communityReports = sellerId ? countReports(listing.platform, sellerId) : 0;
   const rules = runRules(listing, communityReports);
 
   let score = rules.score;
@@ -15,7 +16,7 @@ export async function analyzeListing(listing: Listing): Promise<RiskReport> {
 
   if (aiEnabled()) {
     try {
-      const verdict = await reviewListing(listing, rules.signals, recentReports(listing.platform, listing.seller.id));
+      const verdict = await reviewListing(listing, rules.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
       if (verdict) {
         aiUsed = true;
         // Rules are hard evidence, Claude is judgment: blend them, and never let
