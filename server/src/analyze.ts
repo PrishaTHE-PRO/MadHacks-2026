@@ -6,10 +6,10 @@
 //   5. Claude explains the final score in one line
 
 import type { RiskLevel, RiskReport } from "../../shared/types";
-import { runRules, levelFor, type AiFindings, type RuleResult } from "./rules";
+import { runRules, levelFor, reportSummary, type AiFindings, type RuleResult } from "./rules";
 import { aiEnabled, analyzeListing as analyzeWithClaude, explainScore, type ListingAnalysis } from "./claude";
 import { priceReference } from "./prices";
-import { communityStats, otherListingPhotos, recentReports, saveCheck, savePhotoHashes } from "./db";
+import { communityStats, otherListingPhotos, saveCheck, savePhotoHashes } from "./db";
 import { matchPhotos, otherSellerMatches } from "./photos";
 import type { Listing, PhotoMatch } from "../../shared/types";
 
@@ -19,7 +19,7 @@ import type { Listing, PhotoMatch } from "../../shared/types";
  */
 export async function analyzeListing(listing: Listing, photoHashes?: (string | null)[]): Promise<RiskReport> {
   const sellerId = listing.seller.id;
-  const community = sellerId ? communityStats(listing.platform, sellerId) : { reports: 0, reportsLast30Days: 0 };
+  const community = sellerId ? communityStats(listing.platform, sellerId) : undefined;
 
   // Stolen-photo check: match against the shared index, then add this listing to it.
   let photoMatches: PhotoMatch[] | undefined;
@@ -35,7 +35,9 @@ export async function analyzeListing(listing: Listing, photoHashes?: (string | n
   if (aiEnabled()) {
     const base = runRules(listing, { community, photoMatches });
     try {
-      analysis = await analyzeWithClaude(listing, base.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
+      // Only report counts per reason go to the AI, never what reporters typed.
+      const reports = community?.reporters ? [`${community.reporters} people reported this seller: ${reportSummary(community)}`] : [];
+      analysis = await analyzeWithClaude(listing, base.signals, reports);
     } catch (err) {
       console.error("[analyze] Claude analysis failed, using rules only:", err);
     }
@@ -78,7 +80,8 @@ export async function analyzeListing(listing: Listing, photoHashes?: (string | n
     signals: result.signals,
     item: analysis?.item,
     priceCheck: price,
-    communityReports: community.reports,
+    communityReports: community?.reporters ?? 0,
+    community,
     photoMatches: photoMatches?.slice(0, 10),
     aiUsed: Boolean(analysis) || explained,
     checkedAt: new Date().toISOString(),

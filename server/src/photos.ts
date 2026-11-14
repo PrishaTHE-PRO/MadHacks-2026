@@ -4,7 +4,7 @@
 // shared/photohash.ts) and sends only the hashes. Here we compare them against
 // every other listing DealDig users have checked, then store this listing's
 // hashes so later checks can match against it. The index gets stronger with
-// every user, like the shared blocklist.
+// every user, like community reports.
 
 import { hamming, isPhotoHash, MATCH_DISTANCE, mirrorHash } from "../../shared/photohash";
 import type { Listing, PhotoMatch, Platform } from "../../shared/types";

@@ -68,7 +68,9 @@ test("returns null for pages without listing data", () => {
 
 test("rules flag an obviously risky listing", () => {
   const l = parsePoshmarkHtml(html, url)!;
-  const r = runRules(l, { community: { reports: 2, reportsLast30Days: 2 } });
+  const r = runRules(l, {
+    community: { reporters: 2, reportersLast30Days: 2, flagged: false, categories: [{ category: "off-platform-payment", count: 2 }] },
+  });
   const ids = r.signals.map((s) => s.id);
   for (const id of ["community-reports", "new-account", "no-track-record", "few-photos", "too-cheap-brand", "off-platform"]) {
     assert.ok(ids.includes(id), `expected signal ${id}, got ${ids.join(", ")}`);

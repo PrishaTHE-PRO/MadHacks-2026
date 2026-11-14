@@ -104,17 +104,30 @@ test("Claude can't push its points past the cap", () => {
   assert.equal(r.signals.find((s) => s.source === "ai")!.points, POINTS.textRedFlagsMax);
 });
 
-test("reports add 10 each up to 30, and 3 in 30 days blocklists the seller", () => {
-  const two = runRules(listing(), { community: { reports: 2, reportsLast30Days: 1 }, now: NOW });
-  assert.equal(two.signals.find((s) => s.id === "community-reports")!.points, 20);
-  assert.ok(!ids(two).includes("blocklisted"));
+const community = (reporters: number, reportersLast30Days: number) => ({
+  reporters,
+  reportersLast30Days,
+  flagged: reportersLast30Days >= 3,
+  categories: [
+    { category: "deposit-before-viewing" as const, count: Math.ceil(reporters / 2) },
+    { category: "off-platform-payment" as const, count: Math.floor(reporters / 2) },
+  ].filter((c) => c.count > 0),
+});
 
-  const many = runRules(listing(), { community: { reports: 6, reportsLast30Days: 3 }, now: NOW });
+test("reports add 10 per person up to 30; 3 people in 30 days flags the seller but adds no extra points", () => {
+  const two = runRules(listing(), { community: community(2, 1), now: NOW });
+  const sig = two.signals.find((s) => s.id === "community-reports")!;
+  assert.equal(sig.points, 20);
+  assert.equal(sig.text, "Reported by 2 people on DealDig: asked for a deposit before viewing (1), asked to pay off-platform (1).");
+  assert.ok(!ids(two).includes("community-flag"));
+
+  const many = runRules(listing(), { community: community(6, 3), now: NOW });
   assert.equal(many.signals.find((s) => s.id === "community-reports")!.points, POINTS.reportsMax);
-  assert.ok(ids(many).includes("blocklisted"));
-  assert.equal(many.score, POINTS.blocklisted + POINTS.reportsMax);
-  assert.equal(levelFor(many.score), "high");
-  assert.match(many.topReasons[0], /blocklist/);
+  const flag = many.signals.find((s) => s.id === "community-flag")!;
+  assert.equal(flag.points, 0);
+  assert.match(flag.text, /3 different people/);
+  assert.equal(many.score, POINTS.reportsMax);
+  assert.equal(levelFor(many.score), "medium");
 });
 
 test("account age respects how precise the join date is", () => {
@@ -129,7 +142,7 @@ test("account age respects how precise the join date is", () => {
 test("top reasons are the three biggest contributors", () => {
   const r = runRules(
     listing({ price: 100, photos: ["a"], description: "venmo only" }, { feedbackScore: 1, positiveFeedbackPercent: undefined, joinedAt: "2026-11-10", joinedPrecision: "day" }),
-    { price: comps(400), community: { reports: 1, reportsLast30Days: 1 }, now: NOW },
+    { price: comps(400), community: community(1, 1), now: NOW },
   );
   assert.equal(r.topReasons.length, 3);
   assert.match(r.topReasons[0], /below the typical/); // 20
