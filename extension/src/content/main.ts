@@ -11,7 +11,7 @@ import { isPoshmarkListingUrl, parsePoshmarkHtml } from "../adapters/poshmark";
 import { EBAY_SECTIONS, isEbayListingUrl, parseEbayPage } from "../adapters/ebay";
 import { isFacebookListingUrl, parseFacebookPage } from "../adapters/facebook";
 import type { Listing, RiskReport } from "../../../shared/types";
-import type { AnalyzeResponse } from "../messages";
+import type { AnalyzeResponse, ContentMessage } from "../messages";
 import { collectPageData } from "./collect";
 import { showBadge, hideBadge } from "./badge";
 import { findChatAdapter } from "../chat";
@@ -103,11 +103,22 @@ async function check(url: string) {
     return;
   }
 
+  shownListingId = listing.id;
   const res: AnalyzeResponse = await chrome.runtime.sendMessage({ type: "ANALYZE_LISTING", listing });
   if (url !== location.href) return;
+  showResult(res);
+}
+
+let shownListingId = "";
+function showResult(res: AnalyzeResponse) {
   if (res.ok) showBadge({ state: "done", report: res.report as RiskReport });
   else showBadge({ state: "error", message: res.error });
 }
+
+// The side panel's "Try again" re-runs the check in the background; show the new result.
+chrome.runtime.onMessage.addListener((msg: ContentMessage) => {
+  if (msg.type === "LISTING_RESULT" && msg.listingId === shownListingId) showResult(msg.res);
+});
 
 // The chat watcher handles thread changes itself; we only swap it when the site changes.
 let chat: { adapter: ChatAdapter; watcher: { stop(): void } } | null = null;

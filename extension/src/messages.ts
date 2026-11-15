@@ -5,23 +5,23 @@ import type { ChatContext, ChatFlag, ChatPlatform, ChatRole, Listing, RiskReport
 export type ExtensionMessage =
   | { type: "ANALYZE_LISTING"; listing: Listing }
   | { type: "ANALYZE_CHAT"; ctx: ChatContext }
+  | { type: "RETRY_LISTING"; tabId: number } // side panel → background
   | { type: "OPEN_PANEL" };
 
-/** Background → content script: the latest flags for a chat thread. */
-export type ContentMessage = {
-  type: "CHAT_RESULT";
-  threadId: string;
-  flags: ChatFlag[];
-  status: ChatStatus;
-};
-
 export type AnalyzeResponse = { ok: true; report: RiskReport } | { ok: false; error: string };
+
+/** Background → content script. */
+export type ContentMessage =
+  // The latest flags for a chat thread.
+  | { type: "CHAT_RESULT"; threadId: string; flags: ChatFlag[]; status: ChatStatus }
+  // A listing re-check finished (the side panel's "Try again"); update the badge.
+  | { type: "LISTING_RESULT"; listingId: string; res: AnalyzeResponse };
 
 /** What the background stores per tab in chrome.storage.session; the side panel renders it. */
 export type TabState =
   | { status: "loading"; listing: Listing }
   | { status: "done"; listing: Listing; report: RiskReport }
-  | { status: "error"; listing: Listing; error: string };
+  | { status: "error"; listing: Listing; error: string; offline?: boolean }; // offline: server unreachable
 
 export const tabKey = (tabId: number) => `tab:${tabId}`;
 

@@ -15,13 +15,25 @@ npm run server                        # http://localhost:8787
 npm run ext                           # rebuilds extension/dist on save
 ```
 
-Then in Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick `extension/dist`. Open a `poshmark.com/listing/...`, `ebay.com/itm/...` or `facebook.com/marketplace/item/...` page: a badge appears at the bottom right, and the toolbar icon opens the side panel with the full report.
+Then in Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick `extension/dist`. Open a `poshmark.com/listing/...`, `ebay.com/itm/...` or `facebook.com/marketplace/item/...` page: a badge appears at the bottom right, and the toolbar icon (or clicking the badge) opens the DealDig sidebar with the full report.
 
 After you change extension code, click the reload icon on the extension card and refresh the page.
 
 `npm test` runs the parser and rule tests. `npm run typecheck` checks both packages.
 
-**Chat safety demo:** with the server running, open `http://localhost:8787/demo/chat` (a fictional sublet chat) and click **Next message from Jordan**. Warnings appear under each scam message and in the side panel's Chat section. Start the server with `DEMO_MODE=1 npm run server` to replay cached Claude results for the scripted messages (`server/demo/chat-cache.json`), so the demo works without Wi-Fi or an API key.
+**Chat safety demo:** with the server running, open `http://localhost:8787/demo/chat` (a fictional sublet chat) and click **Next message from Jordan**. Warnings appear under each scam message and in the sidebar's Chat tab. Start the server with `DEMO_MODE=1 npm run server` to replay cached Claude results for the scripted messages (`server/demo/chat-cache.json`), so the demo works without Wi-Fi or an API key.
+
+## Look and feel
+
+The UI is a sidebar (Chrome's side panel) with Listing, Chat and Report tabs, plus two small pieces on the page itself: a badge on listing pages and warning chips under chat messages. The look is deliberately plain: neutral white surfaces, the system font, the bubble logo and one periwinkle accent, with color reserved for risk levels. Tokens live in `extension/src/ui/tokens.css`; the original design brief is `docs/ui-redesign-task.md`.
+
+| Listing: high risk | Listing: be careful | Chat warnings |
+|---|---|---|
+| ![High risk listing in the sidebar](docs/screenshots/sidebar-high-risk.png) | ![Be careful listing in the sidebar](docs/screenshots/sidebar-be-careful.png) | ![Chat tab with five warning signs](docs/screenshots/sidebar-chat.png) |
+
+![On-page badge states and chat warning chips](docs/screenshots/badge-and-chips.png)
+
+**UI preview:** every state with made-up data, no marketplace or server needed. After loading the extension, open `chrome-extension://<extension id>/preview.html` (the id is on the DealDig card in `chrome://extensions`). Add `#high`, `#chat`, `#onpage`, `#loading`, `#offline` and so on to jump to a state. These screenshots come from that page.
 
 ## How it works
 
@@ -32,7 +44,7 @@ marketplace page
        eBay, Facebook: content/collect.ts copies the DOM into PageData → adapters/ebay.ts, facebook.ts
        └─ background worker (extension/src/background.ts) ── POST /analyze-listing ──▶ server
             stores the result per tab                                  rules.ts   risk score: points per signal, no key needed
-            └─ side panel (React) renders it                           claude.ts  item ID, price estimate, red flags, 1-line why
+            └─ sidebar (side panel) renders it                         claude.ts  item ID, price estimate, red flags, 1-line why
                                                                        prices.ts  eBay Browse API price comparisons
                                                                        db.ts      SQLite: reports + check history
 ```
@@ -51,7 +63,10 @@ marketplace page
 | `shared/types.ts` | `Listing`, `RiskReport`, etc. Every site adapter produces a `Listing`. |
 | `extension/src/adapters/` | One file per site. Pure functions (HTML or `PageData` → `Listing`), testable in Node. `page.ts` has the shared `PageData` type and parsing helpers. |
 | `extension/src/content/` | The content script (`main.ts`), the DOM collector (`collect.ts`) and the on-page badge. |
-| `extension/src/sidepanel/` | React side panel. |
+| `extension/src/chat/` | Chat adapters (one per site), the chat watcher and the inline warning chips. |
+| `extension/src/ui/` | The design: tokens, motion, the bubble mark (`bubbleSvg.ts`), and the sidebar's React components (`Panel`, `ListingTab`, `ChatTab`, states). |
+| `extension/src/sidepanel/` | The sidebar page: reads the per-tab state from `chrome.storage` and renders `ui/Panel`. |
+| `extension/src/preview/` | The UI preview page with mock data. |
 | `server/src/rules.ts` | The risk score: `POINTS` table, rule checks, top reasons. |
 | `server/src/prices.ts` | Price reference: eBay Browse API comps, or Claude's estimate. |
 | `server/src/claude.ts` | Claude prompts and output schemas (listing analysis, score explanation). |

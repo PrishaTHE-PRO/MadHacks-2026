@@ -42,29 +42,45 @@ async function setTab(tabId: number, state: TabState) {
   await chrome.storage.session.set({ [tabKey(tabId)]: state });
 }
 
+/** Check a listing and store the result for the tab (the side panel renders it). */
+async function runListing(tabId: number, listing: Listing): Promise<AnalyzeResponse> {
+  await setTab(tabId, { status: "loading", listing });
+  try {
+    const report = await analyze(listing);
+    await setTab(tabId, { status: "done", listing, report });
+    return { ok: true, report };
+  } catch (err) {
+    // fetch() throws TypeError when the server can't be reached at all.
+    const offline = err instanceof TypeError;
+    const error = offline
+      ? "Can't reach the DealDig server. Is it running?"
+      : err instanceof Error
+        ? err.message
+        : String(err);
+    await setTab(tabId, { status: "error", listing, error, offline });
+    return { ok: false, error };
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendResponse) => {
   const tabId = sender.tab?.id;
 
   if (msg.type === "ANALYZE_LISTING" && tabId !== undefined) {
-    const { listing } = msg;
-    void (async () => {
-      await setTab(tabId, { status: "loading", listing });
-      try {
-        const report = await analyze(listing);
-        await setTab(tabId, { status: "done", listing, report });
-        sendResponse({ ok: true, report } satisfies AnalyzeResponse);
-      } catch (err) {
-        const error =
-          err instanceof TypeError
-            ? "Can't reach the DealDig server. Is it running?"
-            : err instanceof Error
-              ? err.message
-              : String(err);
-        await setTab(tabId, { status: "error", listing, error });
-        sendResponse({ ok: false, error } satisfies AnalyzeResponse);
-      }
-    })();
+    void runListing(tabId, msg.listing).then(sendResponse);
     return true; // keep the channel open for the async response
+  }
+
+  // From the side panel's "Try again": re-run the tab's last listing check.
+  if (msg.type === "RETRY_LISTING") {
+    void (async () => {
+      const key = tabKey(msg.tabId);
+      const state = (await chrome.storage.session.get(key))[key] as TabState | undefined;
+      if (!state) return;
+      const res = await runListing(msg.tabId, state.listing);
+      const note: ContentMessage = { type: "LISTING_RESULT", listingId: state.listing.id, res };
+      chrome.tabs.sendMessage(msg.tabId, note).catch(() => {});
+    })();
+    return false;
   }
 
   if (msg.type === "ANALYZE_CHAT" && tabId !== undefined) {

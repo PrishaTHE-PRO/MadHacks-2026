@@ -1,67 +1,105 @@
-// Small floating badge on the page itself. Lives in a shadow root so the
+// Small floating badge on listing pages (docs/ui-redesign-task.md, Phase 4).
+// A white pill: bubble · verdict · score, with a hover card showing the top
+// reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
-import type { RiskReport } from "../../../shared/types";
+import type { RiskLevel, RiskReport } from "../../../shared/types";
+import { bubbleSvg } from "../ui/bubbleSvg";
+import tokens from "../ui/tokens.css";
+import motion from "../ui/motion.css";
+import badgeCss from "./badge.css";
 
-type BadgeState =
+export type BadgeState =
   | { state: "loading" }
   | { state: "done"; report: RiskReport }
   | { state: "error"; message: string };
 
-let host: HTMLDivElement | null = null;
-let root: ShadowRoot | null = null;
+const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 
-const COLORS = { low: "#1f9d55", medium: "#d97706", high: "#dc2626" } as const;
+export const BADGE_CSS = [tokens, motion, badgeCss].join("\n");
 
-function ensure(): ShadowRoot {
-  if (root && host?.isConnected) return root;
-  host = document.createElement("div");
-  host.id = "dealdig-badge-host";
-  document.documentElement.appendChild(host);
-  root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `
-    <style>
-      .pill { position: fixed; right: 20px; bottom: 20px; z-index: 2147483647;
-        display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-        border-radius: 999px; background: #111827; color: #fff; cursor: pointer;
-        font: 600 13px/1.2 system-ui, -apple-system, sans-serif;
-        box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-      .dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; }
-      .loading .dot { animation: pulse 1s infinite ease-in-out; }
-      @keyframes pulse { 50% { opacity: .3; } }
-      .sub { font-weight: 400; opacity: .75; }
-    </style>
-    <div class="pill" title="Open DealDig for details"><span class="dot"></span><span class="label"></span></div>`;
-  root.querySelector(".pill")!.addEventListener("click", () => {
-    chrome.runtime.sendMessage({ type: "OPEN_PANEL" }).catch(() => {});
-  });
-  return root;
-}
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
 
-export function showBadge(s: BadgeState) {
-  const r = ensure();
-  const pill = r.querySelector<HTMLDivElement>(".pill")!;
-  const dot = r.querySelector<HTMLSpanElement>(".dot")!;
-  const label = r.querySelector<HTMLSpanElement>(".label")!;
-  pill.className = "pill " + s.state;
+const mark = (size: number, icon: Parameters<typeof bubbleSvg>[1], id: string) => {
+  const span = el("span", "dd-mark");
+  span.innerHTML = bubbleSvg(size, icon, { id }); // our own constant SVG
+  return span;
+};
+
+/**
+ * Draw the badge into `root` (replacing what was there). `onOpen` runs when the
+ * pill or "See details" is clicked. `fixed: false` draws it in place (preview page).
+ */
+export function renderBadge(root: ShadowRoot, s: BadgeState, onOpen: () => void, opts: { fixed?: boolean; showCard?: boolean } = {}) {
+  const style = el("style");
+  style.textContent = BADGE_CSS;
+  const wrap = el("div", "dd-badge");
+  if (opts.fixed === false) wrap.classList.add("static");
+  if (opts.showCard) wrap.classList.add("show-card");
+
+  const pill = el("button", "dd-pill");
+  pill.type = "button";
+  pill.addEventListener("click", onOpen);
 
   if (s.state === "loading") {
-    dot.style.background = "#9ca3af";
-    label.innerHTML = `DealDig <span class="sub">checking…</span>`;
+    pill.append(mark(28, "none", "pl"), el("span", "dd-word sheen dd-sheen", "Checking…"));
+    pill.setAttribute("aria-label", "DealDig is checking this listing");
   } else if (s.state === "error") {
-    dot.style.background = "#6b7280";
-    label.innerHTML = `DealDig <span class="sub"></span>`;
-    label.querySelector(".sub")!.textContent = s.message;
+    pill.append(mark(28, "dash", "pe"), el("span", "dd-word", "Can't check this page"));
+    pill.setAttribute("aria-label", `DealDig: can't check this page. ${s.message}. Open DealDig`);
+    pill.title = s.message;
   } else {
     const { level, score } = s.report;
-    dot.style.background = COLORS[level];
-    const word = level === "low" ? "Low risk" : level === "medium" ? "Be careful" : "High risk";
-    label.innerHTML = `DealDig <span class="sub">${word} · ${score}/100</span>`;
+    pill.append(
+      mark(28, level === "low" ? "check" : "alert", "pd"),
+      el("span", `dd-word ${level}`, LEVEL_WORD[level]),
+      el("span", "dd-num", String(score)),
+    );
+    pill.setAttribute("aria-label", `DealDig: ${LEVEL_WORD[level]}, ${score} out of 100. Open details`);
+
+    // Hover card: bubble + level + score/100, the top reason, "See details".
+    const card = el("div", "dd-hover");
+    card.setAttribute("role", "note");
+    const top = el("div", "dd-hover-top");
+    const words = el("div");
+    words.append(el("div", `dd-hover-level dd-word ${level}`, LEVEL_WORD[level]), el("div", "dd-hover-score", `${score} / 100`));
+    top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
+    const reason = s.report.topReasons[0] ?? s.report.summary;
+    const link = el("button", "dd-hover-link", "See details");
+    link.type = "button";
+    link.addEventListener("click", onOpen);
+    card.append(top, el("p", "dd-hover-reason", reason), link);
+    wrap.append(card);
   }
+  wrap.append(pill);
+  root.replaceChildren(style, wrap);
+}
+
+// --- The live badge on the page ---
+
+let host: HTMLDivElement | null = null;
+
+const openPanel = () => {
+  chrome.runtime.sendMessage({ type: "OPEN_PANEL" }).catch(() => {});
+};
+
+export function showBadge(s: BadgeState) {
+  if (!host?.isConnected) {
+    host = document.createElement("div");
+    host.id = "dealdig-badge-host";
+    host.setAttribute("data-dealdig", "badge");
+    host.attachShadow({ mode: "open" });
+    document.documentElement.appendChild(host);
+  }
+  renderBadge(host.shadowRoot!, s, openPanel);
 }
 
 export function hideBadge() {
   host?.remove();
   host = null;
-  root = null;
 }
