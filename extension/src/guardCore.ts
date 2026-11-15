@@ -21,7 +21,7 @@ const onDomain = (host: string, domain: string) => host === domain || host.endsW
 
 export function isMarketplaceUrl(url: string | undefined): boolean {
   if (!url) return false;
-  if (/^http:\/\/localhost:8787\/demo\//.test(url)) return true; // the demo chat page
+  if (/^http:\/\/(localhost|127\.0\.0\.1):8787\/demo\//.test(url)) return true; // the demo chat page
   const host = /^https?:\/\//i.test(url) ? hostOfLink(url) : null;
   return !!host && MARKETPLACES.some((d) => onDomain(host, d));
 }

@@ -122,13 +122,18 @@ export function startLinkGuard() {
     if (["typed", "auto_bookmark", "generated", "keyword"].includes(d.transitionType)) void setGuarded(d.tabId, false);
   });
 
-  // A blocking rule fired: replace Chrome's plain error page with Second Look's warning.
+  // A blocking rule fired, or a link from a marketplace failed to load before the
+  // check finished (a fake domain fails fast): replace Chrome's plain error page
+  // with Second Look's warning when the link is flagged.
   chrome.webNavigation.onErrorOccurred.addListener((d) => {
-    if (d.frameId !== 0 || !d.error.includes("ERR_BLOCKED_BY_CLIENT")) return;
+    if (d.frameId !== 0 || d.error.includes("ERR_ABORTED")) return;
     void (async () => {
       const domain = domainOf(d.url);
-      if (!domain) return;
-      const v = (await chrome.storage.session.get(VERDICT(domain)))[VERDICT(domain)] as Verdict | undefined;
+      if (!domain || (await isAllowed(domain))) return;
+      const blockedByRule = d.error.includes("ERR_BLOCKED_BY_CLIENT");
+      if (!blockedByRule && !(await guardedTabs()).has(d.tabId)) return;
+      const stored = (await chrome.storage.session.get(VERDICT(domain)))[VERDICT(domain)] as Verdict | undefined;
+      const v = stored ?? (blockedByRule ? undefined : await verdictFor(d.url, domain));
       if (v?.verdict === "block") await showWarning(d.tabId, { url: d.url, domain, reasons: v.reasons });
     })();
   });
