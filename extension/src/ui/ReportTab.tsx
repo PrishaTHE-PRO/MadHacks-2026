@@ -18,9 +18,9 @@ import { ago, sellerName } from "./listingFacts";
 
 export function ReportTab({ listing, onCancel }: { listing?: Listing; onCancel(): void }) {
   if (!listing)
-    return <p className="dd-note">Open a listing to report its seller. Reports warn other DealDig users about them.</p>;
+    return <p className="dd-note">Open a listing to report its seller.</p>;
   if (!listing.seller.id)
-    return <p className="dd-note">Couldn't identify the seller on this page, so they can't be reported yet.</p>;
+    return <p className="dd-note">Can't find the seller on this page.</p>;
   return <ReportSeller listing={listing} onCancel={onCancel} />;
 }
 
@@ -77,11 +77,11 @@ function ReportSeller({ listing, onCancel }: { listing: Listing; onCancel(): voi
 
   const othersLine = community && (
     <p className="dd-note">
-      {community.reporters} {community.reporters === 1 ? "person has" : "people have"} reported this seller.
-      {community.flagged ? " Other buyers will see a warning." : ""}
+      Reported by {community.reporters} {community.reporters === 1 ? "person" : "people"}.
+      {community.flagged ? " Buyers now see a warning." : ""}
     </p>
   );
-  const errorLine = status === "error" && <p className="dd-note dd-err">Couldn't reach the DealDig server. Is it running?</p>;
+  const errorLine = status === "error" && <p className="dd-note dd-err">Can't reach the DealDig server.</p>;
 
   if (mine && !editing)
     return (
@@ -108,9 +108,6 @@ function ReportSeller({ listing, onCancel }: { listing: Listing; onCancel(): voi
       {othersLine}
       <section className="dd-card dd-report" aria-label="Report this seller">
         <h3>Report {sellerName(listing)}</h3>
-        <p className="dd-fine">
-          Anonymous: DealDig doesn't know who you are. A random code on this device makes sure you count once per seller.
-        </p>
         <fieldset className="dd-options">
           <legend className="dd-sr">What happened?</legend>
           {(Object.keys(REPORT_CATEGORIES) as ReportCategory[]).map((c) => (
@@ -125,7 +122,7 @@ function ReportSeller({ listing, onCancel }: { listing: Listing; onCancel(): voi
           <textarea
             value={details}
             onChange={(e) => setDetails(e.target.value)}
-            placeholder="Only used to review reports; never shown to other users or sent to AI."
+            placeholder="Private: never shown to others or sent to AI"
             rows={2}
             maxLength={1000}
           />
@@ -139,7 +136,7 @@ function ReportSeller({ listing, onCancel }: { listing: Listing; onCancel(): voi
             {status === "sending" ? "Sending…" : mine ? "Update report" : "Submit report"}
           </button>
         </div>
-        <p className="dd-fine">When 3 different people report a seller, other buyers see a warning. Sellers aren't blocked.</p>
+        <p className="dd-fine">Anonymous, one per seller. At 3 reports buyers see a warning; no one is blocked.</p>
       </section>
     </>
   );

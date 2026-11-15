@@ -8,7 +8,7 @@ import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
 import { ImageTab } from "./ImageTab";
-import { ListingFootNote, ListingTab } from "./ListingTab";
+import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
 import { CantConnectState, EmptyState, ErrorState, LoadingState } from "./States";
 
@@ -115,7 +115,6 @@ export function Panel(props: PanelProps) {
       <>
         <ListingTab listing={view.listing} report={view.report} history={props.history} />
         {props.tools}
-        <ListingFootNote report={view.report} />
       </>
     );
     footer = (

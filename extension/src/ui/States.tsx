@@ -5,9 +5,9 @@ import { Bubble } from "./Bubble";
 
 const STEP_LABEL: Record<ListingStep | "read", string> = {
   read: "Reading the listing",
-  seller: "Checking the seller's history",
-  web: "Searching the web for these photos and text",
-  item: "Identifying the item with Claude",
+  seller: "Checking the seller",
+  web: "Searching the web",
+  item: "Identifying the item",
   price: "Comparing prices",
   summary: "Writing the summary",
 };
@@ -54,7 +54,6 @@ export function EmptyState() {
     <div className="dd-state">
       <Bubble size={56} />
       <h2>Open a listing or a chat</h2>
-      <p>DealDig checks it for scam signs automatically.</p>
       <div className="dd-chips" style={{ justifyContent: "center", marginTop: 6 }}>
         {PLATFORMS.map((p) => (
           <span key={p} className="dd-chip">
@@ -71,7 +70,7 @@ export function CantConnectState({ onRetry }: { onRetry(): void }) {
     <div className="dd-state" role="alert">
       <Bubble size={56} icon="dash" />
       <h2>Can't reach the DealDig server</h2>
-      <p>Chat warnings still work. Listing checks need the server running in your project folder:</p>
+      <p>Chat warnings still work. Start the server:</p>
       <code className="dd-code">npm run server</code>
       <button className="dd-btn primary" onClick={onRetry}>
         Try again
