@@ -11,7 +11,6 @@ import { PLATFORM_NAMES, type ChatRole } from "../../../shared/types";
 import { chatKey, dismissedKey, roleKey, tabKey, threadKey, type ChatTabState, type TabState } from "../messages";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { HistoryCard, useHistory } from "../ui/HistoryCard";
-import { DocCheck } from "./DocCheck";
 import { Panel, type PanelView } from "../ui/Panel";
 import { SellerPanel } from "../ui/SellerPanel";
 import { PhotoPrivacy } from "./PhotoPrivacy";
@@ -119,13 +118,7 @@ export function App() {
       }
       history={history}
       tools={
-        <>
-          {/* Main's document check, styled for the sidebar by legacy.css. */}
-          <div className="dd-legacy">
-            <DocCheck />
-          </div>
-          <HistoryCard history={history} />
-        </>
+<HistoryCard history={history} />
       }
       onClose={() => window.close()}
       onRetry={() => tabId !== null && void chrome.runtime.sendMessage({ type: "RETRY_LISTING", tabId })}
