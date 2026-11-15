@@ -29,7 +29,7 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
         </section>
       )}
       <AiPhotoNotice report={report} listing={listing} />
-      <button className="dd-btn secondary" onClick={onRetry}>Check again</button>
+      <button className="dd-btn secondary" onClick={onRetry}>Second Look</button>
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
       <CopiesCard report={report} listing={listing} />
