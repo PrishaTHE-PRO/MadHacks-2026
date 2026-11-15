@@ -1,7 +1,10 @@
-// Meetup helper tests (spec §4.1): spot ranking, daylight and OSM parsing.
+// Meetup helper tests (spec §4.2, §4.3): spot ranking, daylight, OSM parsing,
+// and the template reply used without an AI key.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { candidatesFromOverpass, haversineKm, mapUrl, midpoint, rankSpots, sunTimes, type SpotCandidate } from "../src/meetup";
+import { templateReply } from "../src/reply";
+import type { DraftReplyInput } from "../../shared/types";
 
 const CENTER = { lat: 43.0747, lng: -89.3841 }; // downtown Madison
 
@@ -87,4 +90,33 @@ test("candidatesFromOverpass: kinds, centers, addresses, private places skipped"
 test("mapUrl searches by name + address when there is one", () => {
   assert.match(mapUrl({ name: "Central Library", address: "201 W Mifflin St", lat: 1, lng: 2 }), /query=Central%20Library%2C%20201/);
   assert.match(mapUrl({ name: "Library", lat: 43.1, lng: -89.4 }), /query=43\.100000%2C-89\.400000/);
+});
+
+const input = (over: Partial<DraftReplyInput> = {}): DraftReplyInput => ({
+  listing: { title: "Trek FX 2", price: 350, platform: "facebook" },
+  role: "buyer",
+  tone: "friendly",
+  spot: { name: "Central Library", address: "201 W Mifflin St" },
+  time: "Saturday at 2:00 PM",
+  ...over,
+});
+
+test("templateReply: buyer proposes the spot and time, pays in person", () => {
+  const r = templateReply(input());
+  assert.match(r, /Central Library/);
+  assert.match(r, /Saturday at 2:00 PM/);
+  assert.match(r, /pay in person/);
+});
+
+test("templateReply: declines deposits and off-platform moves", () => {
+  const r = templateReply(input({ tone: "firm", theirMessage: "Send a $50 deposit on Zelle and text me on WhatsApp" }));
+  assert.match(r, /don't send deposits/);
+  assert.match(r, /keep chatting here/);
+});
+
+test("templateReply: seller refuses codes and shipping", () => {
+  const r = templateReply(input({ role: "seller", theirMessage: "My mover will pick it up, just send me the verification code" }));
+  assert.match(r, /won't share any codes/);
+  assert.match(r, /local pickup only/);
+  assert.match(r, /payment has come through/);
 });
