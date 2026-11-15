@@ -6,9 +6,14 @@
 // On a sell page (the user creating their own listing) it shows the seller
 // view instead: the photo privacy tool and any photos the upload guard holds.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PLATFORM_NAMES, type ChatRole } from "../../../shared/types";
-import { chatKey, dismissedKey, roleKey, tabKey, threadKey, type ChatTabState, type TabState } from "../messages";
+import type { SentSummary } from "../../../shared/privacy";
+import { chatKey, dismissedKey, roleKey, sentKey, tabKey, threadKey, type ChatTabState, type TabState } from "../messages";
+import { saveSettings, SETTING_PERMISSION, SETTINGS_KEY, withDefaults, type PrivacySettings } from "../privacy/settings";
+import type { ShieldSummary } from "../privacy/shield";
+import { PrivacyCard } from "../ui/PrivacyCard";
+import { PrivacySettingsCard } from "../ui/PrivacySettings";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { HistoryCard, useHistory } from "../ui/HistoryCard";
 import { Panel, type PanelView } from "../ui/Panel";
@@ -58,6 +63,42 @@ function useStored<T>(area: "session" | "local", key: string | null): T | undefi
   return value;
 }
 
+/** The tracker shield's summary for a tab, refreshed when the page or settings change. */
+function useShieldSummary(tabId: number | null, refreshKey: string): ShieldSummary | null {
+  const [summary, setSummary] = useState<ShieldSummary | null>(null);
+  useEffect(() => {
+    setSummary(null);
+    if (tabId === null) return;
+    let live = true;
+    const load = () =>
+      chrome.runtime
+        .sendMessage({ type: "PRIVACY_SUMMARY", tabId })
+        .then((s: ShieldSummary) => live && setSummary(s))
+        .catch(() => {});
+    void load();
+    // Trackers keep loading after the page does: look once more a little later.
+    const later = setTimeout(load, 6000);
+    return () => {
+      live = false;
+      clearTimeout(later);
+    };
+  }, [tabId, refreshKey]);
+  return summary;
+}
+
+/** Turn a setting on or off, asking Chrome for its optional permission first (needs the click's user gesture). */
+async function changeSetting(key: keyof PrivacySettings, on: boolean): Promise<boolean> {
+  const permission = SETTING_PERMISSION[key];
+  if (permission && on) {
+    const granted = await chrome.permissions.request({ permissions: [permission] }).catch(() => false);
+    if (!granted) return false;
+  }
+  await saveSettings({ [key]: on });
+  // Off again: give the permission back, so DealDig holds no more access than it uses.
+  if (permission && !on) await chrome.permissions.remove({ permissions: [permission] }).catch(() => {});
+  return true;
+}
+
 function viewFor(state: TabState | undefined): PanelView {
   if (!state) return { kind: "empty" };
   if (state.status === "loading") return { kind: "loading", listing: state.listing, plan: state.plan, step: state.step };
@@ -75,6 +116,22 @@ export function App() {
   const role = useStored<ChatRole>("local", thread && roleKey(thread)) ?? "unknown";
   const dismissed = useStored<string[]>("local", thread && dismissedKey(thread)) ?? [];
   const history = useHistory();
+  const settings = withDefaults(useStored<Partial<PrivacySettings>>("local", SETTINGS_KEY));
+  const sent = useStored<SentSummary>("session", tabId === null ? null : sentKey(tabId));
+  const shield = useShieldSummary(
+    tabId,
+    `${activeTab.url}:${listingState?.status}:${settings.shield}:${settings.strict}:${settings.pausedSites.join(",")}`,
+  );
+  const onPause = useCallback(
+    (paused: boolean) => {
+      const site = shield?.site;
+      if (!site || tabId === null) return;
+      const rest = settings.pausedSites.filter((s) => s !== site);
+      // Pausing is for a page that broke: reload it so it loads without the shield.
+      void saveSettings({ pausedSites: paused ? [...rest, site] : rest }).then(() => chrome.tabs.reload(tabId));
+    },
+    [shield?.site, tabId, settings.pausedSites],
+  );
 
   // Esc closes the sidebar, like the close button.
   useEffect(() => {
@@ -117,8 +174,18 @@ export function App() {
         />
       }
       history={history}
+      privacy={<PrivacyCard summary={shield} sent={sent} siteName={site} onPause={onPause} />}
       tools={
-<HistoryCard history={history} />
+        <>
+          <HistoryCard history={history} />
+          <PrivacySettingsCard
+            settings={settings}
+            onChange={changeSetting}
+            onWipe={async () => {
+              await chrome.runtime.sendMessage({ type: "WIPE_EVERYTHING" });
+            }}
+          />
+        </>
       }
       onClose={() => window.close()}
       onRetry={() => tabId !== null && void chrome.runtime.sendMessage({ type: "RETRY_LISTING", tabId })}

@@ -7,6 +7,7 @@ import { checkLookalike, editDistance, registrableDomain, skeleton, stripQuery }
 import { prefilter } from "../../shared/chatPatterns";
 import { ageFlag, linkFlags, registrationDate } from "../src/links";
 import type { ChatContext } from "../../shared/types";
+import { fullHash, hashPrefix } from "../src/safeBrowsing";
 
 // --- Adversarial set: each of these should be caught, with the kind of trick ---
 const EVASIONS: [string, string][] = [
@@ -126,6 +127,15 @@ function fakeNet(opts: { ages?: Record<string, string>; threats?: string[]; redi
         ? new Response(JSON.stringify({ events: [{ eventAction: "registration", eventDate: reg }] }), { status: 200 })
         : new Response("{}", { status: 404 });
     }
+    if (url.startsWith("https://safebrowsing.googleapis.com/v5/")) {
+      // Google lists each threat domain as a whole ("evil.com/"): return its full hash if its prefix was asked for.
+      const asked = new URL(url).searchParams.getAll("hashPrefixes");
+      const fullHashes = (opts.threats ?? [])
+        .map((t) => fullHash(`${t}/`))
+        .filter((h) => asked.includes(hashPrefix(h)))
+        .map((h) => ({ fullHash: h.toString("base64"), fullHashDetails: [{ threatType: "SOCIAL_ENGINEERING" }] }));
+      return new Response(JSON.stringify(fullHashes.length ? { fullHashes } : {}), { status: 200 });
+    }
     if (url.startsWith("https://safebrowsing.googleapis.com/")) {
       const entries = (JSON.parse(String(init?.body)).threatInfo.threatEntries as { url: string }[]).map((e) => e.url);
       const matches = entries.filter((u) => opts.threats?.some((t) => u.includes(t))).map((u) => ({ threatType: "SOCIAL_ENGINEERING", threat: { url: u } }));
@@ -151,8 +161,27 @@ test("server: a brand-new domain is flagged, and only the bare domain goes to RD
   ]);
 });
 
-test("server: Safe Browsing match, sent without the query string", async () => {
+test("server: Safe Browsing match by hash prefix: Google never sees the link", async () => {
   process.env.GOOGLE_SAFE_BROWSING_KEY = "test-key";
+  try {
+    const net = fakeNet({ ages: { "evil-pay.com": daysAgo(4000) }, threats: ["evil-pay.com"] });
+    const flags = await linkFlags(chat(["https://evil-pay.com/login?token=SECRET"]), net.impl);
+    assert.deepEqual(flags.map((f) => f.pattern), ["unsafe_link"]);
+    assert.match(flags[0].reason, /lists evil-pay\.com as phishing/);
+    const sb = net.sent.filter((s) => s.url.startsWith("https://safebrowsing"));
+    assert.equal(sb.length, 1);
+    assert.ok(sb[0].url.includes("/v5/hashes:search"));
+    assert.ok(!sb[0].url.includes("evil-pay") && !sb[0].url.includes("SECRET") && sb[0].body === undefined);
+    // Every prefix is 4 bytes (base64 of 4 bytes is 8 characters).
+    for (const p of new URL(sb[0].url).searchParams.getAll("hashPrefixes")) assert.equal(p.length, 8);
+  } finally {
+    delete process.env.GOOGLE_SAFE_BROWSING_KEY;
+  }
+});
+
+test("server: Safe Browsing v4 fallback (DEALDIG_SAFE_BROWSING=v4), sent without the query string", async () => {
+  process.env.GOOGLE_SAFE_BROWSING_KEY = "test-key";
+  process.env.DEALDIG_SAFE_BROWSING = "v4";
   try {
     const net = fakeNet({ ages: { "evil-pay.com": daysAgo(4000) }, threats: ["evil-pay.com"] });
     const flags = await linkFlags(chat(["https://evil-pay.com/login?token=SECRET"]), net.impl);
@@ -162,6 +191,7 @@ test("server: Safe Browsing match, sent without the query string", async () => {
     assert.ok(sb.body!.includes("https://evil-pay.com/login") && !sb.body!.includes("SECRET"));
   } finally {
     delete process.env.GOOGLE_SAFE_BROWSING_KEY;
+    delete process.env.DEALDIG_SAFE_BROWSING;
   }
 });
 

@@ -186,6 +186,14 @@ export function saveListingText(listing: {
   ).run(listing.platform, listing.id, listing.sellerId, listing.sellerUsername, listing.url, listing.title.slice(0, 200), listing.text.slice(0, 5000));
 }
 
+/** Days a listing's description stays in the copied-text index (design doc 1.3). */
+export const LISTING_TEXT_DAYS = Number(process.env.DEALDIG_TEXT_DAYS ?? 30);
+
+/** Drop descriptions older than LISTING_TEXT_DAYS. Returns how many were removed. */
+export function purgeOldListingTexts(): number {
+  return db.prepare(`DELETE FROM listing_texts WHERE seen_at < datetime('now', ?)`).run(`-${LISTING_TEXT_DAYS} days`).changes as number;
+}
+
 const CACHE_DAYS = 7;
 
 /** A cached lookup result, or undefined when missing or older than a week. */

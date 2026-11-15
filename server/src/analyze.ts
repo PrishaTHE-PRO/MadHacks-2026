@@ -32,12 +32,26 @@ import type { Listing, PhotoMatch } from "../../shared/types";
 
 /** Web text search runs when Claude is available, unless DEALDIG_WEB_TEXT_SEARCH=off. */
 const webTextSearchEnabled = () => aiEnabled() && process.env.DEALDIG_WEB_TEXT_SEARCH !== "off";
-const webChecksEnabled = () => webPhotoSearchEnabled() || webTextSearchEnabled() || aiDetectorEnabled();
+
+/** Per-check choices the user makes in the extension. */
+export interface CheckOptions {
+  /**
+   * Send photos to outside services (Google Vision reverse image search,
+   * Sightengine AI-image detector). Opt-in in the extension; direct callers
+   * (tests, scripts) get the old behaviour.
+   */
+  webPhotos: boolean;
+}
+const DEFAULT_OPTIONS: CheckOptions = { webPhotos: true };
+
+const photoSearchOn = (o: CheckOptions) => o.webPhotos && webPhotoSearchEnabled();
+const detectorOn = (o: CheckOptions) => o.webPhotos && aiDetectorEnabled();
+const webChecksEnabled = (o: CheckOptions) => photoSearchOn(o) || webTextSearchEnabled() || detectorOn(o);
 
 /** The steps analyzeListing will run, in order (for the progress stream). */
-export const listingPlan = (): ListingStep[] => [
+export const listingPlan = (opts: CheckOptions = DEFAULT_OPTIONS): ListingStep[] => [
   "seller",
-  ...(webChecksEnabled() ? (["web"] as const) : []),
+  ...(webChecksEnabled(opts) ? (["web"] as const) : []),
   ...(aiEnabled() ? (["item", "price", "summary"] as const) : (["price"] as const)),
 ];
 
@@ -69,6 +83,7 @@ export async function analyzeListing(
   listing: Listing,
   photoHashes?: (string | null)[],
   onStep: (step: ListingStep) => void = () => {},
+  opts: CheckOptions = DEFAULT_OPTIONS,
 ): Promise<RiskReport> {
   const sellerId = listing.seller.id;
   onStep("seller");
@@ -106,9 +121,9 @@ export async function analyzeListing(
   const webCheck: WebCheckStatus = { photos: "off", text: "off", aiDetector: "off" };
   let webPhotoMatches: WebPhotoMatch[] | undefined;
   let detector: (number | null)[] = [];
-  if (webChecksEnabled()) {
+  if (webChecksEnabled(opts)) {
     onStep("web");
-    const photoSearch = webPhotoSearchEnabled() && listing.photos.length
+    const photoSearch = photoSearchOn(opts) && listing.photos.length
       ? searchListingPhotos(listing).then(
           (m) => ((webCheck.photos = "done"), m),
           (err) => (console.error("[analyze] reverse image search failed:", err), (webCheck.photos = "failed"), undefined),
@@ -122,7 +137,7 @@ export async function analyzeListing(
             (m) => ((webCheck.text = "done"), m),
             (err) => (console.error("[analyze] web text search failed:", err), (webCheck.text = "failed"), [] as TextMatch[]),
           );
-    const detectorRun = aiDetectorEnabled()
+    const detectorRun = detectorOn(opts)
       ? Promise.all(listing.photos.slice(0, DETECTOR_PHOTOS).map((u) => detectorScore(u))).then(
           (scores) => ((webCheck.aiDetector = "done"), scores),
           (err) => (console.error("[analyze] AI-image detector failed:", err), (webCheck.aiDetector = "failed"), [] as (number | null)[]),

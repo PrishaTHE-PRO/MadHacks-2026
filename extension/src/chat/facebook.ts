@@ -13,6 +13,7 @@
 
 import type { ChatAdapter, ReadMessage } from "./adapter";
 import { cleanText, withFallbackIds } from "./adapter";
+import { isOurs } from "../content/stealth";
 
 const THREAD_LABEL = /message|conversation|chat/i;
 // Rows that are UI, not messages.
@@ -38,7 +39,7 @@ export const facebook: ChatAdapter = {
     const rows: { el: HTMLElement; fromMe: boolean; text: string }[] = [];
     for (const row of thread.querySelectorAll<HTMLElement>('[role="row"]')) {
       const blocks = [...row.querySelectorAll<HTMLElement>('div[dir="auto"], span[dir="auto"]')].filter(
-        (b) => !b.closest("[data-dealdig]") && !b.parentElement?.closest('[dir="auto"]'),
+        (b) => !isOurs(b) && !b.parentElement?.closest('[dir="auto"]'),
       );
       const text = cleanText(blocks.map((b) => b.innerText).join(" "));
       if (!text || SKIP_ROW.test(text)) continue;

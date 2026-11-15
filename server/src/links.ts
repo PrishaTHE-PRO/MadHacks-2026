@@ -15,6 +15,7 @@
 import { isShortener, suspiciousLinks } from "../../shared/chatPatterns";
 import { checkLookalike, hostOfLink, isOfficialDomain, registrableDomain, stripQuery } from "../../shared/linkCheck";
 import type { ChatContext, ChatFlag } from "../../shared/types";
+import { safeBrowsingByPrefix } from "./safeBrowsing";
 
 const RDAP_URL = "https://rdap.org/domain/";
 const SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
@@ -114,11 +115,28 @@ export async function domainRegisteredAt(domain: string, fetchImpl: typeof fetch
   return iso ? new Date(iso) : null;
 }
 
-/** Safe Browsing matches: url (as sent) → threat type. Empty without a key. */
+/**
+ * Safe Browsing matches: url (as given) → threat type. Empty without a key.
+ * By default only hash prefixes go to Google (safeBrowsing.ts, v5). If that
+ * call fails, or DEALDIG_SAFE_BROWSING=v4, the full URLs go to the v4 API:
+ * a missed phishing link is worse than Google seeing the link.
+ */
 export async function safeBrowsingMatches(urls: string[], fetchImpl: typeof fetch = fetch): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
   const key = process.env.GOOGLE_SAFE_BROWSING_KEY;
-  if (!key || !urls.length) return out;
+  if (!key || !urls.length) return new Map();
+  if (process.env.DEALDIG_SAFE_BROWSING !== "v4") {
+    try {
+      return await safeBrowsingByPrefix(urls, key, fetchImpl);
+    } catch (err) {
+      console.warn("[links] Safe Browsing by hash prefix failed, falling back to v4 (full URLs):", err instanceof Error ? err.message : err);
+    }
+  }
+  return safeBrowsingMatchesV4(urls, key, fetchImpl);
+}
+
+/** v4 threatMatches:find: sends the full URLs. Fallback only. */
+async function safeBrowsingMatchesV4(urls: string[], key: string, fetchImpl: typeof fetch): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
   try {
     const res = await fetchImpl(`${SAFE_BROWSING_URL}?key=${encodeURIComponent(key)}`, {
       method: "POST",

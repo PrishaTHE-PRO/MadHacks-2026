@@ -131,3 +131,24 @@ test("returns null before the item has rendered", () => {
   assert.equal(parseFacebookPage(base({ text: "", headings: [] }), NOW), null);
   assert.equal(parseFacebookPage(base({ url: "https://www.facebook.com/marketplace/" }), NOW), null);
 });
+
+test("keeps carousel photos that aren't on screen yet, once per photo", () => {
+  const PHOTO_3 = "https://scontent-ord5-1.xx.fbcdn.net/v/t45/333_n.jpg";
+  const fixture = base();
+  const l = parseFacebookPage(
+    base({
+      images: [
+        ...fixture.images,
+        // Not swiped to yet: in the DOM but not laid out.
+        { src: PHOTO_3, alt: "", width: 0, height: 0 },
+        // The big view of photo 2, at a different size.
+        { src: `${PHOTO_2}?stp=dst-jpg_s960x960`, alt: "Road bike", width: 620, height: 620 },
+        // An icon is never a listing photo.
+        { src: "https://static.xx.fbcdn.net/rsrc.php/v3/icon.png", alt: "", width: 0, height: 0 },
+      ],
+    }),
+    NOW,
+  );
+  assert.ok(l);
+  assert.deepEqual(l.photos, [PHOTO_1, PHOTO_2, PHOTO_3]);
+});

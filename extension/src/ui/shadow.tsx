@@ -8,12 +8,16 @@ import panel from "./panel.css";
 import backdrop from "./backdrop.css";
 import legacy from "./legacy.css";
 import photo from "./photo.css";
+import privacy from "./privacy.css";
 
-export const UI_CSS = [tokens, motion, panel, backdrop, legacy, photo].join("\n");
+export const UI_CSS = [tokens, motion, panel, backdrop, legacy, photo, privacy].join("\n");
 
-/** Attach a shadow root to `host`, add the styles (plus any extra CSS), and return a React root inside it. */
+const shadows = new WeakMap<HTMLElement, ShadowRoot>();
+
+/** Attach a (closed) shadow root to `host`, add the styles (plus any extra CSS), and return a React root inside it. */
 export function mountInShadow(host: HTMLElement, extraCss = ""): Root {
-  const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+  let shadow = shadows.get(host);
+  if (!shadow) shadows.set(host, (shadow = host.attachShadow({ mode: "closed" })));
   const style = document.createElement("style");
   style.textContent = UI_CSS + extraCss;
   const container = document.createElement("div");

@@ -9,7 +9,7 @@
 //      in Madison, WI", "Condition", "Joined Facebook in 2015".
 
 import type { Listing } from "../../../shared/types";
-import { dedupe, lines, parsePrice, relativeAgo, str, type PageData } from "./page";
+import { lines, parsePrice, relativeAgo, str, type PageData } from "./page";
 
 const ITEM_PATH = /^\/marketplace\/(?:[^/]+\/)?item\/(\d+)/;
 
@@ -104,9 +104,13 @@ export function parseFacebookPage(page: PageData, now = Date.now()): Listing | n
     .filter(
       (img) =>
         /fbcdn\.net|scontent/.test(img.src) &&
+        !/static\.xx\.fbcdn\.net|\/rsrc\.php\//.test(img.src) && // icons and emoji
         !/\/marketplace\/item\//.test(img.linkHref ?? "") &&
         !/\/profile|profile picture/i.test(`${img.linkHref ?? ""} ${img.alt}`) &&
-        (Math.min(img.width, img.height) >= 200 || /^thumbnail/i.test(img.alt)),
+        (Math.min(img.width, img.height) >= 200 ||
+          /^thumbnail/i.test(img.alt) ||
+          // Carousel slides not swiped to yet are in the page but not laid out.
+          (img.width === 0 && img.height === 0 && !img.linkHref)),
     )
     .map((img) => img.src);
   const ogImage = og("og:image");
@@ -121,7 +125,7 @@ export function parseFacebookPage(page: PageData, now = Date.now()): Listing | n
     condition,
     price: price.amount,
     currency: price.currency ?? "USD",
-    photos: dedupe(photos).slice(0, 10),
+    photos: dedupeFbPhotos(photos).slice(0, 10),
     listedAt,
     location,
     seller: {
@@ -135,4 +139,23 @@ export function parseFacebookPage(page: PageData, now = Date.now()): Listing | n
       ratingsCount,
     },
   };
+}
+
+/**
+ * The thumbnail strip and the big photo are the same picture at different
+ * sizes: same file name, different size parameters. Keep one of each.
+ */
+export function dedupeFbPhotos(urls: string[]): string[] {
+  const seen = new Set<string>();
+  return urls.filter((u) => {
+    let key = u;
+    try {
+      key = new URL(u).pathname.split("/").pop() || u;
+    } catch {
+      /* keep the full URL as the key */
+    }
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

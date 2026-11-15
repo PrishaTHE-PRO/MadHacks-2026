@@ -10,7 +10,8 @@
   },
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
-  "permissions": ["sidePanel", "storage", "tabs", "webNavigation", "declarativeNetRequest"],
+  "permissions": ["sidePanel", "storage", "tabs", "webNavigation", "declarativeNetRequest", "declarativeNetRequestFeedback"],
+  "optional_permissions": ["history", "browsingData"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
@@ -19,8 +20,20 @@
     "http://localhost:8787/*",
     "https://di2ponv0v5otw.cloudfront.net/*",
     "https://i.ebayimg.com/*",
-    "https://*.fbcdn.net/*"
+    "https://*.fbcdn.net/*",
+    "https://*.ebay.com/*",
+    "https://*.facebook.com/*",
+    "https://*.mercari.com/*",
+    "https://*.etsy.com/*",
+    "https://*.depop.com/*"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "trackers", "enabled": true, "path": "rules/trackers.json" },
+      { "id": "strict", "enabled": false, "path": "rules/strict.json" },
+      { "id": "clean", "enabled": true, "path": "rules/clean-urls.json" }
+    ]
+  },
   "content_scripts": [
     {
       "matches": [

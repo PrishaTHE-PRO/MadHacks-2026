@@ -1,0 +1,132 @@
+// "Who knows you looked": what the tracker shield stopped on this page, who
+// still sees the view (the marketplace itself, honestly), and exactly what
+// DealDig sent for its check. Pure UI, so the preview can render it with mocks.
+
+import { CATEGORY_LABEL, type SentSummary, type TrackerCategory } from "../../../shared/privacy";
+import type { ShieldSummary } from "../privacy/shield";
+
+const CATEGORIES: TrackerCategory[] = ["advertising", "analytics", "social"];
+
+export interface PrivacyCardProps {
+  summary: ShieldSummary | null;
+  sent?: SentSummary;
+  /** The marketplace's name, e.g. "Poshmark". */
+  siteName?: string;
+  onPause(paused: boolean): void;
+}
+
+export function PrivacyCard({ summary, sent, siteName = "This site", onPause }: PrivacyCardProps) {
+  const isFacebook = summary?.site === "facebook.com";
+  return (
+    <section className="dd-card dd-privacy" aria-label="Who knows you looked">
+      <div className="dd-privacy-head">
+        <h3>Who knows you looked</h3>
+        {summary?.site && summary.on && (
+          <button className="dd-link dd-small" onClick={() => onPause(!summary.paused)}>
+            {summary.paused ? "Resume shield here" : "Pause shield on this site"}
+          </button>
+        )}
+      </div>
+      <ul className="dd-who">
+        <ShieldRow summary={summary} isFacebook={isFacebook} />
+        <li>
+          <span className="dd-who-mark caution" aria-hidden="true">!</span>
+          <div className="dd-who-text">
+            <span className="dd-who-title">Still sees this view: {siteName}</span>
+            <span className="dd-fine">
+              {siteName} can see you opened this listing. No extension can hide that while you're signed in.
+            </span>
+          </div>
+        </li>
+        <SentRow sent={sent} />
+      </ul>
+    </section>
+  );
+}
+
+function ShieldRow({ summary, isFacebook }: { summary: ShieldSummary | null; isFacebook: boolean }) {
+  if (!summary) {
+    return (
+      <li>
+        <span className="dd-who-mark info" aria-hidden="true">…</span>
+        <div className="dd-who-text">
+          <span className="dd-who-title">Checking which trackers were stopped…</span>
+        </div>
+      </li>
+    );
+  }
+  if (!summary.on || summary.paused) {
+    return (
+      <li>
+        <span className="dd-who-mark caution" aria-hidden="true">!</span>
+        <div className="dd-who-text">
+          <span className="dd-who-title">Tracker shield is {summary.paused ? "paused on this site" : "off"}</span>
+          <span className="dd-fine">Advertisers and analytics companies on this page can see which listing you opened.</span>
+        </div>
+      </li>
+    );
+  }
+  const noun = summary.total === 1 ? "tracker request" : "tracker requests";
+  return (
+    <li>
+      <span className="dd-who-mark good" aria-hidden="true">✓</span>
+      <div className="dd-who-text">
+        <span className="dd-who-title">
+          {summary.total ? `Stopped ${summary.total} ${noun} from seeing this listing` : "No known trackers tried to load on this page"}
+        </span>
+        {isFacebook && (
+          <span className="dd-fine">Facebook still sees this view through its own servers. Other advertisers don't.</span>
+        )}
+        {summary.stale && <span className="dd-fine">Chrome limits how often this list refreshes. It updates again shortly.</span>}
+        {summary.blocked.length > 0 && (
+          <details>
+            <summary>See who ({summary.blocked.length})</summary>
+            {CATEGORIES.map((c) => {
+              const rows = summary.blocked.filter((b) => b.category === c);
+              if (!rows.length) return null;
+              return (
+                <div key={c}>
+                  <p className="dd-tracker-group">{CATEGORY_LABEL[c]}</p>
+                  <ul className="dd-trackers">
+                    {rows.map((b) => (
+                      <li key={b.domain}>
+                        <code>{b.domain}</code>: {b.about}
+                        {b.count > 1 ? ` (${b.count}×)` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </details>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function SentRow({ sent }: { sent?: SentSummary }) {
+  if (!sent) return null;
+  const photos = sent.photoFingerprints
+    ? `${sent.photoFingerprints} photo fingerprint${sent.photoFingerprints === 1 ? "" : "s"}`
+    : "no photo fingerprints";
+  return (
+    <li>
+      <span className="dd-who-mark info" aria-hidden="true">i</span>
+      <div className="dd-who-text">
+        <span className="dd-who-title">DealDig sent: public listing details only</span>
+        <span className="dd-fine">
+          {sent.fields.join(", ")}, and {photos}.
+          {sent.linkTrimmed ? " Tracking tags and session codes were cut from the link." : ""}
+        </span>
+        <span className="dd-fine">
+          Not sent: your marketplace account, your cookies, or your DealDig reporter ID. The server doesn't record who checked which listing.
+          Claude (Anthropic) reviews the listing for the score.
+          {sent.webPhotos
+            ? " Photos also went to Google and Sightengine to find copies and AI fakes (you turned this on)."
+            : " Photos weren't sent to Google or Sightengine."}
+        </span>
+      </div>
+    </li>
+  );
+}

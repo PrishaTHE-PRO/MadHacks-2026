@@ -31,8 +31,10 @@ export interface PanelProps {
   initialTab?: PanelTab;
   /** This device's check history (earlier visits on the Listing tab). */
   history: HistoryEntry[];
-  /** Always available under the Listing tab, whatever its state: history. */
+  /** Always available under the Listing tab, whatever its state: history, privacy settings. */
   tools?: ReactNode;
+  /** "Who knows you looked", shown with a listing result. */
+  privacy?: ReactNode;
   onClose(): void;
   onRetry(): void;
 }
@@ -92,6 +94,7 @@ export function Panel(props: PanelProps) {
     body = (
       <>
         <ListingTab listing={view.listing} report={view.report} history={props.history} />
+        {props.privacy}
         {props.tools}
       </>
     );

@@ -8,11 +8,16 @@ import { renderBadge, type BadgeState } from "../content/badge";
 import { flagKey } from "../messages";
 import { highReport, lowReport, mediumReport, mockChat } from "./mocks";
 
+// Closed roots, like on real pages (content/stealth.ts), kept here instead of host.shadowRoot.
+const roots = new WeakMap<HTMLElement, ShadowRoot>();
+
 function Shadow({ draw }: { draw(root: ShadowRoot): void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = ref.current!;
-    draw(host.shadowRoot ?? host.attachShadow({ mode: "open" }));
+    let root = roots.get(host);
+    if (!root) roots.set(host, (root = host.attachShadow({ mode: "closed" })));
+    draw(root);
   });
   return <div ref={ref} />;
 }
