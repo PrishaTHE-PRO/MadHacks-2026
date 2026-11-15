@@ -33,7 +33,7 @@ export function HistoryCard({ history }: { history: HistoryEntry[] }) {
           <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
         </svg>
       </summary>
-      <p className="dd-fine">Saved only on this device for {HISTORY_DAYS} days. Clearing it doesn't remove reports you've sent.</p>
+      <p className="dd-fine">On this device only, for {HISTORY_DAYS} days. Clearing keeps reports you sent.</p>
       <ul>
         {history.slice(0, 30).map((h) => (
           <li key={`${h.platform}:${h.listingId}`}>

@@ -152,7 +152,7 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
 
   const copy = async () => {
     await navigator.clipboard.writeText(reply);
-    setStatus("Copied. Paste it into the chat and press Send yourself.");
+    setStatus("Copied.");
   };
 
   const times = found ? timeOptions(found.daylight) : [];
@@ -177,8 +177,8 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
         </div>
       </label>
       <p className="muted small">
-        {listing.location ? `Item is in ${listing.location}. ` : ""}
-        We search halfway between. Only what you type is used, never your GPS.
+        {listing.location ? `Item in ${listing.location}. ` : ""}
+        Never uses your GPS.
       </p>
       {error && <p className="error">{error}</p>}
 
@@ -226,7 +226,7 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
             {time === "custom" && (
               <input value={customTime} onChange={(e) => setCustomTime(e.target.value)} placeholder="e.g. Sunday at 1:00 PM" />
             )}
-            {sunsetToday && <p className="muted small">Sunset today is {clock(sunsetToday)}. Meet in daylight and bring a friend.</p>}
+            {sunsetToday && <p className="muted small">Sunset {clock(sunsetToday)}. Bring a friend.</p>}
           </div>
 
           <div className="field">
@@ -249,7 +249,7 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
             <textarea
               value={theirMessage}
               onChange={(e) => setTheirMessage(e.target.value)}
-              placeholder="Optional: paste their last message, so the reply can answer it"
+              placeholder="Optional: their last message"
               rows={2}
             />
             <button disabled={!spot || !chosenTime || drafting} onClick={draft}>
@@ -264,8 +264,7 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
                 <button onClick={copy}>Copy</button>
               </div>
               <p className="muted small">
-                {replyAi ? "Drafted by Claude." : "Template reply (no AI key on the server)."} DealDig never sends
-                messages for you.
+                {replyAi ? "AI draft." : "Template."} DealDig never sends it for you.
               </p>
             </div>
           )}

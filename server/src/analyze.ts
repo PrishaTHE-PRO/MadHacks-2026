@@ -196,15 +196,15 @@ export async function analyzeListing(
 }
 
 /**
- * The explanation when Claude isn't available: the score, then the biggest
- * reasons with their points, so the user can see where the number comes from.
+ * The one-line summary when Claude isn't available: what to do next. The
+ * score and every reason with its points are shown right below it, so it
+ * doesn't repeat them.
  */
 export function fallbackSummary(result: RuleResult, level: RiskLevel): string {
-  const risky = result.signals.filter((s) => s.points > 0).sort((a, b) => b.points - a.points);
-  const scored = `${result.score}/${SCORE_MAX}`;
-  if (!risky.length) return `${scored}: no red flags found in the listing, its photos or the seller's history.`;
-  const lead = level === "high" ? "High risk" : level === "medium" ? "Be careful" : "Mostly fine";
-  const reasons = risky.slice(0, 2).map((s) => `${s.text.replace(/\.$/, "")} (+${s.points})`);
-  const rest = risky.length > 2 ? ` Plus ${risky.length - 2} smaller ${risky.length === 3 ? "reason" : "reasons"}, listed below.` : "";
-  return `${lead}, ${scored}. ${reasons.join(". ")}.${rest}`;
+  if (!result.signals.some((s) => s.points > 0)) return "No red flags found. Still pay through the platform.";
+  return level === "high"
+    ? "Don't pay or share details until you've checked the reasons below."
+    : level === "medium"
+      ? "Check the reasons below before you pay."
+      : "Minor flags only. Pay through the platform.";
 }
