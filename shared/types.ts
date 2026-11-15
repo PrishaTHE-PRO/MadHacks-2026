@@ -388,14 +388,20 @@ export const CHAT_PATTERN_IDS = [
   "lookalike_link", // on device: faceb00k-pay.com, paypa1.com, punycode, bare IPs
   "new_domain", // server: registered in the last 90 days (RDAP)
   "unsafe_link", // server: Google Safe Browsing match
+  // Image check: raised on the device from the image file itself, never by the AI.
+  "edited_image", // an image the other person sent names an editing app (Photoshop...)
 ] as const;
 export type ChatPatternId = (typeof CHAT_PATTERN_IDS)[number];
 
-/** Patterns Claude may return. The link checks need evidence (a lookup or a measured look-alike), so only code raises them. */
-export const AI_CHAT_PATTERN_IDS = CHAT_PATTERN_IDS.filter(
-  (id): id is Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link"> =>
-    id !== "lookalike_link" && id !== "new_domain" && id !== "unsafe_link",
-) as [Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link">, ...Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link">[]];
+/** Patterns only code raises: they need evidence (a lookup, a measured look-alike, the image file's own data). */
+type CodeOnlyPattern = "lookalike_link" | "new_domain" | "unsafe_link" | "edited_image";
+const CODE_ONLY: readonly string[] = ["lookalike_link", "new_domain", "unsafe_link", "edited_image"] satisfies CodeOnlyPattern[];
+
+/** Patterns Claude may return. */
+export const AI_CHAT_PATTERN_IDS = CHAT_PATTERN_IDS.filter((id): id is Exclude<ChatPatternId, CodeOnlyPattern> => !CODE_ONLY.includes(id)) as [
+  Exclude<ChatPatternId, CodeOnlyPattern>,
+  ...Exclude<ChatPatternId, CodeOnlyPattern>[],
+];
 
 /** The specific link warnings that replace the generic "suspicious_link" on the same message. */
 export const LINK_CHECK_PATTERNS: readonly ChatPatternId[] = ["lookalike_link", "new_domain", "unsafe_link"];

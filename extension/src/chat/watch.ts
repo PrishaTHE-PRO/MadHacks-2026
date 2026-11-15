@@ -13,6 +13,7 @@ import type { ChatContext, ChatFlag, ChatRole } from "../../../shared/types";
 import { dismissedKey, flagKey, roleKey, threadKey, type ContentMessage } from "../messages";
 import type { ChatAdapter } from "./adapter";
 import { removeAllChips, removeChips, showChips } from "./chips";
+import { checkMessageImages } from "./imageCheck";
 import { isOurs } from "../content/stealth";
 
 const DEBOUNCE_MS = 800;
@@ -39,6 +40,8 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
   const sent = new Set<string>(); // message ids already sent to the server
   const flags = new Map<string, ChatFlag>(); // flagKey → flag
   let elById = new Map<string, HTMLElement>();
+  /** Image checks per message id: the warning, null when clean, undefined while running. */
+  const imageChecks = new Map<string, ChatFlag | null | undefined>();
   /** Warnings just marked "Not a scam": shown as an Undo line for a few seconds. */
   const undoable = new Map<string, { flag: ChatFlag; timer: ReturnType<typeof setTimeout> }>();
   let announced = ""; // threadId we've told the background we're watching
@@ -105,6 +108,7 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
     key = threadKey(adapter.platform, id);
     sent.clear();
     flags.clear();
+    imageChecks.clear();
     for (const { timer } of undoable.values()) clearTimeout(timer);
     undoable.clear();
     removeAllChips();
@@ -135,6 +139,21 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
 
     // Instant regex flags; a server flag for the same pattern + message wins.
     for (const f of prefilter(ctx)) if (!flags.has(flagKey(f))) flags.set(flagKey(f), f);
+    // Images from the other person, checked on the device (once per message).
+    for (const f of imageChecks.values()) if (f) flags.set(flagKey(f), f);
+    for (const { msg, images } of items) {
+      if (msg.fromMe || !images?.length || imageChecks.has(msg.id)) continue;
+      imageChecks.set(msg.id, undefined);
+      const forThread = threadId;
+      void checkMessageImages(images, msg.id).then((flag) => {
+        if (threadId !== forThread) return;
+        imageChecks.set(msg.id, flag);
+        if (flag) {
+          flags.set(flagKey(flag), flag);
+          render();
+        }
+      });
+    }
     render();
 
     if (messages.some((m) => !sent.has(m.id))) {

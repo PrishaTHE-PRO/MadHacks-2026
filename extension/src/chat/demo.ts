@@ -17,6 +17,7 @@ export const demo: ChatAdapter = {
         author: cleanText(el.querySelector(".author")?.textContent) || undefined,
         text: cleanText(el.querySelector(".text")?.textContent),
       },
+      images: [...el.querySelectorAll<HTMLImageElement>(".text img")].map((img) => img.src),
     })),
   readContext: (doc) => {
     const thread = doc.querySelector<HTMLElement>('[data-demo="thread"]');

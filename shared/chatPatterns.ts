@@ -312,6 +312,15 @@ export const CHAT_PATTERNS: ChatPattern[] = [
     regexes: [], // raised by the server after a Safe Browsing lookup
   },
   {
+    id: "edited_image",
+    name: "Edited image",
+    targets: "both",
+    severity: "caution",
+    reason: "This image was saved by a photo editor, so it may have been changed. Fake invoices, receipts and payment screenshots are made this way.",
+    tip: "Don't pay or ship based on a picture. Check payments in your own bank or payment app, and confirm invoices with the company directly.",
+    regexes: [], // raised on the device from the image file (extension/src/chat/imageCheck.ts)
+  },
+  {
     id: "personal_info_request",
     name: "Personal info request",
     targets: "both",

@@ -8,6 +8,8 @@ export interface ReadMessage {
   msg: ChatMessage;
   /** Where to attach the warning chip (appended as the last child). */
   el: HTMLElement;
+  /** Addresses of images in the message (invoices, screenshots), checked on the device. */
+  images?: string[];
 }
 
 export interface ChatAdapter {

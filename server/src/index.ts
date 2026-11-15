@@ -225,6 +225,9 @@ app.post("/analyze-chat", async (req, res) => {
 // The demo chat page (extension/demo/chat.html); the extension's demo adapter reads it.
 const DEMO_CHAT = fileURLToPath(new URL("../../extension/demo/chat.html", import.meta.url));
 app.get("/demo/chat", (_req, res) => res.sendFile(DEMO_CHAT));
+// A made-up fishy invoice for the demo chat (extension/demo/make-fake-invoice.py).
+const DEMO_INVOICE = fileURLToPath(new URL("../../extension/demo/fake-invoice.jpg", import.meta.url));
+app.get("/demo/fake-invoice.jpg", (_req, res) => res.sendFile(DEMO_INVOICE));
 
 app.post("/report", (req, res) => {
   const parsed = ReportBody.safeParse(req.body);
