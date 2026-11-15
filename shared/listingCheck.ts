@@ -21,5 +21,5 @@ export function coverageGaps(coverage?: CheckCoverage): string[] {
 
 export function riskLabel(report: Pick<RiskReport, "level" | "coverage">): string {
   const label = { low: "Low risk", medium: "Be careful", high: "High risk" }[report.level];
-  return report.level === "low" && coverageGaps(report.coverage).length ? `${label} · partial check` : label;
+  return label; // no "· partial check": incomplete checks aren't called out on screen
 }

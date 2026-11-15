@@ -10,7 +10,7 @@ import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
 import { AiPhotoNotice, CommunityFlag, CopiesCard, EarlierVisits } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
-import { coverageGaps, riskLabel } from "../../../shared/listingCheck";
+import { riskLabel } from "../../../shared/listingCheck";
 
 /** Watch-out rows come in one after another, most serious first. */
 const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
@@ -48,7 +48,6 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
 function Verdict({ report }: { report: RiskReport }) {
   const { level } = report;
   const label = riskLabel(report);
-  const gaps = coverageGaps(report.coverage);
   return (
     <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
@@ -58,11 +57,7 @@ function Verdict({ report }: { report: RiskReport }) {
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
-      {gaps.length > 0 && <p className="dd-summary">Partial check: {gaps.join("; ")}.</p>}
       {report.aiUnavailableReason && <p className="dd-summary">AI check unavailable: {report.aiUnavailableReason}.</p>}
-      {report.photoAssessments?.filter((p) => p.note && !p.shows_listed_item).map((p) => (
-        <p className="dd-summary" key={p.index}>Photo {p.index + 1}: {p.note}</p>
-      ))}
       <div className="dd-bar" role="img" aria-label={`Risk level: ${label}`}>
         {LEVELS.map((l) => (
           <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />

@@ -29,7 +29,6 @@ import { localTextMatches, longEnough, searchSentences, verifyHits } from "./tex
 import { aiDetectorEnabled, aiImageNote, claudeAiPhotoView, combineAiImage, detectorScore, DETECTOR_PHOTOS } from "./aiImage";
 import type { IndexLookup } from "./sellerIdentity";
 import type { Listing, PhotoMatch } from "../../shared/types";
-import { coverageGaps } from "../../shared/listingCheck";
 import { loadPhotos } from "./images";
 
 /** Web text search runs when Claude is available, unless DEALDIG_WEB_TEXT_SEARCH=off. */
@@ -209,10 +208,9 @@ export async function analyzeListing(
     result.signals.push({ id: "coverage-photos", severity: "info", points: 0, source: "rules", text: coverage.photos.checked ? `Only ${coverage.photos.checked} of ${coverage.photos.total} photos were checked.` : "The photo content check didn't run." });
   if (!coverage.price) result.signals.push({ id: "coverage-price", severity: "info", points: 0, source: "rules", text: "No typical price was available for comparison." });
 
-  const partial = coverageGaps(coverage).length > 0;
-  let summary = fallbackSummary(result, level, partial);
+  let summary = fallbackSummary(result, level);
   let explained = false;
-  if (aiEnabled() && !partial) {
+  if (aiEnabled()) {
     onStep("summary");
     try {
       const line = await explainScore({ listing, score: result.score, level, signals: result.signals, price, aiPhotoNote: aiImageNote(aiImage) });
@@ -260,8 +258,7 @@ export async function analyzeListing(
  * The one-line summary when Claude isn't available: what to do next. The
  * level and every reason are shown right below it, so it doesn't repeat them.
  */
-export function fallbackSummary(result: RuleResult, level: RiskLevel, partial = false): string {
-  if (partial) return "Partial check: some checks couldn't run. Review what wasn't checked before you pay.";
+export function fallbackSummary(result: RuleResult, level: RiskLevel): string {
   if (!result.signals.some((s) => s.points > 0)) return "No red flags found. Still pay through the platform.";
   return level === "high"
     ? "Don't pay or share details until you've checked the reasons below."

@@ -33,13 +33,13 @@ test("saved page: the overlay has the listing but no seller profile link", { ski
   assert.ok(!/Seller (information|details)/.test(html));
 });
 
-test("without an API key, the flyer has a placeholder warning and a partial check", async () => {
+test("without an API key, the flyer has a placeholder warning and no partial-check text", async () => {
   const { analyzeListing } = await import("../src/analyze");
   const warn = mock.method(console, "warn", () => {});
   try {
     const report = await analyzeListing(listing);
     assert.equal(report.level, "low");
-    assert.match(report.summary, /^Partial check:/);
+    assert.doesNotMatch(report.summary, /Partial check/i);
     assert.equal(report.score, 15);
     assert.deepEqual(report.coverage, { seller: false, photos: { checked: 0, total: 1 }, ai: false, price: false });
     assert.deepEqual(

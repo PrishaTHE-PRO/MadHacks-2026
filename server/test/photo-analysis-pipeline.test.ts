@@ -25,7 +25,8 @@ test("pipeline sends image bytes and scores findings; text-only and failed check
   const fetchMock = mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body));
     assert.ok(body.messages, "only the mocked Claude call should be made");
-    sent = body.messages[0].content;
+    // The listing analysis sends blocks (photos + data); the summary call that follows sends plain text.
+    if (Array.isArray(body.messages[0].content)) sent = body.messages[0].content;
     if (fail) return new Response(JSON.stringify({ type: "error", error: { type: "authentication_error", message: "test failure" } }), { status: 401 });
     return new Response(JSON.stringify({
       id: "msg_test", type: "message", role: "assistant", model: "test-model", stop_reason: "end_turn", stop_sequence: null,
@@ -52,7 +53,7 @@ test("pipeline sends image bytes and scores findings; text-only and failed check
       assert.equal(report.coverage.photos.checked, 0);
       assert.equal(report.score, 15);
       assert.ok(!report.signals.some((s) => s.id === "ai-photo-likely"));
-      assert.match(report.summary, /^Partial check:/);
+      assert.doesNotMatch(report.summary, /Partial check/i);
     });
     await t.test("duplicate and out-of-range photo indices cannot inflate coverage", async () => {
       output = { ...analysis, photos: [analysis.photos[0], analysis.photos[0], { ...analysis.photos[0], index: 8 }] };
@@ -67,7 +68,7 @@ test("pipeline sends image bytes and scores findings; text-only and failed check
       assert.equal(report.coverage.ai, false);
       assert.equal(report.aiUnavailableReason, "API key rejected (HTTP 401)");
       assert.equal(report.coverage.photos.checked, 0);
-      assert.match(report.summary, /^Partial check:/);
+      assert.doesNotMatch(report.summary, /Partial check/i);
     });
   } finally { fetchMock.mock.restore(); }
 });

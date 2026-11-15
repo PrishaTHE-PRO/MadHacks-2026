@@ -72,7 +72,7 @@ test("failed or missing image assessments cannot imply none of the photos show t
 
 test("missing coverage qualifies low-risk labels; medium/high keep their labels", () => {
   const coverage = { seller: false, photos: { checked: 0, total: 1 }, ai: false, price: false };
-  assert.equal(riskLabel({ level: "low", coverage }), "Low risk · partial check");
+  assert.equal(riskLabel({ level: "low", coverage }), "Low risk");
   assert.equal(riskLabel({ level: "medium", coverage }), "Be careful");
   assert.equal(riskLabel({ level: "high", coverage }), "High risk");
   assert.equal(riskLabel({ level: "low", coverage: { seller: true, photos: { checked: 1, total: 1 }, ai: true, price: true } }), "Low risk");
