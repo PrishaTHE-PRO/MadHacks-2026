@@ -25,6 +25,31 @@ export function sellerFacts(l: Listing): string[] {
   return facts;
 }
 
+const NAME_MAX = 48;
+// Words that can't end a name: "Coach bag with" → "Coach bag".
+// A lone letter ("…top with v" from "v neck") is cut too.
+const DANGLING = /[\s,;:/|&+–-]+$|\s+(with|and|or|for|in|of|the|a|an|to|by|from|on|\w)$/i;
+
+/**
+ * The product name to show: Claude's short name when there is one, otherwise
+ * the site's title without trailing dots, cut at a word (never mid-word, never "…").
+ */
+export function displayName(l: Listing, itemName?: string): string {
+  const ai = itemName?.trim();
+  if (ai) return ai;
+  let name = l.title.replace(/\s*(\.{2,}|…)+\s*$/, "").replace(/\s+/g, " ").trim();
+  if (name.length > NAME_MAX) {
+    const cut = name.slice(0, NAME_MAX + 1);
+    name = cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : NAME_MAX);
+  }
+  let prev;
+  do {
+    prev = name;
+    name = name.replace(DANGLING, "").trim();
+  } while (name !== prev);
+  return name || l.title;
+}
+
 export const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 /** "5 min ago", "3 hours ago", "2 days ago". */
