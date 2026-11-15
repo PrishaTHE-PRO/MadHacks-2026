@@ -26,13 +26,11 @@
 
 /* Tabs: soft gray pills. At rest the active tab has a gray pill behind it; switching
    plays the motion in docs/design/dealdig-tabs-motion-instructions.md (~630ms):
-   the old pill tucks out, an iridescent glow travels across, the new pill blooms
-   from a dot with sparkles, and the label's letters ripple in. */
+   the old pill tucks out, the new pill blooms from a dot with an iridescent tint
+   that settles to gray, and the label's letters ripple in. (No glow travelling
+   between tabs and no sparkles.) */
 .dd-tabs {
-  position: relative; display: flex; gap: 6px; background: var(--dd-surface);
-  /* 10px of extra room above, pulled back with a negative margin, so the glow's
-     blur isn't clipped by the row's horizontal scroll. Same layout as before. */
-  padding: 14px 18px 12px; margin-top: -10px;
+  position: relative; display: flex; gap: 6px; background: var(--dd-surface); padding: 4px 18px 12px;
   --iri: linear-gradient(115deg, #d8d0fb 0%, #c3d6f6 38%, #f6efc6 68%, #f5d5ea 100%);
   --ease-pop: cubic-bezier(.22,.9,.3,1);
 }
@@ -49,11 +47,6 @@
 .dd-tab-label { position: relative; white-space: pre; }
 .dd-tab-label span { display: inline-block; }
 .dd-count { position: relative; background: var(--dd-accent); color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; }
-.dd-tab-glow {
-  position: absolute; left: 0; top: 14px; width: 46px; height: 32px; margin-left: -23px; border-radius: 50%;
-  background: var(--iri); filter: blur(9px); opacity: 0; pointer-events: none;
-}
-.dd-tab-spark { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; border-radius: 50%; opacity: 0; pointer-events: none; }
 
 /* Entering tab: the pill blooms from an 8px dot (clip-path, so wide and narrow
    tabs keep round ends), iridescent at first, then settles to gray. */
@@ -61,7 +54,6 @@
 .dd-tab.on .dd-tab-sheen { animation: dd-tab-sheen 330ms linear 300ms both; }
 .dd-tab.on .dd-tab-label { animation: dd-tab-dim 520ms linear both; }
 .dd-tab.on .dd-tab-label span { animation: dd-tab-wave 380ms cubic-bezier(.3,.7,.3,1) calc(240ms + var(--i) * 18ms); }
-.dd-tab.on .dd-tab-spark { animation: dd-tab-spark 150ms ease-out 150ms both; }
 /* Leaving tab: the pill tucks in and fades; the label drains to gray (color transition). */
 .dd-tab.off .dd-tab-pill { animation: dd-tab-tuck 200ms cubic-bezier(.4,0,1,1) both; }
 
@@ -77,11 +69,6 @@
   from { opacity: 1; clip-path: inset(0 0 round 999px); }
   to   { opacity: 0; clip-path: inset(3px 7px round 999px); }
 }
-@keyframes dd-tab-spark {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
-  40%  { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); }
-}
 
 /* Views: all mounted, stacked; the old one fades out fast, the new one rises in. */
 .dd-views { flex: 1; position: relative; min-height: 0; }
@@ -93,10 +80,10 @@
 @keyframes dd-view-out { from { opacity: 1 } to { opacity: 0 } }
 @keyframes dd-view-in  { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
 
-/* Reduced motion: no glow, wave or tuck; the pill fades in and the content swaps at once.
+/* Reduced motion: no tint, wave or tuck; the pill fades in and the content swaps at once.
    (motion.css stops all animation; this one fade is allowed back on purpose.) */
 @media (prefers-reduced-motion: reduce) {
-  .dd-tab-glow, .dd-tab-spark { display: none; }
+  .dd-root .dd-tab.on .dd-tab-sheen { display: none; }
   .dd-root .dd-tab.on .dd-tab-pill { animation: dd-fade-in 150ms linear both !important; }
 }
 .dd-foot { display: flex; gap: 8px; padding: 12px 18px 16px; background: var(--dd-surface); border-top: 1px solid var(--dd-divider); box-shadow: 0 -6px 16px rgba(16,24,40,.04); }
