@@ -6,7 +6,8 @@
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "start": "tsx --env-file-if-exists=.env src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "test": "tsx --test test/*.test.ts",
+    "eval:links": "tsx scripts/link-evasions.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

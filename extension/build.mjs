@@ -36,6 +36,7 @@ const options = {
     background: "src/background.ts",
     content: "src/content/main.ts",
     sidepanel: "src/sidepanel/main.tsx",
+    blocked: "src/blocked/main.ts", // link guard warning page
     preview: "src/preview/main.tsx", // UI preview with mock data: chrome-extension://<id>/preview.html
   },
   outdir: "dist",

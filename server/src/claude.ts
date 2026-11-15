@@ -11,7 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import {
-  CHAT_PATTERN_IDS,
+  AI_CHAT_PATTERN_IDS,
   PLATFORM_NAMES,
   type ChatContext,
   type ChatPlatform,
@@ -241,7 +241,7 @@ const ChatFlags = z.object({
   flags: z
     .array(
       z.object({
-        pattern: z.enum(CHAT_PATTERN_IDS),
+        pattern: z.enum(AI_CHAT_PATTERN_IDS),
         severity: z.enum(["info", "caution", "danger"]),
         reason: z.string().describe("One specific line for the user, at most 20 words"),
         message_id: z.string().describe("The id of the message that shows the pattern"),
@@ -262,7 +262,8 @@ const CHAT_PLATFORM_CONTEXT: Record<ChatPlatform, string> = {
 - Craigslist and Instagram deals are usually local; deposits before viewing, shipping-only requests for a local item, and overpayments are common scams.`,
 };
 
-const PATTERN_TABLE = CHAT_PATTERNS.map(
+// Only the patterns Claude may return; the link checks are raised by code.
+const PATTERN_TABLE = CHAT_PATTERNS.filter((p) => (AI_CHAT_PATTERN_IDS as readonly string[]).includes(p.id)).map(
   (p) => `- ${p.id} (targets: ${p.targets}, usual severity: ${p.severity}): ${p.reason}`,
 ).join("\n");
 

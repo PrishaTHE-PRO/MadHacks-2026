@@ -281,8 +281,21 @@ export const CHAT_PATTERN_IDS = [
   "urgency_pressure",
   "suspicious_link",
   "personal_info_request",
+  // Phishing link checker: raised by code only, never by the AI.
+  "lookalike_link", // on device: faceb00k-pay.com, paypa1.com, punycode, bare IPs
+  "new_domain", // server: registered in the last 90 days (RDAP)
+  "unsafe_link", // server: Google Safe Browsing match
 ] as const;
 export type ChatPatternId = (typeof CHAT_PATTERN_IDS)[number];
+
+/** Patterns Claude may return. The link checks need evidence (a lookup or a measured look-alike), so only code raises them. */
+export const AI_CHAT_PATTERN_IDS = CHAT_PATTERN_IDS.filter(
+  (id): id is Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link"> =>
+    id !== "lookalike_link" && id !== "new_domain" && id !== "unsafe_link",
+) as [Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link">, ...Exclude<ChatPatternId, "lookalike_link" | "new_domain" | "unsafe_link">[]];
+
+/** The specific link warnings that replace the generic "suspicious_link" on the same message. */
+export const LINK_CHECK_PATTERNS: readonly ChatPatternId[] = ["lookalike_link", "new_domain", "unsafe_link"];
 
 export interface ChatMessage {
   /** Stable per message: the platform's message id if present, else hash(author + text + index). */

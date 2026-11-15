@@ -14,8 +14,10 @@ import {
   CHAT_PATTERN_BY_ID,
   PROTECT_ME_PATTERNS,
   appliesTo,
+  preferSpecificLinkFlags,
   prefilter,
 } from "../../shared/chatPatterns";
+import { linkFlags } from "./links";
 import { PLATFORMS, type ChatContext, type ChatFlag, type ChatReport, type Platform, type Severity } from "../../shared/types";
 import { aiEnabled, classifyChat, type ChatInputMessage } from "./claude";
 import { communityStats } from "./db";
@@ -45,8 +47,13 @@ const clipWords = (s: string, n: number) => {
 
 export async function analyzeChat(ctx: ChatContext): Promise<ChatReport> {
   const regexFlags = prefilter(ctx);
-  const flags: ChatFlag[] = [...regexFlags];
+  let flags: ChatFlag[] = [...regexFlags];
   let aiUsed = false;
+  // Link lookups (domain age, Safe Browsing, shorteners) run alongside the AI check.
+  const linkLookups = linkFlags(ctx).catch((err) => {
+    console.warn("[chat] link check failed:", err instanceof Error ? err.message : err);
+    return [] as ChatFlag[];
+  });
 
   if ((aiEnabled() || demoMode()) && ctx.messages.length > 0) {
     // Short ids for the model; map back to the real message ids afterwards.
@@ -93,6 +100,10 @@ export async function analyzeChat(ctx: ChatContext): Promise<ChatReport> {
       console.warn("[chat] AI check failed, returning regex flags only:", err instanceof Error ? err.message : err);
     }
   }
+
+  const seenLinks = new Set(flags.map((f) => `${f.pattern}:${f.messageId}`));
+  for (const f of await linkLookups) if (!seenLinks.has(`${f.pattern}:${f.messageId}`)) flags.push(f);
+  flags = preferSpecificLinkFlags(flags);
 
   // Keep the feed in message order.
   const order = new Map(ctx.messages.map((m, i) => [m.id, i]));

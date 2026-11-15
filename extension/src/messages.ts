@@ -7,7 +7,11 @@ export type ExtensionMessage =
   | { type: "ANALYZE_CHAT"; ctx: ChatContext }
   | { type: "RETRY_LISTING"; tabId: number } // side panel → background
   | { type: "CHAT_WATCHING"; threadId: string; watching: boolean } // content → background
-  | { type: "OPEN_PANEL" };
+  | { type: "OPEN_PANEL" }
+  // Link guard warning page → background: "Continue anyway" for this site.
+  | { type: "ALLOW_SITE"; domain: string; url: string }
+  // Link guard warning page → background: "Go back" with no page to go back to.
+  | { type: "CLOSE_TAB" };
 
 export type AnalyzeResponse = { ok: true; report: RiskReport } | { ok: false; error: string };
 
