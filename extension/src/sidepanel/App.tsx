@@ -3,6 +3,8 @@ import { tabKey, type TabState } from "../messages";
 import { SERVER_URL } from "../config";
 import { LOCAL_PLATFORMS, PLATFORM_NAMES, type Listing, type RiskReport, type Severity } from "../../../shared/types";
 import { MeetupHelper } from "./Meetup";
+import { PhotoPrivacy } from "./PhotoPrivacy";
+import { sellPagePlatform } from "../sellPages";
 
 function useActiveTabState(): TabState | null {
   const [tabId, setTabId] = useState<number | null>(null);
@@ -30,16 +32,57 @@ function useActiveTabState(): TabState | null {
   return state;
 }
 
+/** The active browser tab (id + URL), kept up to date as the user navigates. */
+function useActiveTab(): { id: number | null; url: string | null } {
+  const [tab, setTab] = useState<{ id: number | null; url: string | null }>({ id: null, url: null });
+  useEffect(() => {
+    const refresh = () =>
+      chrome.tabs
+        .query({ active: true, currentWindow: true })
+        .then(([t]) => setTab((prev) => (prev.id === (t?.id ?? null) && prev.url === (t?.url ?? null) ? prev : { id: t?.id ?? null, url: t?.url ?? null })));
+    void refresh();
+    // onUpdated also fires for single-page-app navigation (history.pushState).
+    const onUpdated = (_id: number, change: chrome.tabs.OnUpdatedInfo, tab: chrome.tabs.Tab) => {
+      if (tab.active && change.url) void refresh();
+    };
+    chrome.tabs.onActivated.addListener(refresh);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.windows.onFocusChanged.addListener(refresh);
+    return () => {
+      chrome.tabs.onActivated.removeListener(refresh);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      chrome.windows.onFocusChanged.removeListener(refresh);
+    };
+  }, []);
+  return tab;
+}
+
 export function App() {
   const state = useActiveTabState();
+  const activeTab = useActiveTab();
+  const sellingOn = sellPagePlatform(activeTab.url);
   return (
     <main>
       <header className="brand">DealDig</header>
-      {!state && <Empty />}
-      {state && <ListingCard listing={state.listing} />}
-      {state?.status === "loading" && <p className="muted">Digging into this listing…</p>}
-      {state?.status === "error" && <p className="error">{state.error}</p>}
-      {state?.status === "done" && <Report report={state.report} listing={state.listing} />}
+      {/* Only shown while the user is creating a listing. Kept mounted so
+          switching browser tabs and coming back doesn't lose their photos. */}
+      <div hidden={!sellingOn}>
+        {sellingOn && (
+          <p className="selling">
+            You're listing on {PLATFORM_NAMES[sellingOn]}. Check your photos before you upload them.
+          </p>
+        )}
+        <PhotoPrivacy tabId={sellingOn ? activeTab.id : null} />
+      </div>
+      {!sellingOn && (
+        <>
+          {!state && <Empty />}
+          {state && <ListingCard listing={state.listing} />}
+          {state?.status === "loading" && <p className="muted">Digging into this listing…</p>}
+          {state?.status === "error" && <p className="error">{state.error}</p>}
+          {state?.status === "done" && <Report report={state.report} listing={state.listing} />}
+        </>
+      )}
     </main>
   );
 }

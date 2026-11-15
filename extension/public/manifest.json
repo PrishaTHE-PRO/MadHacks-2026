@@ -7,10 +7,19 @@
   "background": { "service_worker": "background.js" },
   "side_panel": { "default_path": "sidepanel.html" },
   "permissions": ["sidePanel", "storage", "tabs"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "host_permissions": ["https://poshmark.com/*", "http://localhost:8787/*"],
   "content_scripts": [
     {
-      "matches": ["https://poshmark.com/*", "https://www.ebay.com/itm/*", "https://www.facebook.com/*"],
+      "matches": [
+        "https://poshmark.com/*",
+        "https://www.ebay.com/itm/*",
+        "https://www.ebay.com/sl/*",
+        "https://www.ebay.com/lstng*",
+        "https://www.facebook.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

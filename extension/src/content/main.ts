@@ -10,6 +10,10 @@ import type { Listing, RiskReport } from "../../../shared/types";
 import type { AnalyzeResponse } from "../messages";
 import { collectPageData } from "./collect";
 import { showBadge, hideBadge } from "./badge";
+import { sellPagePlatform } from "../sellPages";
+import { installUploadGuard, showSellBadge } from "./uploadGuard";
+
+installUploadGuard();
 
 interface SiteReader {
   matches(url: string): boolean;
@@ -77,6 +81,12 @@ const facebook: SiteReader = {
 const READERS: SiteReader[] = [poshmark, ebay, facebook];
 
 async function check(url: string) {
+  // Creating your own listing: point to the photo privacy tool instead of scoring.
+  if (sellPagePlatform(url)) {
+    showSellBadge();
+    return;
+  }
+
   const reader = READERS.find((r) => r.matches(url));
   if (!reader) {
     hideBadge();

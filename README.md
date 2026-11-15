@@ -45,6 +45,14 @@ marketplace page
 - **Meetup helper** (Facebook Marketplace only; Poshmark and eBay are safer kept on-platform): the side panel asks where you're coming from (text only, never GPS), geocodes that and the item's location with OpenStreetMap Nominatim, and searches halfway between with the Overpass API for police stations, libraries, grocery stores, community centers, bank lobbies and cafés. `meetup.ts` ranks them in code (kind, minus 10 points per km) and returns 3 of different kinds; items $250+ or high-risk listings put a police station first. Time options are daylight only (sunset computed from the location). Sonnet 5.5 drafts the reply in a friendly or firm tone, optionally answering the other person's pasted message (declining deposits, payment apps, codes, couriers, off-platform moves); without a key, `reply.ts` fills a template. The user copies it into the chat and sends it themselves. If Overpass is down, a curated Madison list is used.
 - **Price check:** with `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` set, the server compares against the median of up to 20 similar eBay listings (Browse API, asking prices). Otherwise it uses Claude's estimate, labeled as one; a low-confidence estimate only adds half the bait points.
 
+- **Photo privacy** (sellers only): when the active tab is a create/edit-listing page (`extension/src/sellPages.ts`), the side panel switches from the listing check to this tool and the page shows a "Check your photos before posting" badge. Sellers drop in listing photos before uploading them. Runs entirely in the extension; photos are never uploaded, and all engines and models ship inside the extension (no CDN, no remote code).
+  - *Upload guard* (`extension/src/content/uploadGuard.ts`): sites upload photos the moment they're picked, so the guard catches them at that moment instead. A capture-phase `input`/`change` listener on `window` runs before any of the page's own listeners and stops the event, copies the files into memory and empties the input. The page badge says "Holding N photos" (with a Skip button), and the side panel pulls the files (one message per file, base64) and checks them. **Use N clean photos in my listing** sends back only copies that passed the metadata re-check; the guard puts them into the same `<input>` with a `DataTransfer` and fires `input` + `change` again, so the site uploads only clean files. **Skip** puts the originals back the same way. Photos that can't be cleaned (e.g. HEIC) are left out unless the seller skips. Drag-and-drop uploads aren't intercepted yet.
+  - *Metadata:* `exifr` reads EXIF, GPS, XMP, IPTC, PNG chunks and the embedded preview thumbnail (which can still show a cropped-out area). Findings are explained in plain words, GPS first.
+  - *Faces:* MediaPipe BlazeFace (WASM) runs on the whole photo plus a 3×3 grid of overlapping tiles so small background faces are found; duplicates are merged with non-maximum suppression.
+  - *Text:* Tesseract OCR (WASM). Words are filtered by confidence, rows are split at big gaps (OCR on photos glues junk from fabric and shadows onto real lines), and each piece is checked for addresses, ZIP codes, phone numbers, emails, tracking numbers and house numbers. An address grows into the whole mailing label around it, so the name line is covered too. Other text is shown as an unchecked suggestion.
+  - *Covering:* text gets solid boxes and faces are reduced to an 8×8 grid with random noise, then smoothed. Plain blur or fine pixelation can be reversed (e.g. Depix rebuilds pixelated text). Users can uncheck any box or draw their own.
+  - *Clean copy:* the photo is redrawn on a fresh canvas and saved as a new JPEG, so no metadata is carried over. The clean copy is then re-read to **verify** it has 0 metadata fields and no location before the download button is shown as safe.
+
 ## Layout
 
 | Path | What |
@@ -60,6 +68,11 @@ marketplace page
 | `server/src/meetup.ts` | Meeting spots: geocoding, Overpass lookup, ranking, sunrise/sunset, curated Madison spots. |
 | `server/src/reply.ts` | Drafted meetup reply: Claude, or a template without a key. |
 | `extension/src/sidepanel/Meetup.tsx` | The "Meet safely" card. |
+| `extension/src/sidepanel/PhotoPrivacy.tsx` | The photo privacy tool (shown on sell pages). |
+| `extension/src/content/uploadGuard.ts` | Holds photos picked on sell pages until they're cleaned (or skipped). |
+| `extension/src/sellPages.ts` | URL patterns for each site's create/edit-listing pages. |
+| `extension/src/privacy/` | Photo privacy: `metadata.ts`/`summarize.ts` (hidden data), `detect.ts` (faces, text), `pii.ts` (which text is personal, label grouping), `redact.ts` (clean copy), `geometry.ts` (box math). |
+| `extension/public/models/` | BlazeFace face model (MediaPipe). WASM engines and OCR data are copied from `node_modules` by `build.mjs`. |
 
 ## API
 
@@ -82,7 +95,7 @@ marketplace page
 ## Next up
 
 - Chat/offer checks (`/analyze-chat`): flag off-platform pushes, overpayment, and deposit requests in messages.
-- Seller privacy tools: strip photo metadata, blur faces and addresses on the device.
+- Upload guard: also catch drag-and-drop photo uploads; confirm it on the live Poshmark, eBay and Facebook sell forms.
 - Document check for payment screenshots and receipts.
 - Handshake link and receipts.
 - Real price comps; image fingerprinting to catch reused photos.

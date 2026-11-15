@@ -6,10 +6,13 @@ import type { RiskReport } from "../../../shared/types";
 type BadgeState =
   | { state: "loading" }
   | { state: "done"; report: RiskReport }
-  | { state: "error"; message: string };
+  | { state: "error"; message: string }
+  | { state: "sell" }
+  | { state: "held"; message: string; onSkip: () => void };
 
 let host: HTMLDivElement | null = null;
 let root: ShadowRoot | null = null;
+let onSkip: (() => void) | null = null;
 
 const COLORS = { low: "#1f9d55", medium: "#d97706", high: "#dc2626" } as const;
 
@@ -30,10 +33,19 @@ function ensure(): ShadowRoot {
       .loading .dot { animation: pulse 1s infinite ease-in-out; }
       @keyframes pulse { 50% { opacity: .3; } }
       .sub { font-weight: 400; opacity: .75; }
+      .skip { display: none; margin-left: 4px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.35);
+        background: transparent; color: #fff; font: 600 12px/1 system-ui, -apple-system, sans-serif; cursor: pointer; }
+      .held .skip { display: inline-block; }
+      .held .dot { background: #f59e0b !important; animation: pulse 1s infinite ease-in-out; }
     </style>
-    <div class="pill" title="Open DealDig for details"><span class="dot"></span><span class="label"></span></div>`;
+    <div class="pill" title="Open DealDig for details"><span class="dot"></span><span class="label"></span>
+      <button class="skip" title="Upload the original photos without cleaning them">Skip</button></div>`;
   root.querySelector(".pill")!.addEventListener("click", () => {
     chrome.runtime.sendMessage({ type: "OPEN_PANEL" }).catch(() => {});
+  });
+  root.querySelector(".skip")!.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onSkip?.();
   });
   return root;
 }
@@ -44,10 +56,17 @@ export function showBadge(s: BadgeState) {
   const dot = r.querySelector<HTMLSpanElement>(".dot")!;
   const label = r.querySelector<HTMLSpanElement>(".label")!;
   pill.className = "pill " + s.state;
+  onSkip = s.state === "held" ? s.onSkip : null;
 
   if (s.state === "loading") {
     dot.style.background = "#9ca3af";
     label.innerHTML = `DealDig <span class="sub">checking…</span>`;
+  } else if (s.state === "held") {
+    label.innerHTML = `DealDig <span class="sub"></span>`;
+    label.querySelector(".sub")!.textContent = s.message;
+  } else if (s.state === "sell") {
+    dot.style.background = "#4f46e5";
+    label.innerHTML = `DealDig <span class="sub">Check your photos before posting</span>`;
   } else if (s.state === "error") {
     dot.style.background = "#6b7280";
     label.innerHTML = `DealDig <span class="sub"></span>`;
