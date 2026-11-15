@@ -1,4 +1,5 @@
-// The DealDig sidebar: header, Listing · Chat · Check image · Report tabs, body, footer.
+// The DealDig sidebar: header, Listing · Chat tabs, body, footer. "Report seller"
+// in the footer opens the report form as its own view (no tab of its own).
 // Pure UI: it renders a `PanelView` and reports clicks through callbacks, so
 // the preview page can drive it with mock data and the side panel with the
 // real per-tab state. It fills its container (the side panel window).
@@ -7,7 +8,6 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
-import { ImageTab } from "./ImageTab";
 import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
 import { CantConnectState, EmptyState, ErrorState, LoadingState } from "./States";
@@ -18,7 +18,7 @@ export type PanelView =
   | { kind: "error"; message: string; offline: boolean } // offline: the server can't be reached
   | { kind: "listing"; listing: Listing; report: RiskReport };
 
-export type PanelTab = "listing" | "chat" | "image" | "report";
+export type PanelTab = "listing" | "chat" | "report";
 
 export interface PanelProps {
   view: PanelView;
@@ -42,9 +42,9 @@ export interface PanelProps {
 const TABS: { id: PanelTab; label: string }[] = [
   { id: "listing", label: "Listing" },
   { id: "chat", label: "Chat" },
-  { id: "image", label: "Check image" },
-  { id: "report", label: "Report" },
 ];
+/** Every view, including the report form, which opens from "Report seller" instead of a tab. */
+const VIEWS: PanelTab[] = ["listing", "chat", "report"];
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -130,7 +130,6 @@ export function Panel(props: PanelProps) {
   const bodies: Record<PanelTab, ReactNode> = {
     listing: listingBody,
     chat: props.chatTab,
-    image: <ImageTab />,
     report: <ReportTab listing={listing} onCancel={() => select("listing")} />,
   };
 
@@ -165,7 +164,7 @@ export function Panel(props: PanelProps) {
               role="tab"
               aria-selected={tab === t.id}
               aria-controls={`dd-tabpanel-${t.id}`}
-              tabIndex={tab === t.id ? 0 : -1} // roving tabindex: Tab enters the list, arrows move within it
+              tabIndex={tab === t.id || (tab === "report" && t.id === "listing") ? 0 : -1} // roving tabindex: Tab enters the list, arrows move within it
               onClick={() => select(t.id)}
             >
               {/* Keyed by the switch count so each switch replays the animations from the start. */}
@@ -192,19 +191,21 @@ export function Panel(props: PanelProps) {
       </div>
 
       <div className="dd-views">
-        {TABS.map((t) => {
-          const active = t.id === tab;
-          const out = !active && t.id === leaving;
+        {VIEWS.map((id) => {
+          const active = id === tab;
+          const out = !active && id === leaving;
+          const isTab = TABS.some((t) => t.id === id);
           return (
             <div
-              key={t.id}
+              key={id}
               className={`dd-body${active && switches ? " dd-view-in" : ""}${out ? " dd-view-out" : ""}`}
-              id={`dd-tabpanel-${t.id}`}
-              role="tabpanel"
-              aria-labelledby={`dd-tab-${t.id}`}
+              id={`dd-tabpanel-${id}`}
+              role={isTab ? "tabpanel" : "region"}
+              aria-labelledby={isTab ? `dd-tab-${id}` : undefined}
+              aria-label={isTab ? undefined : "Report seller"}
               hidden={!active && !out}
             >
-              {bodies[t.id]}
+              {bodies[id]}
             </div>
           );
         })}
