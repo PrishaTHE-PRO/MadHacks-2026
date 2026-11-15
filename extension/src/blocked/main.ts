@@ -29,10 +29,6 @@ document.getElementById("back")!.addEventListener("click", () => {
   else void send({ type: "CLOSE_TAB" });
 });
 
-document.getElementById("continue")!.addEventListener("click", () => {
-  if (url && /^https?:\/\//i.test(url)) void send({ type: "ALLOW_SITE", domain, url });
-});
-
 document.getElementById("preview")!.addEventListener("click", () => {
   if (url && /^https?:\/\//i.test(url)) location.href = chrome.runtime.getURL(`safeview.html?url=${encodeURIComponent(url)}`);
 });

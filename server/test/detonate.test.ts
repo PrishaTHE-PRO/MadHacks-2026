@@ -119,3 +119,17 @@ test("a link that points into a private network is danger", () => {
   assert.equal(r.verdict, "danger");
   assert.match(r.findings[0].text, /192\.168\.1\.1/);
 });
+
+// --- Demo sites (reserved ".example" names only) ---
+
+test("demo site: only reserved .example hosts, scanner and visitor get different pages", async () => {
+  const { isDemoHost, demoResponse } = await import("../src/demoSites");
+  assert.equal(isDemoHost("https://paypal-resolve.example/login"), true);
+  assert.equal(isDemoHost("https://paypal-resolve.com/login"), false);
+  assert.equal(isDemoHost("https://account-verify.top/"), false);
+  const scanner = demoResponse("https://paypal-resolve.example/login", { "user-agent": "Mozilla/5.0 HeadlessChrome/141.0" }).body.toString();
+  const visitor = demoResponse("https://paypal-resolve.example/login", { "user-agent": "Mozilla/5.0 Chrome/141.0" }).body.toString();
+  assert.match(scanner, /coming soon/i);
+  assert.match(visitor, /type="password"/);
+  assert.match(visitor, /Not a real site/);
+});

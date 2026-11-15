@@ -105,6 +105,7 @@
           <button id="send-me" class="ghost">Send as me</button>
           <button id="send-them" class="ghost">Send as Jordan</button>
           <button id="send-invoice" class="ghost">Send invoice as Jordan</button>
+          <button id="send-link" class="ghost">Send link as Jordan</button>
         </div>
         <p class="hint">“Next message” plays the scripted scam one step at a time. Second Look flags each message as it appears.</p>
       </section>
@@ -172,6 +173,11 @@
       // A made-up fishy invoice: Second Look checks images on the device and flags this one as edited.
       document.getElementById("send-invoice").addEventListener("click", () => {
         add("them", "Here's the official invoice from the housing office. Pay it tonight so I can hold the room for you.", "/demo/fake-invoice.jpg");
+      });
+      // A made-up phishing link (".example" can never be a real site). The server's safe preview
+      // has a fake page for it, so "Preview it safely" shows a real screenshot.
+      document.getElementById("send-link").addEventListener("click", () => {
+        add("them", "Or just pay through PayPal here, it's faster: https://paypal-resolve.example/login");
       });
       for (const [id, from] of [["send-me", "me"], ["send-them", "them"]]) {
         document.getElementById(id).addEventListener("click", () => {

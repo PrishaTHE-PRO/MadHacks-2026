@@ -23,6 +23,7 @@
 import type { Browser, BrowserContext, Page, Route } from "playwright-core";
 import { BRANDS, hostOfLink, isOfficialDomain, registrableDomain } from "../../shared/linkCheck";
 import { assertPublicUrl, BlockedUrlError, guardedFetch } from "./netGuard";
+import { demoResponse, isDemoHost } from "./demoSites";
 import type { DetonationFinding as Finding, DetonationReport } from "../../shared/types";
 
 export type { DetonationReport };
@@ -411,10 +412,13 @@ async function slot<T>(work: () => Promise<T>): Promise<T> {
 
 const dataUrl = (b: Buffer | null) => (b ? `data:image/jpeg;base64,${b.toString("base64")}` : null);
 
-/** `fetcher` is for tests (a fake site); the server always uses guardedFetch. */
-export async function detonate(url: string, fetcher: Fetcher = guardedFetch): Promise<DetonationReport> {
+/** Every request goes through netGuard, except the made-up ".example" demo sites, served from memory. */
+const siteFetch: Fetcher = async (url, init) => (isDemoHost(url) ? demoResponse(url, init.headers) : guardedFetch(url, init));
+
+/** `fetcher` is for tests (a fake site); the server always uses siteFetch. */
+export async function detonate(url: string, fetcher: Fetcher = siteFetch): Promise<DetonationReport> {
   assertPublicUrl(url); // throws BlockedUrlError before anything is opened
-  const useCache = fetcher === guardedFetch;
+  const useCache = fetcher === siteFetch;
   const hit = useCache ? cache.get(url) : undefined;
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.report;
 
