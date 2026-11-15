@@ -1,11 +1,23 @@
 import express from "express";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { analyzeListing } from "./analyze";
-import { addReport } from "./db";
+import { analyzeListing, listingPlan } from "./analyze";
+import { addReport, communityStats, withdrawReport } from "./db";
 import { aiEnabled } from "./claude";
+import { analyzeChat } from "./chat";
 import { findSpots, MeetupError } from "./meetup";
 import { draftSafeReply } from "./reply";
-import { PLATFORMS, type Listing } from "../../shared/types";
+import {
+  CHAT_PLATFORMS,
+  PLATFORMS,
+  REPORT_CATEGORIES,
+  type ChatContext,
+  type Listing,
+  type ListingProgress,
+  type ReportCategory,
+  type ReportResponse,
+} from "../../shared/types";
+import { isPhotoHash } from "../../shared/photohash";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const app = express();
@@ -25,14 +37,27 @@ const ListingBody = z.object({
       seller: z.object({ id: z.string(), username: z.string() }).loose(),
     })
     .loose(),
+  /** dHash per photo (same order as listing.photos), null where the extension couldn't read it. */
+  photoHashes: z.array(z.string().refine(isPhotoHash).nullable()).max(20).optional(),
 });
+
+// The device's random reporter id: 128+ bits as hex, never tied to an account.
+const ReporterId = z.string().regex(/^[0-9a-f]{32,64}$/);
 
 const ReportBody = z.object({
   platform: z.enum(PLATFORMS),
-  sellerId: z.string().min(1),
-  sellerUsername: z.string(),
-  listingId: z.string().optional(),
-  reason: z.string().trim().min(1).max(1000),
+  sellerId: z.string().min(1).max(200),
+  sellerUsername: z.string().max(200),
+  listingId: z.string().max(200).optional(),
+  category: z.enum(Object.keys(REPORT_CATEGORIES) as [ReportCategory, ...ReportCategory[]]),
+  details: z.string().trim().max(1000).optional(),
+  reporterId: ReporterId,
+});
+
+const WithdrawBody = z.object({
+  platform: z.enum(PLATFORMS),
+  sellerId: z.string().min(1).max(200),
+  reporterId: ReporterId,
 });
 
 const SpotsBody = z
@@ -54,6 +79,41 @@ const ReplyBody = z.object({
   riskReasons: z.array(z.string().max(300)).max(5).optional(),
 });
 
+const ChatBody = z.object({
+  ctx: z.object({
+    platform: z.enum(CHAT_PLATFORMS),
+    threadId: z.string().min(1).max(500),
+    url: z.string().max(2000),
+    role: z.enum(["buyer", "seller", "unknown"]).default("unknown"),
+    otherParty: z
+      .object({
+        id: z.string().max(200).optional(),
+        username: z.string().max(200).optional(),
+        profileUrl: z.string().max(2000).optional(),
+      })
+      .optional(),
+    listing: z
+      .object({
+        title: z.string().max(500).optional(),
+        price: z.number().optional(),
+        url: z.string().max(2000).optional(),
+      })
+      .optional(),
+    messages: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(200),
+          fromMe: z.boolean(),
+          author: z.string().max(200).optional(),
+          text: z.string().max(2000),
+          sentAt: z.string().max(100).optional(),
+        }),
+      )
+      .min(1)
+      .max(10),
+  }),
+});
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true, ai: aiEnabled() });
 });
@@ -66,10 +126,56 @@ app.post("/analyze-listing", async (req, res) => {
   }
   const listing = parsed.data.listing as unknown as Listing;
   const started = Date.now();
-  const report = await analyzeListing(listing);
-  console.log(`[analyze] ${listing.platform}/${listing.id} → ${report.score} (${report.level}) in ${Date.now() - started}ms`);
+  const photoHashes = parsed.data.photoHashes;
+  const log = (score: number, level: string) =>
+    console.log(`[analyze] ${listing.platform}/${listing.id} → ${score} (${level}) in ${Date.now() - started}ms`);
+
+  // ?progress=1: stream newline-delimited JSON (plan, each step, then the report)
+  // so the extension can show which stage is running. Otherwise, plain JSON.
+  if (req.query.progress === "1") {
+    res.setHeader("Content-Type", "application/x-ndjson");
+    res.setHeader("Cache-Control", "no-store");
+    const send = (line: ListingProgress) => res.write(`${JSON.stringify(line)}\n`);
+    send({ plan: listingPlan() });
+    try {
+      const report = await analyzeListing(listing, photoHashes, (step) => send({ step }));
+      log(report.score, report.level);
+      send({ report });
+    } catch (err) {
+      console.error("[analyze] failed:", err);
+      send({ error: "The check failed on the server." });
+    }
+    res.end();
+    return;
+  }
+
+  const report = await analyzeListing(listing, photoHashes);
+  log(report.score, report.level);
   res.json(report);
 });
+
+app.post("/analyze-chat", async (req, res) => {
+  const parsed = ChatBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid chat", issues: parsed.error.issues });
+    return;
+  }
+  const ctx: ChatContext = parsed.data.ctx;
+  const started = Date.now();
+  const report = await analyzeChat(ctx);
+  // Counts and pattern ids only: chat text is never logged or stored.
+  const patterns = report.flags.map((f) => `${f.pattern}${f.source === "ai" ? "*" : ""}`).join(",") || "none";
+  console.log(
+    `[chat] ${ctx.platform} ${ctx.messages.length} msgs → ${report.flags.length} flags [${patterns}]${
+      report.aiUsed ? " (+AI)" : ""
+    } in ${Date.now() - started}ms`,
+  );
+  res.json(report);
+});
+
+// The demo chat page (extension/demo/chat.html); the extension's demo adapter reads it.
+const DEMO_CHAT = fileURLToPath(new URL("../../extension/demo/chat.html", import.meta.url));
+app.get("/demo/chat", (_req, res) => res.sendFile(DEMO_CHAT));
 
 app.post("/report", (req, res) => {
   const parsed = ReportBody.safeParse(req.body);
@@ -78,7 +184,19 @@ app.post("/report", (req, res) => {
     return;
   }
   addReport(parsed.data);
-  res.json({ ok: true });
+  res.json({ ok: true, community: communityStats(parsed.data.platform, parsed.data.sellerId) } satisfies ReportResponse);
+});
+
+// Undo: the reporter changed their mind or reported the wrong seller.
+app.delete("/report", (req, res) => {
+  const parsed = WithdrawBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", issues: parsed.error.issues });
+    return;
+  }
+  const { platform, sellerId, reporterId } = parsed.data;
+  withdrawReport(platform, sellerId, reporterId);
+  res.json({ ok: true, community: communityStats(platform, sellerId) } satisfies ReportResponse);
 });
 
 app.post("/meetup/spots", async (req, res) => {

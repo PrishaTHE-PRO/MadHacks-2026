@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DealDig demo chat</title>
+    <!--
+      DealDig demo chat (spec §9 step 3). A static, fictional chat for the live
+      demo and as a backup if a real site's DOM breaks. Served by the DealDig
+      server at http://localhost:8787/demo/chat, where the extension's demo
+      adapter (extension/src/chat/demo.ts) reads it.
+
+      All names, numbers and the listing are made up. 608-555-01xx numbers are
+      reserved for fiction.
+    -->
+    <style>
+      :root {
+        --bg: #f3f4f6;
+        --panel: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --me: #2563eb;
+        --them: #e5e7eb;
+        --them-text: #111827;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --panel: #181b21;
+          --text: #e5e7eb;
+          --muted: #9ca3af;
+          --border: #2a2f37;
+          --them: #2a2f37;
+          --them-text: #e5e7eb;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+      .banner { background: #4f46e5; color: #fff; text-align: center; padding: 6px 16px; font-size: 13px; font-weight: 600; }
+      .app { max-width: 640px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 32px); }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+      header.card { display: flex; gap: 12px; align-items: center; padding: 12px; }
+      .avatar { width: 40px; height: 40px; border-radius: 50%; background: #a78bfa; display: grid; place-items: center; color: #fff; font-weight: 700; flex: none; }
+      .other-party { font-weight: 700; }
+      .listing { color: var(--muted); font-size: 13px; }
+      .thread { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 320px; }
+      .msg { display: flex; flex-direction: column; max-width: 80%; }
+      .msg[data-from="them"] { align-self: flex-start; }
+      .msg[data-from="me"] { align-self: flex-end; align-items: flex-end; }
+      .author { font-size: 12px; color: var(--muted); margin: 0 6px 2px; }
+      .text { margin: 0; padding: 8px 12px; border-radius: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .msg[data-from="them"] .text { background: var(--them); color: var(--them-text); border-bottom-left-radius: 4px; }
+      .msg[data-from="me"] .text { background: var(--me); color: #fff; border-bottom-right-radius: 4px; }
+      .controls { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      textarea { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); resize: vertical; }
+      button { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 10px; border: 0; background: #4f46e5; color: #fff; cursor: pointer; }
+      button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+      button:disabled { opacity: .5; cursor: default; }
+      .hint { color: var(--muted); font-size: 12px; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="banner">DealDig demo chat · fictional people and listing, for demonstration only</div>
+    <div class="app">
+      <header class="card">
+        <div class="avatar" aria-hidden="true">J</div>
+        <div>
+          <div class="other-party">Jordan Reyes</div>
+          <div class="listing">
+            <span class="listing-title">Sunny room in a 3BR sublet near campus, spring semester</span>
+            · <span data-listing-price="650">$650/mo</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="card thread" data-demo="thread" data-thread-id="demo-sublet" aria-label="Messages" role="log">
+        <div class="msg" data-msg-id="m1" data-from="me">
+          <span class="author">You</span>
+          <p class="text">Hi! Is the room still available for spring?</p>
+        </div>
+        <div class="msg" data-msg-id="m2" data-from="them">
+          <span class="author">Jordan Reyes</span>
+          <p class="text">Yes it is! It's a great spot, 5 minutes from campus and the rent includes utilities.</p>
+        </div>
+        <div class="msg" data-msg-id="m3" data-from="me">
+          <span class="author">You</span>
+          <p class="text">Great, could I come see it this weekend?</p>
+        </div>
+      </main>
+
+      <section class="card controls" aria-label="Demo controls">
+        <div class="row">
+          <button id="next">Next message from Jordan</button>
+          <button id="reset" class="ghost">Reset</button>
+        </div>
+        <div class="row">
+          <textarea id="compose" rows="2" placeholder="Type a message…" aria-label="Message"></textarea>
+        </div>
+        <div class="row">
+          <button id="send-me" class="ghost">Send as me</button>
+          <button id="send-them" class="ghost">Send as Jordan</button>
+        </div>
+        <p class="hint">“Next message” plays the scripted scam one step at a time. DealDig flags each message as it appears.</p>
+      </section>
+    </div>
+
+    <script>
+      // The scripted scam (spec §9 step 3), one message per click.
+      const SCRIPT = [
+        "I'm out of town for work so I can't show it in person, but I can hold it for you.",
+        "Send a $300 deposit on Zelle to hold it, and text me on WhatsApp at 608-555-0147 so we can sort out the keys.",
+        "Honestly three other students are asking about it, so I'd need it locked in by tonight.",
+        "If Zelle doesn't work for you, Apple gift cards are fine too.",
+      ];
+      const START = document.querySelector('[data-demo="thread"]').innerHTML;
+      const thread = document.querySelector('[data-demo="thread"]');
+      const nextBtn = document.getElementById("next");
+      let step = 0;
+      let count = thread.querySelectorAll(".msg").length;
+
+      function add(from, text) {
+        const msg = document.createElement("div");
+        msg.className = "msg";
+        msg.dataset.msgId = "m" + ++count;
+        msg.dataset.from = from;
+        const author = document.createElement("span");
+        author.className = "author";
+        author.textContent = from === "me" ? "You" : "Jordan Reyes";
+        const p = document.createElement("p");
+        p.className = "text";
+        p.textContent = text;
+        msg.append(author, p);
+        thread.append(msg);
+        thread.scrollTop = thread.scrollHeight;
+      }
+
+      nextBtn.addEventListener("click", () => {
+        if (step < SCRIPT.length) add("them", SCRIPT[step++]);
+        nextBtn.disabled = step >= SCRIPT.length;
+      });
+      // Reset starts a new thread (fresh warnings in the side panel). Message ids
+      // keep counting up so a new message never reuses an old one's id.
+      document.getElementById("reset").addEventListener("click", () => {
+        thread.innerHTML = START;
+        thread.dataset.threadId = "demo-sublet-" + Date.now();
+        step = 0;
+        nextBtn.disabled = false;
+      });
+      const compose = document.getElementById("compose");
+      for (const [id, from] of [["send-me", "me"], ["send-them", "them"]]) {
+        document.getElementById(id).addEventListener("click", () => {
+          const text = compose.value.trim();
+          if (!text) return;
+          add(from, text);
+          compose.value = "";
+          compose.focus();
+        });
+      }
+    </script>
+  </body>
+</html>

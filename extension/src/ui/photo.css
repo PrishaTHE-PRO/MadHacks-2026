@@ -1,0 +1,71 @@
+/* Photo privacy tool (sidepanel/PhotoPrivacy.tsx), shown on sell pages inside
+   .dd-legacy. Several selectors repeat :not(.chip):not(.link) so they beat
+   legacy.css's "every plain button is a primary pill" rule. */
+
+.dd-legacy .privacy { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.dd-legacy .verified { color: var(--dd-low-ink); font-weight: 600; }
+
+/* Photos held back from the listing form */
+.dd-legacy .held { border: 1.5px solid var(--dd-accent); gap: 8px; }
+.dd-legacy .held button:not(.chip):not(.link) { align-self: stretch; }
+.dd-legacy .held button.secondary:not(.chip):not(.link) {
+  background: var(--dd-surface-2); color: var(--dd-accent-ink);
+}
+.dd-legacy .held button.secondary:not(.chip):not(.link):hover { background: #E7E8EB; }
+
+/* Drop zone */
+.dd-legacy .drop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 12px;
+  border: 1.5px dashed var(--dd-border); border-radius: var(--dd-r-card); background: var(--dd-surface);
+  cursor: pointer; text-align: center;
+}
+.dd-legacy .drop.over, .dd-legacy .drop:hover { border-color: var(--dd-accent); background: var(--dd-accent-wash); }
+
+/* One photo */
+.dd-legacy .photo-head { display: flex; align-items: center; gap: 8px; }
+.dd-legacy .photo-head .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-legacy .tag {
+  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--dd-accent-wash); color: var(--dd-accent-ink);
+}
+.dd-legacy .photo-head button.icon:not(.chip):not(.link),
+.dd-legacy .regions button.icon:not(.chip):not(.link) {
+  height: 24px; width: 24px; padding: 0; align-self: center; border-radius: 999px;
+  background: transparent; color: var(--dd-muted); font-size: 16px; line-height: 1;
+}
+.dd-legacy button.icon:not(.chip):not(.link):hover { background: var(--dd-surface-2); color: var(--dd-ink); }
+
+.dd-legacy .preview { position: relative; border-radius: 12px; overflow: hidden; touch-action: none; user-select: none; }
+.dd-legacy .preview img { display: block; width: 100%; height: auto; }
+.dd-legacy .preview.drawing { cursor: crosshair; }
+.dd-legacy .preview .box,
+.dd-legacy .preview button.box:not(.chip):not(.link) {
+  position: absolute; height: auto; padding: 0; border-radius: 4px; background: transparent; cursor: pointer;
+}
+.dd-legacy .preview button.box.on:not(.chip):not(.link) { border: 2px solid var(--dd-high); }
+.dd-legacy .preview button.box.off:not(.chip):not(.link) { border: 2px dashed rgba(255,255,255,.9); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.dd-legacy .preview button.box.face:not(.chip):not(.link) { border-radius: 50%; }
+.dd-legacy .preview.drawing .box { pointer-events: none; }
+.dd-legacy .preview .box.draft { border: 2px solid var(--dd-accent); background: var(--dd-accent-wash); }
+
+.dd-legacy .scanning::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%;
+  background: var(--dd-accent); animation: dd-photo-pulse 1s infinite ease-in-out;
+}
+@keyframes dd-photo-pulse { 50% { opacity: .3; } }
+
+.dd-legacy .findings ul, .dd-legacy .regions ul { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dd-legacy .findings li { display: flex; gap: 6px; }
+.dd-legacy .findings li.danger strong { color: var(--dd-high-ink); }
+.dd-legacy .findings .thumb { display: block; max-width: 120px; margin-top: 4px; border-radius: 8px; border: 1px solid var(--dd-border); }
+.dd-legacy .regions li { display: flex; align-items: flex-start; gap: 4px; }
+.dd-legacy .regions li label { flex: 1; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.dd-legacy .regions li input { margin-top: 3px; accent-color: var(--dd-accent); }
+.dd-legacy .regions li.off { opacity: .6; }
+
+.dd-legacy .clean { display: flex; flex-direction: column; gap: 8px; }
+.dd-legacy a.button {
+  display: flex; align-items: center; justify-content: center; height: 36px; border-radius: 999px;
+  background: var(--dd-accent); color: #fff; font-weight: 500; text-decoration: none;
+}
+.dd-legacy a.button:hover { background: #4456B3; }

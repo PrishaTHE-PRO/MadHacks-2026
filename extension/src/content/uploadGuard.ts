@@ -60,12 +60,8 @@ function announce(event: GuardEvent) {
 /** Badge for sell pages: either the reminder, or "holding N photos" with Skip. */
 export function showSellBadge() {
   if (batch) {
-    const n = batch.originals.length;
-    showBadge({
-      state: "held",
-      message: `Holding ${n} photo${n > 1 ? "s" : ""}. Click to check them`,
-      onSkip: () => void release(batch!.id, "originals"),
-    });
+    const id = batch.id;
+    showBadge({ state: "held", count: batch.originals.length, onSkip: () => void release(id, "originals") });
   } else {
     showBadge({ state: "sell" });
   }

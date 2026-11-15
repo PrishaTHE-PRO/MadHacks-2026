@@ -7,13 +7,24 @@
 // can do. This runs with no API key; Claude's findings and price data are
 // optional inputs.
 
-import { PLATFORM_NAMES, type Listing, type PriceCheck, type Signal } from "../../shared/types";
+import {
+  PLATFORM_NAMES,
+  REPORT_CATEGORY_SHORT,
+  type CommunityInfo,
+  type Listing,
+  type PhotoMatch,
+  type PriceCheck,
+  type Signal,
+} from "../../shared/types";
+// Off-platform payment/contact regexes, shared with the chat check.
+import { OFF_PLATFORM } from "../../shared/chatPatterns";
 
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Risk points per signal. Higher = riskier. Tune the numbers here. */
 export const POINTS = {
-  blocklisted: 40, // spec: seller on shared blocklist
+  // No blocklist points: a seller flagged by 3+ people gets a warning banner,
+  // not a block, since reports can be wrong. Their reports still add points below.
   priceBait: 20, // spec: price under 50% of median (also: under a brand's counterfeit floor)
   priceBaitLowConfidence: 10, // same, but the price reference is a low-confidence estimate
   newAccount: 15, // spec: account under 30 days old
@@ -21,16 +32,18 @@ export const POINTS = {
   noTrackRecord: 10, // spec: no ratings (or sales/feedback)
   poorFeedback: 10,
   textRedFlagsMax: 15, // spec: text red flags, shared by the regex check and Claude
-  reportEach: 10, // spec: +10 per prior DealDig report...
+  reportEach: 10, // spec: +10 per person who reported the seller (one report each)...
   reportsMax: 30, // ...capped at +30
   overpricedNewClaim: 5,
   fewPhotos: 5,
+  photoReused: 25, // spec §3.1: same photo in another seller's listing on the same site
+  photoReusedOtherSite: 10, // same, on another site: could be the seller crossposting
 } as const;
-// Not wired yet (need later features): photo found on another listing +25
-// (image hashes, spec §3.1) and verified handshakes -5 each, max -20 (§4.4).
+// Not wired yet (needs a later feature): verified handshakes -5 each, max -20 (§4.4).
 
-/** A seller with this many reports in the last 30 days counts as blocklisted. */
-export const BLOCKLIST_REPORTS = 3;
+/** A photo used by this many other sellers is a stock or catalog photo, not a stolen one. */
+export const STOCK_PHOTO_SELLERS = 4;
+
 
 // Brands that get counterfeited a lot, with a rough "too cheap to be real" floor (USD).
 // Rough numbers for a starting point; tune with real data.
@@ -63,29 +76,9 @@ const COUNTERFEIT_FLOORS: Record<string, number> = {
   dyson: 80,
 };
 
-// Asking to pay or talk outside the platform voids buyer protection.
-const OFF_PLATFORM = [
-  /\bvenmo\b/i,
-  /\bzelle\b/i,
-  /\bcash ?app\b/i,
-  /\bpaypal\b/i,
-  /\bf\s?&\s?f\b|friends (and|&) family/i,
-  /\bgift ?cards?\b/i,
-  /\bwire transfer\b|\bwestern union\b/i,
-  /\bwhats ?app\b/i,
-  /\btelegram\b/i,
-  /\b(text|call|email|dm) me\b/i,
-  /\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b/, // phone number
-  /[\w.+-]+@[\w-]+\.[a-z]{2,}/i, // email address
-  /\b(ig|insta(gram)?)\s*[:@]/i,
-];
 
 const NEW_CLAIM = /\b(brand new|sealed|new in box|nib|bnib|bnwt|nwt|unopened)\b/i;
 
-export interface CommunityStats {
-  reports: number;
-  reportsLast30Days: number;
-}
 
 /** What Claude found, already validated. */
 export interface AiFindings {
@@ -95,7 +88,9 @@ export interface AiFindings {
 }
 
 export interface RuleInput {
-  community?: CommunityStats;
+  community?: CommunityInfo;
+  /** Other sellers' listings with the same photos (already excludes this seller). */
+  photoMatches?: PhotoMatch[];
   price?: PriceCheck;
   ai?: AiFindings;
   now?: number;
@@ -119,23 +114,24 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
   const now = input.now ?? Date.now();
   const site = PLATFORM_NAMES[listing.platform];
 
-  // --- Community: blocklist + prior reports ---
-  const community = input.community ?? { reports: 0, reportsLast30Days: 0 };
-  if (community.reportsLast30Days >= BLOCKLIST_REPORTS) {
-    add(
-      "blocklisted",
-      "danger",
-      `Seller is on DealDig's shared blocklist (${community.reportsLast30Days} reports in the last 30 days).`,
-      POINTS.blocklisted,
-      "community",
-    );
-  }
-  if (community.reports > 0) {
+  // --- Community reports (one per person, last 12 months) ---
+  const community = input.community;
+  if (community && community.reporters > 0) {
+    const n = community.reporters;
     add(
       "community-reports",
       "danger",
-      `Reported by ${community.reports} DealDig user${community.reports > 1 ? "s" : ""}.`,
-      Math.min(POINTS.reportsMax, community.reports * POINTS.reportEach),
+      `Reported by ${n} ${n > 1 ? "people" : "person"} on DealDig: ${reportSummary(community)}.`,
+      Math.min(POINTS.reportsMax, n * POINTS.reportEach),
+      "community",
+    );
+  }
+  if (community?.flagged) {
+    add(
+      "community-flag",
+      "danger",
+      `Flagged: ${community.reportersLast30Days} different people reported this seller in the last 30 days. Reports can be wrong, so weigh them with everything else.`,
+      0,
       "community",
     );
   }
@@ -271,6 +267,36 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     });
   }
 
+  // --- Photos reused from other sellers' listings ---
+  const photoMatches = input.photoMatches ?? [];
+  if (photoMatches.length) {
+    const sellers = new Set(photoMatches.map((m) => `${m.platform}:${m.sellerId}`));
+    const sameSite = photoMatches.filter((m) => m.platform === listing.platform);
+    const first = sameSite[0] ?? photoMatches[0];
+    const who = `${first.platform === "facebook" ? first.sellerUsername : `@${first.sellerUsername}`}`;
+    const flipped = photoMatches.some((m) => m.mirrored) ? " (one is flipped)" : "";
+    if (sellers.size >= STOCK_PHOTO_SELLERS) {
+      add("stock-photo", "info", `These photos are used by ${sellers.size} other sellers, so they're likely stock or catalog photos.`, 0, "community");
+    } else if (sameSite.length) {
+      const others = new Set(sameSite.map((m) => m.sellerId)).size;
+      add(
+        "photo-reused",
+        "danger",
+        `A photo here is also in a listing by ${others > 1 ? `${others} other sellers` : `another ${site} seller, ${who}`}${flipped}. Copied photos are a common scam.`,
+        POINTS.photoReused,
+        "community",
+      );
+    } else {
+      add(
+        "photo-reused-other-site",
+        "caution",
+        `A photo here is also in a ${PLATFORM_NAMES[first.platform]} listing by ${who}${flipped}. Could be the same person crossposting; ask the seller.`,
+        POINTS.photoReusedOtherSite,
+        "community",
+      );
+    }
+  }
+
   // --- Listing basics ---
   if (listing.photos.length <= 1) {
     add("few-photos", "caution", "Only one photo. Ask for more angles and a tag or serial photo.", POINTS.fewPhotos);
@@ -279,6 +305,14 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
 
   const score = clamp(signals.reduce((sum, sig) => sum + sig.points, 0));
   return { signals, score, topReasons: topReasons(signals) };
+}
+
+/** "asked for a deposit before viewing (2), asked to pay off-platform (1)" */
+export function reportSummary(c: CommunityInfo): string {
+  return c.categories
+    .slice(0, 3)
+    .map((x) => `${REPORT_CATEGORY_SHORT[x.category]} (${x.count})`)
+    .join(", ");
 }
 
 /** The three biggest contributors, or the good news when nothing added points. */

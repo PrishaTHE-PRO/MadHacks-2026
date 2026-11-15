@@ -1,0 +1,67 @@
+/* Main's meetup helper (sidepanel/Meetup.tsx) and document check
+   (sidepanel/DocCheck.tsx) use the old side panel's class names. These rules
+   give them the sidebar's look without changing those components. Scoped to
+   .dd-legacy so nothing here reaches the rest of the sidebar. */
+
+.dd-legacy .card {
+  background: var(--dd-surface); border: 1px solid rgba(16,24,40,.04); border-radius: var(--dd-r-card);
+  padding: 14px; box-shadow: var(--dd-shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px;
+}
+.dd-legacy .card.dragging { border: 1px dashed var(--dd-accent); }
+.dd-legacy h2 { margin: 0; font-size: 13px; font-weight: 500; color: var(--dd-muted); }
+.dd-legacy p { margin: 0; }
+.dd-legacy .muted { color: var(--dd-muted); }
+.dd-legacy .small { font-size: 12px; }
+.dd-legacy .error { color: var(--dd-high-ink); font-weight: 500; }
+.dd-legacy .title { font-weight: 500; overflow-wrap: anywhere; }
+.dd-legacy .grow { flex: 1; min-width: 0; }
+.dd-legacy a { color: var(--dd-accent-ink); }
+
+.dd-legacy .field { display: flex; flex-direction: column; gap: 6px; }
+.dd-legacy .field > span { font-weight: 500; }
+.dd-legacy .row { display: flex; gap: 8px; }
+.dd-legacy .row input { flex: 1; min-width: 0; }
+.dd-legacy input:not([type]), .dd-legacy input[type="text"], .dd-legacy textarea {
+  font: inherit; font-size: 14px; color: var(--dd-ink); width: 100%;
+  padding: 9px 14px; border-radius: 14px; border: 1px solid transparent; background: #F6F7F8;
+}
+.dd-legacy input:not([type]), .dd-legacy input[type="text"] { border-radius: 999px; }
+.dd-legacy textarea { resize: vertical; }
+.dd-legacy input:focus, .dd-legacy textarea:focus { outline: none; background: #fff; border-color: rgba(79,98,196,.5); box-shadow: 0 0 0 3px rgba(79,98,196,.12); }
+
+/* Plain buttons are the primary action; chips and links are styled below. */
+.dd-legacy button:not(.chip):not(.link) {
+  align-self: flex-start; height: 36px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer;
+  background: var(--dd-accent); color: #fff; font-size: 13px; font-weight: 500;
+}
+.dd-legacy button:not(.chip):not(.link):hover { background: #4456B3; }
+.dd-legacy button:disabled { opacity: .5; cursor: default; }
+.dd-legacy button.link { border: 0; background: none; padding: 0; cursor: pointer; color: var(--dd-accent-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+
+.dd-legacy .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dd-legacy button.chip {
+  border: 0; cursor: pointer; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 500;
+  background: var(--dd-surface-2); color: var(--dd-ink-2);
+}
+.dd-legacy button.chip:hover { background: #E7E8EB; }
+.dd-legacy button.chip.on { background: var(--dd-accent); color: #fff; }
+.dd-legacy .chips .sep { width: 1px; height: 18px; background: var(--dd-border); margin: 0 2px; }
+
+.dd-legacy .note { padding: 8px 12px; border-radius: 12px; background: rgba(217,154,43,.12); color: var(--dd-ink); }
+.dd-legacy .note.high { background: rgba(217,83,79,.10); }
+
+.dd-legacy .spots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dd-legacy .spots li { border-radius: 14px; background: #F8F9FA; border: 1px solid transparent; }
+.dd-legacy .spots li.selected { background: var(--dd-accent-wash); border-color: rgba(79,98,196,.35); }
+.dd-legacy .spots label { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; cursor: pointer; }
+.dd-legacy .spots input { margin-top: 3px; accent-color: var(--dd-accent); }
+.dd-legacy .spots .grow { display: flex; flex-direction: column; gap: 2px; }
+
+.dd-legacy .signals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dd-legacy .signals li { display: flex; gap: 6px; }
+.dd-legacy .details { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+.dd-legacy .details div { display: contents; }
+.dd-legacy .details dd { margin: 0; overflow-wrap: anywhere; }
+.dd-legacy .ela { display: flex; flex-direction: column; gap: 6px; }
+.dd-legacy .ela img { width: 100%; border-radius: 12px; }
+.dd-legacy .verify { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }

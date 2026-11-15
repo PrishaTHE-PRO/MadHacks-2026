@@ -36,12 +36,14 @@ const options = {
     background: "src/background.ts",
     content: "src/content/main.ts",
     sidepanel: "src/sidepanel/main.tsx",
+    preview: "src/preview/main.tsx", // UI preview with mock data: chrome-extension://<id>/preview.html
   },
   outdir: "dist",
   bundle: true,
   format: "iife",
   target: "chrome120",
   jsx: "automatic",
+  loader: { ".css": "text" }, // import css from "./x.css" → string, for <style> in shadow roots
   sourcemap: watch ? "inline" : false,
   minify: !watch,
   define: { "process.env.NODE_ENV": JSON.stringify(watch ? "development" : "production") },

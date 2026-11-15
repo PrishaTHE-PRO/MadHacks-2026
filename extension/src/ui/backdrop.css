@@ -1,0 +1,3 @@
+/* The sidebar's page background (side panel + preview frame). */
+.dd-backdrop { position: relative; overflow: hidden; background: var(--dd-bg); }
+.dd-backdrop > .dd-fill { position: relative; width: 100%; height: 100%; }
