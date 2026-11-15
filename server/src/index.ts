@@ -7,6 +7,7 @@ import { aiEnabled } from "./claude";
 import { analyzeChat } from "./chat";
 import { findSpots, MeetupError } from "./meetup";
 import { draftSafeReply } from "./reply";
+import { checkDestination } from "./links";
 import {
   CHAT_PLATFORMS,
   PLATFORMS,
@@ -112,6 +113,21 @@ const ChatBody = z.object({
       .min(1)
       .max(10),
   }),
+});
+
+// Link guard: should the extension stop this page before it loads?
+// Only links opened from a marketplace tab or chat are sent here.
+const CheckUrlBody = z.object({ url: z.string().trim().min(4).max(2000).regex(/^https?:\/\//i) });
+
+app.post("/check-url", async (req, res) => {
+  const parsed = CheckUrlBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid URL", issues: parsed.error.issues });
+    return;
+  }
+  const verdict = await checkDestination(parsed.data.url);
+  console.log(`[guard] ${verdict.domain} → ${verdict.verdict}`); // the domain only, never the full link
+  res.json(verdict);
 });
 
 app.get("/health", (_req, res) => {

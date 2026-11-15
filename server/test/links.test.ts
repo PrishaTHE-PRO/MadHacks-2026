@@ -144,7 +144,11 @@ test("server: a brand-new domain is flagged, and only the bare domain goes to RD
   const flags = await linkFlags(chat(["Fill out the form at https://claim-your-funds.xyz/pay?email=me@x.com to get paid"]), net.impl);
   assert.deepEqual(flags.map((f) => [f.pattern, f.severity]), [["new_domain", "danger"]]);
   assert.match(flags[0].reason, /claim-your-funds\.xyz was registered 3 days ago/);
-  assert.deepEqual(net.sent.map((s) => s.url), ["https://rdap.org/domain/claim-your-funds.xyz"]);
+  // RDAP and the filtering resolver each get the bare domain, never the path or the email in it.
+  assert.deepEqual(net.sent.map((s) => s.url).sort(), [
+    "https://rdap.org/domain/claim-your-funds.xyz",
+    "https://security.cloudflare-dns.com/dns-query?name=claim-your-funds.xyz&type=A",
+  ]);
 });
 
 test("server: Safe Browsing match, sent without the query string", async () => {

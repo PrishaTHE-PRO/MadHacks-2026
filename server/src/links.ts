@@ -6,6 +6,9 @@
 //      the bare domain is sent.
 //   3. Google Safe Browsing, when GOOGLE_SAFE_BROWSING_KEY is set. The link is
 //      sent without its query string or #fragment.
+//   4. A filtering DNS resolver (Cloudflare's security resolver, 1.1.1.2): it
+//      answers 0.0.0.0 for domains on its malware and phishing lists. A free
+//      threat-list check with no key; only the domain is sent.
 // The message text never leaves the server, and nothing here is stored except
 // an in-memory cache of lookups.
 
@@ -15,6 +18,7 @@ import type { ChatContext, ChatFlag } from "../../shared/types";
 
 const RDAP_URL = "https://rdap.org/domain/";
 const SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
+const FILTERING_RESOLVER = "https://security.cloudflare-dns.com/dns-query";
 const USER_AGENT = "DealDig/0.1 (hackathon prototype)";
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -139,6 +143,67 @@ export async function safeBrowsingMatches(urls: string[], fetchImpl: typeof fetc
   return out;
 }
 
+/** Does a DNS-over-HTTPS JSON answer say "blocked"? Cloudflare's filter answers 0.0.0.0. Pure, tested. */
+export function resolverSaysBlocked(answer: unknown): boolean {
+  const records = (answer as { Answer?: { data?: string }[] })?.Answer ?? [];
+  return records.some((r) => r.data === "0.0.0.0" || r.data === "::");
+}
+
+/** Is this domain on Cloudflare's malware/phishing block list? False if the lookup fails. */
+export async function resolverBlocks(domain: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  return cached(`dns:${domain}`, 60 * 60 * 1000, async () => {
+    try {
+      const res = await fetchImpl(`${FILTERING_RESOLVER}?name=${encodeURIComponent(domain)}&type=A`, {
+        headers: { Accept: "application/dns-json" },
+        signal: AbortSignal.timeout(3000),
+      });
+      return res.ok ? resolverSaysBlocked(await res.json()) : false;
+    } catch {
+      return false;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// One destination: should the extension stop this page? (POST /check-url)
+// ---------------------------------------------------------------------------
+
+export interface DestinationVerdict {
+  url: string;
+  domain: string;
+  /** "block": show DealDig's warning page before it loads. */
+  verdict: "block" | "ok";
+  /** One line each, naming the domain. Only red-level reasons block. */
+  reasons: string[];
+}
+
+export async function checkDestination(url: string, fetchImpl: typeof fetch = fetch): Promise<DestinationVerdict> {
+  const final = isShortener(url) ? await unshorten(url, fetchImpl) : url;
+  const host = hostOfLink(final);
+  const domain = host ? registrableDomain(host) : final;
+  const reasons: string[] = [];
+  const look = checkLookalike(final);
+  if (look) reasons.push(look.text);
+  if (host && !isOfficialDomain(host)) {
+    const work = Promise.all([
+      domainRegisteredAt(domain, fetchImpl),
+      safeBrowsingMatches([stripQuery(final)], fetchImpl),
+      resolverBlocks(domain, fetchImpl),
+    ]);
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), BUDGET_MS).unref?.());
+    const got = await Promise.race([work, timeout]);
+    if (got) {
+      const [reg, threats, blocked] = got;
+      const threat = threats.get(stripQuery(final));
+      if (threat) reasons.push(`Google Safe Browsing lists ${domain} as ${THREAT_WORDS[threat] ?? "dangerous"}.`);
+      if (blocked) reasons.push(`Cloudflare's security filter blocks ${domain} as a malware or phishing site.`);
+      const age = reg ? ageFlag(domain, reg) : null;
+      if (age?.severity === "danger") reasons.push(age.reason);
+    }
+  }
+  return { url: final, domain, verdict: reasons.length ? "block" : "ok", reasons };
+}
+
 // ---------------------------------------------------------------------------
 // Entry point: flags for the links in a chat
 // ---------------------------------------------------------------------------
@@ -177,11 +242,13 @@ export async function linkFlags(ctx: ChatContext, fetchImpl: typeof fetch = fetc
 
     const domains = [...new Set(found.map((l) => hostOfLink(l.final)).filter((h): h is string => !!h && !isOfficialDomain(h)).map(registrableDomain))];
     const sbUrls = [...new Set(found.map((l) => stripQuery(l.final)))];
-    const [ages, threats] = await Promise.all([
+    const [ages, threats, dns] = await Promise.all([
       Promise.all(domains.map(async (d) => [d, await domainRegisteredAt(d, fetchImpl)] as const)),
       safeBrowsingMatches(sbUrls, fetchImpl),
+      Promise.all(domains.map(async (d) => [d, await resolverBlocks(d, fetchImpl)] as const)),
     ]);
     const ageOf = new Map(ages);
+    const dnsBlocked = new Set(dns.filter(([, b]) => b).map(([d]) => d));
 
     for (const l of found) {
       const threat = threats.get(stripQuery(l.final));
@@ -192,6 +259,15 @@ export async function linkFlags(ctx: ChatContext, fetchImpl: typeof fetch = fetc
           pattern: "unsafe_link",
           severity: "danger",
           reason: `Google Safe Browsing lists ${domain} as ${THREAT_WORDS[threat] ?? "dangerous"}. Don't open it.`,
+          messageId: l.messageId,
+          source: "rules",
+        });
+      }
+      if (!threat && dnsBlocked.has(domain)) {
+        flags.push({
+          pattern: "unsafe_link",
+          severity: "danger",
+          reason: `Cloudflare's security filter blocks ${domain} as a malware or phishing site. Don't open it.`,
           messageId: l.messageId,
           source: "rules",
         });

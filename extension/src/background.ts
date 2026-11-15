@@ -17,6 +17,9 @@ import { prefilter } from "../../shared/chatPatterns";
 import type { ChatContext, ChatFlag, ChatReport, Listing, ListingProgress, ListingStep, RiskReport } from "../../shared/types";
 import { dhashFromRgba } from "../../shared/photohash";
 import { saveCheckToHistory } from "./history";
+import { allowSite, guardChatFlags, startLinkGuard } from "./guard";
+
+startLinkGuard();
 
 const CACHE_MS = 10 * 60 * 1000;
 const HASHED_PHOTOS = 4;
@@ -162,6 +165,16 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
     return false;
   }
 
+  if (msg.type === "ALLOW_SITE" && tabId !== undefined) {
+    void allowSite(tabId, msg.domain, msg.url);
+    return false;
+  }
+
+  if (msg.type === "CLOSE_TAB" && tabId !== undefined) {
+    void chrome.tabs.remove(tabId);
+    return false;
+  }
+
   if (msg.type === "OPEN_PANEL" && tabId !== undefined) {
     chrome.sidePanel.open({ tabId }).catch(() => {
       // Chrome only allows this right after a user gesture; the toolbar icon always works.
@@ -261,6 +274,8 @@ async function onChat(tabId: number, ctx: ChatContext) {
     for (const f of prefilter(ctx)) if (!have.has(flagKey(f))) state.flags.push(f);
     state.status = "checking";
   });
+  // Look-alike links are known on the device already: block them before anyone clicks.
+  void guardChatFlags(ctx, prefilter(ctx));
 
   const id = `${tabId}:${ctx.threadId}`;
   const calls = threadCalls.get(id) ?? { lastCall: 0 };
@@ -287,6 +302,8 @@ async function callChatServer(tabId: number, ctx: ChatContext) {
     });
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const report = (await res.json()) as ChatReport;
+    // Red link warnings (brand-new, known dangerous) become blocking rules too.
+    void guardChatFlags(ctx, report.flags);
     await updateChat(tabId, ctx, (state) => {
       // The server's answer covers these messages completely (its regex + AI flags).
       const ids = new Set(ctx.messages.map((m) => m.id));
