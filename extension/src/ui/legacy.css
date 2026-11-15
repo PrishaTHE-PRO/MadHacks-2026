@@ -1,6 +1,6 @@
-/* Main's meetup helper (sidepanel/Meetup.tsx) and document check
-   (sidepanel/DocCheck.tsx) use the old side panel's class names. These rules
-   give them the sidebar's look without changing those components. Scoped to
+/* Main's meetup helper (sidepanel/Meetup.tsx) and photo privacy use the old
+   side panel's class names. These rules give them the sidebar's look without
+   changing those components. Scoped to
    .dd-legacy so nothing here reaches the rest of the sidebar. */
 
 .dd-legacy .card {

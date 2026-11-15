@@ -1,4 +1,4 @@
-// The DealDig sidebar: header, Listing · Chat · Report tabs, body, footer.
+// The DealDig sidebar: header, Listing · Chat · Check image · Report tabs, body, footer.
 // Pure UI: it renders a `PanelView` and reports clicks through callbacks, so
 // the preview page can drive it with mock data and the side panel with the
 // real per-tab state. It fills its container (the side panel window).
@@ -7,6 +7,7 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
+import { ImageTab } from "./ImageTab";
 import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
 import { CantConnectState, EmptyState, ErrorState, LoadingState } from "./States";
@@ -17,7 +18,7 @@ export type PanelView =
   | { kind: "error"; message: string; offline: boolean } // offline: the server can't be reached
   | { kind: "listing"; listing: Listing; report: RiskReport };
 
-export type PanelTab = "listing" | "chat" | "report";
+export type PanelTab = "listing" | "chat" | "image" | "report";
 
 export interface PanelProps {
   view: PanelView;
@@ -30,7 +31,7 @@ export interface PanelProps {
   initialTab?: PanelTab;
   /** This device's check history (earlier visits on the Listing tab). */
   history: HistoryEntry[];
-  /** Always available under the Listing tab, whatever its state: document check and history. */
+  /** Always available under the Listing tab, whatever its state: history. */
   tools?: ReactNode;
   onClose(): void;
   onRetry(): void;
@@ -39,6 +40,7 @@ export interface PanelProps {
 const TABS: { id: PanelTab; label: string }[] = [
   { id: "listing", label: "Listing" },
   { id: "chat", label: "Chat" },
+  { id: "image", label: "Check image" },
   { id: "report", label: "Report" },
 ];
 
@@ -66,6 +68,8 @@ export function Panel(props: PanelProps) {
   let footer: ReactNode = null;
   if (tab === "chat") {
     body = props.chatTab;
+  } else if (tab === "image") {
+    body = <ImageTab />;
   } else if (tab === "report") {
     body = <ReportTab listing={listing} onCancel={() => setTab("listing")} />;
   } else if (view.kind === "empty") {
