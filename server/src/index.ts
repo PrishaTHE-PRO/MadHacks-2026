@@ -229,6 +229,9 @@ app.get("/demo/chat", (_req, res) => res.sendFile(DEMO_CHAT));
 const DEMO_INVOICE = fileURLToPath(new URL("../../extension/demo/fake-invoice.jpg", import.meta.url));
 app.get("/demo/fake-invoice.jpg", (_req, res) => res.sendFile(DEMO_INVOICE));
 
+// The landing page (site/), at http://localhost:8787/. Static files only.
+app.use(express.static(fileURLToPath(new URL("../../site", import.meta.url)), { index: "index.html" }));
+
 app.post("/report", (req, res) => {
   const parsed = ReportBody.safeParse(req.body);
   if (!parsed.success) {
