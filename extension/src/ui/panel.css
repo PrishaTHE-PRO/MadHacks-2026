@@ -217,3 +217,35 @@ textarea.dd-input { resize: vertical; }
 .dd-level-pill.low { background: var(--dd-low); }
 .dd-level-pill.medium { background: var(--dd-careful); }
 .dd-level-pill.high { background: var(--dd-high); }
+
+/* --- Check image tab --- */
+.dd-image { display: flex; flex-direction: column; gap: 12px; }
+.dd-drop {
+  width: 100%; min-height: 168px; padding: 20px; cursor: pointer; font: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  border: 2px dashed rgba(79,98,196,.45); border-radius: var(--dd-r-card);
+  background: var(--dd-accent-wash); color: var(--dd-accent-ink);
+  transition: background .15s ease, border-color .15s ease;
+}
+.dd-drop:hover, .dd-drop:focus-visible { background: rgba(79,98,196,.13); border-color: var(--dd-accent); outline: none; }
+.dd-drop.over { background: rgba(79,98,196,.18); border-color: var(--dd-accent); border-style: solid; }
+.dd-drop.compact { min-height: 0; flex-direction: row; padding: 10px 14px; border-width: 1px; }
+.dd-drop.compact svg { width: 18px; height: 18px; }
+.dd-drop-title { font-size: 14px; font-weight: 600; }
+.dd-drop .dd-muted { font-size: 12px; }
+.dd-center { text-align: center; }
+.dd-image-result { display: flex; flex-direction: column; gap: 10px; }
+.dd-image-result .dd-seg { align-self: flex-start; }
+.dd-image-preview { width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px; background: var(--dd-surface-2); }
+.dd-image-verdict { margin: 0; font-size: 15px; font-weight: 600; }
+.dd-image-verdict.careful { color: var(--dd-careful-ink); }
+.dd-image-verdict.clean { color: var(--dd-low-ink); }
+.dd-image-details { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 12px; }
+.dd-image-details div { display: contents; }
+.dd-image-details dt { color: var(--dd-muted); }
+.dd-image-details dd { margin: 0; overflow-wrap: anywhere; }
+.dd-image-type { font-weight: 500; }
+.dd-image-type select { appearance: auto; cursor: pointer; }
+/* Four tabs: keep them on one line in a narrow side panel. */
+.dd-tabs { gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.dd-tab { padding: 0 11px; white-space: nowrap; flex: none; }

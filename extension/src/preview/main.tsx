@@ -9,7 +9,6 @@ import { Bubble, type BubbleIcon } from "../ui/Bubble";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { Panel, type PanelTab, type PanelView } from "../ui/Panel";
 import { mountInShadow } from "../ui/shadow";
-import { DocCheck } from "../sidepanel/DocCheck";
 import { HistoryCard } from "../ui/HistoryCard";
 import { arrivingFlag, mockHistory, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
 import type { ListingStep } from "../../../shared/types";
@@ -178,14 +177,7 @@ function Preview() {
               onClose={() => setOpen(false)}
               onRetry={() => setToast("Try again: would re-run the listing check.")}
               history={mockHistory}
-              tools={
-                <>
-                  <div className="dd-legacy">
-                    <DocCheck />
-                  </div>
-                  <HistoryCard history={mockHistory} />
-                </>
-              }
+              tools={<HistoryCard history={mockHistory} />}
             />
           </div>
         </div>
