@@ -55,6 +55,8 @@ Add a text loader to `extension/build.mjs` (`loader: { ".css": "text" }`) so `im
 
 ## The bubble mark (`extension/src/ui/Bubble.tsx`)
 
+**Visual reference:** `docs/design/bubble-reference.png` (open it before drawing the bubble). Match its feel: purple glow top-left, light yellow top-right, teal-blue bottom-left, a white outer ring with a thin blue inner ring, a curved white highlight on the right, a faint horizontal streak, and a light sparkle texture. Use it as reference only; do not ship the PNG in the extension. The SVG below is the version to build from.
+
 One component used everywhere (logo, verdict, badge, chips, states). Props: `size` (px), `icon?: "none" | "alert" | "check" | "dash"`, `animate?: boolean` (default true when size ≥ 28). Gradient and filter ids must be unique per instance: use `useId()` and strip `:` from it.
 
 ```tsx
@@ -150,6 +152,13 @@ Also export the same SVG as a string helper (`bubbleSvg(size, icon)`) for `conte
 ```
 
 ## The pop-up shell
+
+**Visual reference:** `docs/design/panel-reference.png` (an AI-assistant card from another product: use it for mood only, never copy its name, text or layout literally). Take these qualities from it:
+- Mostly white, very calm surface; the color lives in a **soft pastel glow** (pink, butter yellow, mint, teal, lavender) blurred low in the panel, behind the content, not in the cards.
+- Generous corner radius on the outer shell (try 28–32px instead of 18px) and soft, wide shadows instead of hard borders.
+- Fully rounded pill chips in light gray (`rgba(42,43,58,.06)`, 13px, 600) and a pill-shaped input with a round button beside it.
+- Lots of white space; one larger, lighter headline (e.g. the verdict word at 22px) with quiet gray supporting text.
+To get the glow in our pop-up: add an absolutely positioned layer behind the body with 3–4 large blurred radial gradients in our bubble colors (purple `#B7A6F0`, teal-blue `#7FD0DF`, butter `#F7F1B5`, a touch of pink `#F3C6DE`) at ~35% opacity, `filter: blur(40px)`, anchored to the bottom half. Keep the cards above it frosted white so text stays readable.
 
 - Root: `width 380px; height 600px; border-radius 18px; overflow hidden; background var(--dd-glass); backdrop-filter var(--dd-blur); -webkit-backdrop-filter var(--dd-blur); border 1px solid var(--dd-glass-edge); box-shadow var(--dd-shadow); font-family var(--dd-font); color var(--dd-ink)`; column flex; class `dd-panel`. `z-index: 2147483647`.
 - Header (padding 12px 14px, bottom border `rgba(255,255,255,.7)`): `Bubble size 30`, "DealDig" (17px, 800), site pill (12px 700, `--dd-glass-chip`, e.g. "Poshmark"), close button (32×32, `aria-label="Close DealDig"`).

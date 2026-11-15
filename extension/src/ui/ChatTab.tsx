@@ -56,7 +56,7 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
 
   return (
     <>
-      <section className="dd-card dd-verdict-top" aria-label="Chat summary">
+      <section className="dd-card dd-glow dd-verdict-top" aria-label="Chat summary">
         <Bubble size={40} icon={count ? "alert" : "check"} />
         <div className="dd-verdict-text">
           <div className={`dd-level ${count ? (danger ? "dd-high" : "dd-medium") : "dd-low"}`}>
@@ -73,19 +73,25 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
       </section>
 
       <div className="dd-chat-row">
-        <span className="dd-chat-with">
-          Chat{name ? (
-            <>
-              {" "}
-              with <strong>{name}</strong>
-            </>
-          ) : null}
-          {site ? ` · ${site}` : ""}
-        </span>
+        <div className="dd-chat-with">
+          <div>
+            Chat{name ? (
+              <>
+                {" "}
+                with <strong>{name}</strong>
+              </>
+            ) : null}
+            {site ? ` · ${site}` : ""}
+          </div>
+          <div className={`dd-watching ${chat.watching ? "on" : ""}`} role="status">
+            <span className={`dd-watch-dot ${chat.watching ? "dd-live" : ""}`} aria-hidden="true" />
+            {chat.watching ? "Watching this chat" : "Paused · open the chat to keep watching"}
+          </div>
+        </div>
         <RoleToggle role={role} onChange={onRole} />
       </div>
 
-      {flags.length > 0 && <WarningList flags={flags} quotes={chat.quotes} />}
+      <WarningList flags={flags} quotes={chat.quotes} />
       {hidden > 0 && (
         <p className="dd-note dd-center">
           {hidden} marked “Not a scam”.{" "}

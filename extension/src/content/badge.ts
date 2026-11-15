@@ -35,12 +35,19 @@ const mark = (size: number, icon: Parameters<typeof bubbleSvg>[1], id: string) =
  * Draw the badge into `root` (replacing what was there). `onOpen` runs when the
  * pill or "See details" is clicked. `fixed: false` draws it in place (preview page).
  */
-export function renderBadge(root: ShadowRoot, s: BadgeState, onOpen: () => void, opts: { fixed?: boolean; showCard?: boolean } = {}) {
+export function renderBadge(
+  root: ShadowRoot,
+  s: BadgeState,
+  onOpen: () => void,
+  opts: { fixed?: boolean; showCard?: boolean; arrive?: boolean } = {},
+) {
   const style = el("style");
   style.textContent = BADGE_CSS;
   const wrap = el("div", "dd-badge");
   if (opts.fixed === false) wrap.classList.add("static");
   if (opts.showCard) wrap.classList.add("show-card");
+  // The verdict replacing "Checking…": fade it in rather than swapping instantly.
+  if (opts.arrive) wrap.classList.add("arrive");
 
   const pill = el("button", "dd-pill");
   pill.type = "button";
@@ -83,6 +90,7 @@ export function renderBadge(root: ShadowRoot, s: BadgeState, onOpen: () => void,
 // --- The live badge on the page ---
 
 let host: HTMLDivElement | null = null;
+let lastState: BadgeState["state"] | null = null;
 
 const openPanel = () => {
   chrome.runtime.sendMessage({ type: "OPEN_PANEL" }).catch(() => {});
@@ -96,10 +104,12 @@ export function showBadge(s: BadgeState) {
     host.attachShadow({ mode: "open" });
     document.documentElement.appendChild(host);
   }
-  renderBadge(host.shadowRoot!, s, openPanel);
+  renderBadge(host.shadowRoot!, s, openPanel, { arrive: lastState === "loading" && s.state !== "loading" });
+  lastState = s.state;
 }
 
 export function hideBadge() {
   host?.remove();
   host = null;
+  lastState = null;
 }

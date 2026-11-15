@@ -1,11 +1,11 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { analyzeListing } from "./analyze";
+import { analyzeListing, listingPlan } from "./analyze";
 import { addReport } from "./db";
 import { aiEnabled } from "./claude";
 import { analyzeChat } from "./chat";
-import { CHAT_PLATFORMS, PLATFORMS, type ChatContext, type Listing } from "../../shared/types";
+import { CHAT_PLATFORMS, PLATFORMS, type ChatContext, type Listing, type ListingProgress } from "../../shared/types";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const app = express();
@@ -82,8 +82,30 @@ app.post("/analyze-listing", async (req, res) => {
   }
   const listing = parsed.data.listing as unknown as Listing;
   const started = Date.now();
+  const log = (score: number, level: string) =>
+    console.log(`[analyze] ${listing.platform}/${listing.id} → ${score} (${level}) in ${Date.now() - started}ms`);
+
+  // ?progress=1: stream newline-delimited JSON (plan, each step, then the report)
+  // so the extension can show which stage is running. Otherwise, plain JSON.
+  if (req.query.progress === "1") {
+    res.setHeader("Content-Type", "application/x-ndjson");
+    res.setHeader("Cache-Control", "no-store");
+    const send = (line: ListingProgress) => res.write(`${JSON.stringify(line)}\n`);
+    send({ plan: listingPlan() });
+    try {
+      const report = await analyzeListing(listing, (step) => send({ step }));
+      log(report.score, report.level);
+      send({ report });
+    } catch (err) {
+      console.error("[analyze] failed:", err);
+      send({ error: "The check failed on the server." });
+    }
+    res.end();
+    return;
+  }
+
   const report = await analyzeListing(listing);
-  console.log(`[analyze] ${listing.platform}/${listing.id} → ${report.score} (${report.level}) in ${Date.now() - started}ms`);
+  log(report.score, report.level);
   res.json(report);
 });
 

@@ -120,6 +120,19 @@ export interface RiskReport {
   checkedAt: string;
 }
 
+/**
+ * Stages of a listing check, reported live when the client asks for progress
+ * (POST /analyze-listing?progress=1). "item" and "summary" only run with Claude.
+ */
+export type ListingStep = "seller" | "item" | "price" | "summary";
+
+/** One line of the progress stream (newline-delimited JSON). */
+export type ListingProgress =
+  | { plan: ListingStep[] } // first line: the steps this check will run
+  | { step: ListingStep } // a step started (earlier ones are done)
+  | { report: RiskReport } // last line on success
+  | { error: string }; // last line on failure
+
 export interface ScamReportInput {
   platform: Platform;
   sellerId: string;

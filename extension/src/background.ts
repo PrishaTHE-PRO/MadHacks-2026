@@ -14,26 +14,52 @@ import {
   type TabState,
 } from "./messages";
 import { prefilter } from "../../shared/chatPatterns";
-import type { ChatContext, ChatFlag, ChatReport, Listing, RiskReport } from "../../shared/types";
+import type { ChatContext, ChatFlag, ChatReport, Listing, ListingProgress, ListingStep, RiskReport } from "../../shared/types";
 
 const CACHE_MS = 10 * 60 * 1000;
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
-async function analyze(listing: Listing): Promise<RiskReport> {
+/**
+ * Check a listing on the server. `onProgress` gets the planned steps and each
+ * step as it starts, read from the server's newline-delimited JSON stream.
+ */
+async function analyze(
+  listing: Listing,
+  onProgress: (p: { plan?: ListingStep[]; step?: ListingStep }) => void = () => {},
+): Promise<RiskReport> {
   const cacheKey = `report:${listing.platform}:${listing.id}`;
   const cached = (await chrome.storage.session.get(cacheKey))[cacheKey] as
     | { at: number; report: RiskReport }
     | undefined;
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.report;
 
-  const res = await fetch(`${SERVER_URL}/analyze-listing`, {
+  const res = await fetch(`${SERVER_URL}/analyze-listing?progress=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ listing }),
   });
-  if (!res.ok) throw new Error(`Server error ${res.status}`);
-  const report = (await res.json()) as RiskReport;
+  if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
+
+  let report: RiskReport | null = null;
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buffer += value;
+    const lines = buffer.split("\n");
+    buffer = done ? "" : lines.pop()!;
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const msg = JSON.parse(line) as ListingProgress;
+      if ("plan" in msg) onProgress({ plan: msg.plan });
+      else if ("step" in msg) onProgress({ step: msg.step });
+      else if ("report" in msg) report = msg.report;
+      else throw new Error(msg.error);
+    }
+    if (done) break;
+  }
+  if (!report) throw new Error("The server ended the check without a result.");
   await chrome.storage.session.set({ [cacheKey]: { at: Date.now(), report } });
   return report;
 }
@@ -44,13 +70,22 @@ async function setTab(tabId: number, state: TabState) {
 
 /** Check a listing and store the result for the tab (the side panel renders it). */
 async function runListing(tabId: number, listing: Listing): Promise<AnalyzeResponse> {
-  await setTab(tabId, { status: "loading", listing });
+  let loading: TabState & { status: "loading" } = { status: "loading", listing };
+  await setTab(tabId, loading);
+  // Progress writes are chained so a late one can't overwrite the final result.
+  let writes = Promise.resolve();
   try {
-    const report = await analyze(listing);
+    const report = await analyze(listing, (p) => {
+      loading = { ...loading, ...p };
+      const snapshot = loading;
+      writes = writes.then(() => setTab(tabId, snapshot));
+    });
+    await writes;
     await setTab(tabId, { status: "done", listing, report });
     return { ok: true, report };
   } catch (err) {
     // fetch() throws TypeError when the server can't be reached at all.
+    await writes;
     const offline = err instanceof TypeError;
     const error = offline
       ? "Can't reach the DealDig server. Is it running?"
@@ -83,6 +118,11 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
     return false;
   }
 
+  if (msg.type === "CHAT_WATCHING" && tabId !== undefined) {
+    void setChatWatching(tabId, msg.threadId, msg.watching);
+    return false;
+  }
+
   if (msg.type === "ANALYZE_CHAT" && tabId !== undefined) {
     void onChat(tabId, msg.ctx);
     return false;
@@ -99,6 +139,22 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
 chrome.tabs.onRemoved.addListener((tabId) => {
   void chrome.storage.session.remove([tabKey(tabId), chatKey(tabId)]);
 });
+
+// A navigation stops any chat watcher on the old page; the content script on
+// the new page says so again if it's still a chat.
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.status === "loading" && info.url) void setChatWatching(tabId, null, false);
+});
+
+/** Mark the tab's chat as watched or not (the sidebar's "Watching this chat" dot). */
+function setChatWatching(tabId: number, threadId: string | null, watching: boolean) {
+  return serialize(tabId, async () => {
+    const key = chatKey(tabId);
+    const state = (await chrome.storage.session.get(key))[key] as ChatTabState | undefined;
+    if (!state || (threadId !== null && state.threadId !== threadId) || state.watching === watching) return;
+    await chrome.storage.session.set({ [key]: { ...state, watching } });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Chat safety
@@ -151,6 +207,7 @@ function updateChat(
       state.role = ctx.role;
     }
     for (const m of ctx.messages) state.quotes[m.id] = m.text;
+    state.watching = true; // only the content script's watcher sends ANALYZE_CHAT
     state.url = ctx.url;
     state.otherParty = ctx.otherParty;
     update(state);

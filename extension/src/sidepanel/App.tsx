@@ -40,7 +40,7 @@ function useStored<T>(area: "session" | "local", key: string | null): T | undefi
 
 function viewFor(state: TabState | undefined): PanelView {
   if (!state) return { kind: "empty" };
-  if (state.status === "loading") return { kind: "loading", listing: state.listing };
+  if (state.status === "loading") return { kind: "loading", listing: state.listing, plan: state.plan, step: state.step };
   if (state.status === "error") return { kind: "error", message: state.error, offline: Boolean(state.offline) };
   return { kind: "listing", listing: state.listing, report: state.report };
 }

@@ -176,6 +176,18 @@ export const highReport: RiskReport = {
 
 // --- Chat (the demo sublet scam, made-up people) ---
 
+/** A warning the preview can add to show a new one arriving. */
+export const arrivingFlag = {
+  message: "Before I send the deposit, can you read me the 6 digit code Google texted you? Just to verify you're real.",
+  flag: {
+    pattern: "verification_code",
+    severity: "danger",
+    reason: "Never share a code sent to your phone; it's used to take over your accounts (Google Voice scam).",
+    messageId: "m7",
+    source: "rules",
+  } satisfies import("../../../shared/types").ChatFlag,
+};
+
 
 export const mockChat: ChatTabState = {
   platform: "facebook",
@@ -185,6 +197,7 @@ export const mockChat: ChatTabState = {
   otherParty: { username: "Jordan Reyes" },
   status: "done",
   aiUsed: true,
+  watching: true,
   updatedAt: Date.now(),
   quotes: {
     m4: "I'm out of town for work so I can't show it in person, but I can hold it for you.",

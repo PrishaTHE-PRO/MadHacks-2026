@@ -5,20 +5,27 @@
 //   4. rules again with everything, so the score is computed in code
 //   5. Claude explains the final score in one line
 
-import type { RiskLevel, RiskReport } from "../../shared/types";
+import type { ListingStep, RiskLevel, RiskReport } from "../../shared/types";
 import { runRules, levelFor, type AiFindings, type RuleResult } from "./rules";
 import { aiEnabled, analyzeListing as analyzeWithClaude, explainScore, type ListingAnalysis } from "./claude";
 import { priceReference } from "./prices";
 import { communityStats, recentReports, saveCheck } from "./db";
 import type { Listing } from "../../shared/types";
 
-export async function analyzeListing(listing: Listing): Promise<RiskReport> {
+/** The steps analyzeListing will run, in order (for the progress stream). */
+export const listingPlan = (): ListingStep[] =>
+  aiEnabled() ? ["seller", "item", "price", "summary"] : ["seller", "price"];
+
+/** `onStep` is called as each stage starts, so the extension can show live progress. */
+export async function analyzeListing(listing: Listing, onStep: (step: ListingStep) => void = () => {}): Promise<RiskReport> {
   const sellerId = listing.seller.id;
+  onStep("seller");
   const community = sellerId ? communityStats(listing.platform, sellerId) : { reports: 0, reportsLast30Days: 0 };
 
   let analysis: ListingAnalysis | null = null;
   if (aiEnabled()) {
     const base = runRules(listing, { community });
+    onStep("item");
     try {
       analysis = await analyzeWithClaude(listing, base.signals, sellerId ? recentReports(listing.platform, sellerId) : []);
     } catch (err) {
@@ -26,6 +33,7 @@ export async function analyzeListing(listing: Listing): Promise<RiskReport> {
     }
   }
 
+  onStep("price");
   const price = await priceReference(listing, {
     searchQuery: analysis?.search_query,
     aiEstimate: analysis?.price_estimate,
@@ -40,6 +48,7 @@ export async function analyzeListing(listing: Listing): Promise<RiskReport> {
   let summary = fallbackSummary(result, level);
   let explained = false;
   if (aiEnabled()) {
+    onStep("summary");
     try {
       const line = await explainScore({ listing, score: result.score, level, signals: result.signals, price });
       if (line) {

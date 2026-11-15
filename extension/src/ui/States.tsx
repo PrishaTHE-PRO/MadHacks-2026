@@ -1,18 +1,49 @@
 // Loading, empty and error states inside the pop-up body.
 
-import { PLATFORM_NAMES, PLATFORMS } from "../../../shared/types";
+import { PLATFORM_NAMES, PLATFORMS, type ListingStep } from "../../../shared/types";
 import { Bubble } from "./Bubble";
 
-export function LoadingState() {
+const STEP_LABEL: Record<ListingStep | "read", string> = {
+  read: "Reading the listing",
+  seller: "Checking the seller's history",
+  item: "Identifying the item with Claude",
+  price: "Comparing prices",
+  summary: "Writing the summary",
+};
+
+/**
+ * Live progress from the server: `plan` is the steps this check runs, `step`
+ * the one in progress (earlier ones are done). Reading the listing happens in
+ * the extension first, so it's done once the server has answered at all.
+ */
+export function LoadingState({ plan, step }: { plan?: ListingStep[]; step?: ListingStep }) {
+  const steps: (ListingStep | "read")[] = ["read", ...(plan ?? [])];
+  const current = step ? steps.indexOf(step) : plan ? 1 : 0;
   return (
     <div className="dd-state" role="status" aria-live="polite">
       <Bubble size={56} />
       <h2>Checking this listing…</h2>
-      <p>Seller, price and photos. Usually 2–4 seconds.</p>
-      <div className="dd-skeleton" aria-hidden="true">
-        <span className="dd-sheen" />
-        <span className="dd-sheen" />
-      </div>
+      <ol className="dd-steps" aria-label="Progress">
+        {steps.map((s, i) => {
+          const state = i < current ? "done" : i === current ? "active" : "todo";
+          return (
+            <li key={s} className={`dd-step ${state}`} aria-current={state === "active" ? "step" : undefined}>
+              <span className="dd-step-icon" aria-hidden="true">
+                {state === "done" ? (
+                  <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M2.5 6.2l2.2 2.2 4.8-5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : null}
+              </span>
+              <span>
+                {STEP_LABEL[s]}
+                {state === "active" ? "…" : ""}
+              </span>
+              <span className="dd-sr">{state === "done" ? " (done)" : state === "active" ? " (in progress)" : ""}</span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

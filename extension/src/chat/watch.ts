@@ -17,6 +17,7 @@ import { removeAllChips, removeChips, showChips } from "./chips";
 const DEBOUNCE_MS = 800;
 const TICK_MS = 1000;
 const WINDOW = 10; // messages sent for classification
+const UNDO_MS = 6000; // how long "Not a scam" offers Undo
 
 /** Mutations from our own chips (data-dealdig) shouldn't trigger a rescan. */
 const ours = (n: Node) => n instanceof Element && (n.hasAttribute("data-dealdig") || !!n.closest("[data-dealdig]"));
@@ -37,6 +38,16 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
   const sent = new Set<string>(); // message ids already sent to the server
   const flags = new Map<string, ChatFlag>(); // flagKey → flag
   let elById = new Map<string, HTMLElement>();
+  /** Warnings just marked "Not a scam": shown as an Undo line for a few seconds. */
+  const undoable = new Map<string, { flag: ChatFlag; timer: ReturnType<typeof setTimeout> }>();
+  let announced = ""; // threadId we've told the background we're watching
+
+  /** Tell the background whether this thread is being watched (the sidebar's live dot). */
+  const announce = (watching: boolean) => {
+    if (!threadId || (watching ? announced === threadId : !announced)) return;
+    announced = watching ? threadId : "";
+    chrome.runtime.sendMessage({ type: "CHAT_WATCHING", threadId, watching }).catch(() => {});
+  };
 
   const render = () => {
     const byMessage = new Map<string, ChatFlag[]>();
@@ -46,22 +57,45 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
       if (dismissed.has(flagKey(f))) continue;
       byMessage.set(f.messageId, [...(byMessage.get(f.messageId) ?? []), f]);
     }
+    const undoBy = new Map<string, ChatFlag[]>();
+    for (const [k, { flag }] of undoable) {
+      if (dismissed.has(k)) undoBy.set(flag.messageId, [...(undoBy.get(flag.messageId) ?? []), flag]);
+    }
     for (const [id, el] of elById) {
-      const list = byMessage.get(id);
-      if (list) showChips(el, id, list, actions);
+      const list = byMessage.get(id) ?? [];
+      const undo = undoBy.get(id) ?? [];
+      if (list.length || undo.length) showChips(el, id, list, actions, undo);
       else removeChips(id);
     }
   };
+
+  const saveDismissed = () => void chrome.storage.local.set({ [dismissedKey(key)]: [...dismissed] });
 
   const actions = {
     report: (_flag: ChatFlag) => {
       chrome.runtime.sendMessage({ type: "OPEN_PANEL" }).catch(() => {});
     },
     dismiss: (flag: ChatFlag) => {
-      dismissed.add(flagKey(flag));
+      const k = flagKey(flag);
+      dismissed.add(k);
+      clearTimeout(undoable.get(k)?.timer);
+      undoable.set(k, {
+        flag,
+        timer: setTimeout(() => {
+          undoable.delete(k);
+          render();
+        }, UNDO_MS),
+      });
       render();
-      const k = dismissedKey(key);
-      void chrome.storage.local.set({ [k]: [...dismissed] });
+      saveDismissed();
+    },
+    undo: (flag: ChatFlag) => {
+      const k = flagKey(flag);
+      clearTimeout(undoable.get(k)?.timer);
+      undoable.delete(k);
+      dismissed.delete(k);
+      render();
+      saveDismissed();
     },
   };
 
@@ -70,6 +104,8 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
     key = threadKey(adapter.platform, id);
     sent.clear();
     flags.clear();
+    for (const { timer } of undoable.values()) clearTimeout(timer);
+    undoable.clear();
     removeAllChips();
     const stored = await chrome.storage.local.get([roleKey(key), dismissedKey(key)]);
     role = (stored[roleKey(key)] as ChatRole) ?? "unknown";
@@ -103,6 +139,9 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
     if (messages.some((m) => !sent.has(m.id))) {
       messages.forEach((m) => sent.add(m.id));
       chrome.runtime.sendMessage({ type: "ANALYZE_CHAT", ctx }).catch(() => {});
+      announced = threadId; // ANALYZE_CHAT marks the thread as watched
+    } else {
+      announce(true);
     }
   }
 
@@ -129,6 +168,7 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
       observer = null;
       thread = null;
       removeAllChips();
+      announce(false);
     } else if (found && location.href !== lastUrl) {
       void scan(); // SPA navigation to another thread in the same list element
     } else if ([...elById.values()].some((el) => !el.isConnected)) {
@@ -169,6 +209,7 @@ export function startChatWatcher(adapter: ChatAdapter): { stop(): void } {
 
   return {
     stop() {
+      announce(false);
       clearInterval(interval);
       clearTimeout(debounce);
       observer?.disconnect();

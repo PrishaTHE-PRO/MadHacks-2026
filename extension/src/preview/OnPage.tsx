@@ -23,9 +23,9 @@ function Badge({ state, card = false }: { state: BadgeState; card?: boolean }) {
   return <Shadow draw={(root) => renderBadge(root, state, noop, { fixed: false, showCard: card })} />;
 }
 
-function Chips({ flags, expand = [] }: { flags: ChatFlag[]; expand?: ChatFlag[] }) {
+function Chips({ flags, expand = [], undo = [] }: { flags: ChatFlag[]; expand?: ChatFlag[]; undo?: ChatFlag[] }) {
   const expanded = new Set(expand.map(flagKey));
-  return <Shadow draw={(root) => renderChips(root, flags, { report: noop, dismiss: noop }, expanded)} />;
+  return <Shadow draw={(root) => renderChips(root, flags, { report: noop, dismiss: noop, undo: noop }, expanded, undo)} />;
 }
 
 const [aiDeposit, deposit, offPlatform, payment, urgency] = mockChat.flags;
@@ -62,12 +62,15 @@ export function OnPagePreview() {
 
       <section className="pv-panel">
         <h2 className="pv-h">Chat warning chips</h2>
-        <p className="pv-sub">Under each flagged message. “Why?” expands a chip; the site's own text is never changed.</p>
+        <p className="pv-sub">
+          Under each flagged message. “Why?” expands a chip; “Not a scam” leaves an Undo for a few seconds. The site's own
+          text is never changed.
+        </p>
         <div className="pv-chat">
           <div className="pv-msg them">{mockChat.quotes.m4}</div>
           <Chips flags={[aiDeposit]} />
           <div className="pv-msg them">{mockChat.quotes.m5}</div>
-          <Chips flags={[deposit, offPlatform, payment]} expand={[deposit]} />
+          <Chips flags={[deposit, payment]} expand={[deposit]} undo={[offPlatform]} />
           <div className="pv-msg me">Can I see it first? I'd rather pay in person.</div>
           <div className="pv-msg them">{mockChat.quotes.m6}</div>
           <Chips flags={[urgency]} />

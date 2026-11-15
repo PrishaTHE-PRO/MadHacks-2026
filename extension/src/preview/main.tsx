@@ -2,14 +2,17 @@
 // Renders the DealDig sidebar with mock data in a sidebar-sized frame, so it
 // can be checked without a marketplace or the server.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PLATFORM_NAMES, type ChatRole } from "../../../shared/types";
 import { flagKey } from "../messages";
 import { Bubble, type BubbleIcon } from "../ui/Bubble";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { Panel, type PanelTab, type PanelView } from "../ui/Panel";
 import { mountInShadow } from "../ui/shadow";
-import { highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
+import { arrivingFlag, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
+import type { ListingStep } from "../../../shared/types";
+
+const PLAN: ListingStep[] = ["seller", "item", "price", "summary"];
 import { OnPagePreview } from "./OnPage";
 
 const PREVIEW_CSS = `
@@ -41,6 +44,7 @@ const PREVIEW_CSS = `
   .pv-msg { max-width: 80%; padding: 8px 12px; border-radius: 16px; font-size: 14px; margin-top: 8px; }
   .pv-msg.them { align-self: flex-start; background: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
   .pv-mock { font-size: 12px; }
+  .pv-mocks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; }
   .pv-msg.me { align-self: flex-end; background: #0866ff; color: #fff; border-bottom-right-radius: 4px; }
 `;
 
@@ -73,7 +77,7 @@ function viewFor(id: Exclude<StateId, "bubbles" | "onpage">): { view: PanelView;
     case "nochat":
       return { view: { kind: "empty" }, tab: "chat" };
     case "loading":
-      return { view: { kind: "loading" }, site: PLATFORM_NAMES.poshmark };
+      return { view: { kind: "loading", plan: PLAN, step: "seller" }, site: PLATFORM_NAMES.poshmark };
     case "empty":
       return { view: { kind: "empty" } };
     case "offline":
@@ -94,15 +98,37 @@ function Preview() {
   const [open, setOpen] = useState(true);
   const [role, setRole] = useState<ChatRole>("buyer");
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [replay, setReplay] = useState(0); // remounts the panel to replay arrival animations
+  const [arrived, setArrived] = useState(false); // mock: a new chat warning came in
+  const [stepIndex, setStepIndex] = useState(0);
   const pick = (id: StateId) => {
     setState(id);
     setOpen(true);
     setToast("");
+    setArrived(false);
+    setStepIndex(0);
     history.replaceState(null, "", `#${id}`);
   };
 
-  const v = state === "bubbles" || state === "onpage" ? null : viewFor(state);
-  const chat = v?.chat ? mockChat : null;
+  // Loading: walk through the server's steps like a real check does.
+  useEffect(() => {
+    if (state !== "loading") return;
+    const t = setInterval(() => setStepIndex((i) => (i + 1) % (PLAN.length + 1)), 1100);
+    return () => clearInterval(t);
+  }, [state]);
+
+  let v = state === "bubbles" || state === "onpage" ? null : viewFor(state);
+  if (v && state === "loading")
+    v = { ...v, view: { kind: "loading", plan: PLAN, step: stepIndex ? PLAN[stepIndex - 1] : undefined } };
+  const chat = v?.chat
+    ? arrived
+      ? {
+          ...mockChat,
+          flags: [...mockChat.flags, arrivingFlag.flag],
+          quotes: { ...mockChat.quotes, m7: arrivingFlag.message },
+        }
+      : mockChat
+    : null;
 
   return (
     <div className="pv">
@@ -128,7 +154,7 @@ function Preview() {
         <div className="pv-frame dd-backdrop">
           <div className="dd-fill">
             <Panel
-              key={state}
+              key={`${state}:${replay}`}
               view={v.view}
               site={v.site}
               initialTab={v.tab}
@@ -156,13 +182,25 @@ function Preview() {
           Reopen sidebar
         </button>
       )}
-      {chat && (
-        <button
-          className="dd-link pv-mock"
-          onClick={() => setDismissed(dismissed.length ? [] : [flagKey(mockChat.flags[4])])}
-        >
-          {dismissed.length ? "Undo mock “Not a scam”" : "Mock: mark one warning “Not a scam”"}
-        </button>
+      {v && (
+        <div className="pv-mocks">
+          <button className="dd-link pv-mock" onClick={() => setReplay((n) => n + 1)}>
+            Replay animations
+          </button>
+          {chat && (
+            <button className="dd-link pv-mock" onClick={() => setArrived(!arrived)}>
+              {arrived ? "Mock: remove the new warning" : "Mock: a new warning arrives"}
+            </button>
+          )}
+          {chat && (
+            <button
+              className="dd-link pv-mock"
+              onClick={() => setDismissed(dismissed.length ? [] : [flagKey(mockChat.flags[4])])}
+            >
+              {dismissed.length ? "Undo mock “Not a scam”" : "Mock: mark one warning “Not a scam”"}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

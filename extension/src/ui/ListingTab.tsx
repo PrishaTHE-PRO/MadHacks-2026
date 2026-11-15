@@ -4,6 +4,10 @@ import { useState } from "react";
 import type { Listing, RiskLevel, RiskReport } from "../../../shared/types";
 import { Bubble, iconForLevel } from "./Bubble";
 import { money, sellerFacts, sellerName } from "./listingFacts";
+import { useCountUp } from "./useCountUp";
+
+/** Watch-out rows come in one after another, biggest first. */
+const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
 
 const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 const LEVELS: RiskLevel[] = ["low", "medium", "high"];
@@ -24,21 +28,24 @@ export function ListingTab({ listing, report }: { listing: Listing; report: Risk
 
 function Verdict({ report }: { report: RiskReport }) {
   const { level } = report;
+  const shown = useCountUp(report.score);
   return (
-    <section className="dd-card dd-verdict" aria-label="Verdict">
+    <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
         <Bubble size={40} icon={iconForLevel(level)} />
         <div className="dd-verdict-text">
           <div className="dd-level-row">
             <span className={`dd-level dd-${level}`}>{LEVEL_WORD[level]}</span>
-            <span className={`dd-score dd-${level}`}>{report.score} / 100</span>
+            <span className={`dd-score dd-${level}`} aria-label={`${report.score} out of 100`}>
+              {shown} / 100
+            </span>
           </div>
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
       <div className="dd-bar" role="img" aria-label={`Risk: ${LEVEL_WORD[level]}`}>
         {LEVELS.map((l) => (
-          <span key={l} className={l === level ? `on ${l}` : undefined} />
+          <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
         ))}
       </div>
     </section>
@@ -141,8 +148,8 @@ function WatchOut({ report }: { report: RiskReport }) {
       </div>
       {risky.length ? (
         <ul className="dd-rows">
-          {risky.map((s) => (
-            <li key={s.id}>
+          {risky.map((s, i) => (
+            <li key={s.id} {...rowIn(i)}>
               <span className="dd-pts">+{s.points}</span>
               <span>{s.text}</span>
             </li>

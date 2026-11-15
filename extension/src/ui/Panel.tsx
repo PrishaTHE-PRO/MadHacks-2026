@@ -4,7 +4,7 @@
 // real per-tab state. It fills its container (the side panel window).
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Listing, RiskReport } from "../../../shared/types";
+import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import { Bubble } from "./Bubble";
 import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
@@ -12,7 +12,7 @@ import { CantConnectState, EmptyState, ErrorState, LoadingState } from "./States
 
 export type PanelView =
   | { kind: "empty" }
-  | { kind: "loading"; listing?: Listing }
+  | { kind: "loading"; listing?: Listing; plan?: ListingStep[]; step?: ListingStep }
   | { kind: "error"; message: string; offline: boolean } // offline: the server can't be reached
   | { kind: "listing"; listing: Listing; report: RiskReport };
 
@@ -20,7 +20,7 @@ export type PanelTab = "listing" | "chat" | "report";
 
 export interface PanelProps {
   view: PanelView;
-  /** Site pill, e.g. "Poshmark". */
+  /** The site being checked, shown under the title, e.g. "Poshmark". */
   site?: string;
   /** The Chat tab's content (built by the side panel from the live chat state). */
   chatTab: ReactNode;
@@ -68,7 +68,7 @@ export function Panel(props: PanelProps) {
   } else if (view.kind === "empty") {
     body = <EmptyState />;
   } else if (view.kind === "loading") {
-    body = <LoadingState />;
+    body = <LoadingState plan={view.plan} step={view.step} />;
   } else if (view.kind === "error") {
     body = view.offline ? <CantConnectState onRetry={props.onRetry} /> : <ErrorState message={view.message} onRetry={props.onRetry} />;
   } else {
@@ -81,11 +81,14 @@ export function Panel(props: PanelProps) {
   }
 
   return (
-    <div className="dd-pop" role="region" aria-label="DealDig">
+    // Keyed by tab/page in the side panel, so switching browser tabs crossfades.
+    <div className="dd-pop dd-fade-in" role="region" aria-label="DealDig">
       <header className="dd-head">
-        <Bubble size={26} />
-        <span className="dd-name">DealDig</span>
-        {site && <span className="dd-site">{site}</span>}
+        <Bubble size={36} />
+        <div className="dd-head-text">
+          <div className="dd-name">DealDig</div>
+          <div className="dd-site">{site ? `Checking ${site}` : "Scam checks for listings and chats"}</div>
+        </div>
         <button className="dd-close" aria-label="Close DealDig" onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -107,7 +110,8 @@ export function Panel(props: PanelProps) {
           >
             {t.label}
             {t.id === "chat" && chatCount > 0 && (
-              <span className="dd-count" aria-label={`${chatCount} warnings`}>
+              // key: remount (and bump) whenever the count changes
+              <span key={chatCount} className="dd-count dd-bump" aria-label={`${chatCount} warnings`}>
                 {chatCount}
               </span>
             )}

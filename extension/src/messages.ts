@@ -1,11 +1,12 @@
 // Messages passed between content scripts, the background worker and the side panel.
 
-import type { ChatContext, ChatFlag, ChatPlatform, ChatRole, Listing, RiskReport } from "../../shared/types";
+import type { ChatContext, ChatFlag, ChatPlatform, ChatRole, Listing, ListingStep, RiskReport } from "../../shared/types";
 
 export type ExtensionMessage =
   | { type: "ANALYZE_LISTING"; listing: Listing }
   | { type: "ANALYZE_CHAT"; ctx: ChatContext }
   | { type: "RETRY_LISTING"; tabId: number } // side panel → background
+  | { type: "CHAT_WATCHING"; threadId: string; watching: boolean } // content → background
   | { type: "OPEN_PANEL" };
 
 export type AnalyzeResponse = { ok: true; report: RiskReport } | { ok: false; error: string };
@@ -19,7 +20,8 @@ export type ContentMessage =
 
 /** What the background stores per tab in chrome.storage.session; the side panel renders it. */
 export type TabState =
-  | { status: "loading"; listing: Listing }
+  // plan/step: live progress from the server (absent until the first line arrives, or for cached results)
+  | { status: "loading"; listing: Listing; plan?: ListingStep[]; step?: ListingStep }
   | { status: "done"; listing: Listing; report: RiskReport }
   | { status: "error"; listing: Listing; error: string; offline?: boolean }; // offline: server unreachable
 
@@ -42,6 +44,8 @@ export interface ChatTabState {
   quotes: Record<string, string>;
   status: ChatStatus;
   aiUsed: boolean;
+  /** True while a content script is watching this thread on the page. */
+  watching?: boolean;
   otherParty?: ChatContext["otherParty"];
   updatedAt: number;
 }

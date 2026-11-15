@@ -17,6 +17,8 @@ import chipsCss from "./chips.css";
 export interface ChipActions {
   report(flag: ChatFlag): void;
   dismiss(flag: ChatFlag): void;
+  /** Bring back a warning just marked "Not a scam". */
+  undo(flag: ChatFlag): void;
 }
 
 const CHIPS_CSS = [tokens, motion, chipsCss].join("\n");
@@ -44,12 +46,13 @@ const mark = (size: number, id: string) => {
 /**
  * Draw the chips for one message into `root`. `expanded` holds the flagKeys
  * shown as full cards; it's kept by the caller so re-renders don't collapse them.
+ * `undo` are warnings just marked "Not a scam", shown as a short "Undo" line.
  */
-export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipActions, expanded: Set<string>) {
+export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipActions, expanded: Set<string>, undo: ChatFlag[] = []) {
   const style = el("style");
   style.textContent = CHIPS_CSS;
   const list = el("div", "dd-chips");
-  const rerender = () => renderChips(root, flags, actions, expanded);
+  const rerender = () => renderChips(root, flags, actions, expanded, undo);
 
   flags.forEach((flag, i) => {
     const p = CHAT_PATTERN_BY_ID[flag.pattern];
@@ -98,6 +101,16 @@ export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipAc
     list.append(card);
   });
 
+  for (const flag of undo) {
+    const row = el("div", "dd-undo");
+    row.setAttribute("role", "status");
+    row.append(
+      el("span", "", `Marked “${CHAT_PATTERN_BY_ID[flag.pattern].name}” not a scam`),
+      button("dd-undo-btn", "Undo", () => actions.undo(flag)),
+    );
+    list.append(row);
+  }
+
   root.replaceChildren(style, list);
 }
 
@@ -109,11 +122,13 @@ const hosts = new Map<string, { host: HTMLElement; sig: string; expanded: Set<st
 const signature = (flags: ChatFlag[]) => flags.map((f) => `${f.pattern}|${f.severity}|${f.reason}`).join("\n");
 
 /** Show (or update) the chips for one message. Re-attaches if the site re-rendered the message. */
-export function showChips(el: HTMLElement, messageId: string, flags: ChatFlag[], actions: ChipActions) {
-  if (!flags.length) return removeChips(messageId);
-  const sig = signature(flags);
+export function showChips(el: HTMLElement, messageId: string, flags: ChatFlag[], actions: ChipActions, undo: ChatFlag[] = []) {
+  if (!flags.length && !undo.length) return removeChips(messageId);
+  const sig = `${signature(flags)}\nundo:${undo.map(flagKey).join(",")}`;
   let entry = hosts.get(messageId);
+  let created = false;
   if (!entry || !entry.host.isConnected || entry.host.parentElement !== el) {
+    created = !entry; // a re-attach after the site re-rendered isn't "new"
     entry?.host.remove();
     const host = document.createElement("div");
     host.dataset.dealdig = "chip";
@@ -123,8 +138,9 @@ export function showChips(el: HTMLElement, messageId: string, flags: ChatFlag[],
     hosts.set(messageId, entry);
   }
   if (entry.sig !== sig) {
-    renderChips(entry.host.shadowRoot!, flags, actions, entry.expanded);
+    renderChips(entry.host.shadowRoot!, flags, actions, entry.expanded, undo);
     entry.sig = sig;
+    if (created) entry.host.shadowRoot!.querySelector(".dd-chips")?.classList.add("enter");
   }
 }
 
