@@ -24,19 +24,82 @@
 }
 .dd-close:hover { background: var(--dd-surface-2); color: var(--dd-ink); }
 
-/* Tabs: soft gray pills. */
-.dd-tabs { display: flex; gap: 6px; padding: 4px 18px 12px; background: var(--dd-surface); }
+/* Tabs: soft gray pills. At rest the active tab has a gray pill behind it; switching
+   plays the motion in docs/design/dealdig-tabs-motion-instructions.md (~630ms):
+   the old pill tucks out, an iridescent glow travels across, the new pill blooms
+   from a dot with sparkles, and the label's letters ripple in. */
+.dd-tabs {
+  position: relative; display: flex; gap: 6px; background: var(--dd-surface);
+  /* 10px of extra room above, pulled back with a negative margin, so the glow's
+     blur isn't clipped by the row's horizontal scroll. Same layout as before. */
+  padding: 14px 18px 12px; margin-top: -10px;
+  --iri: linear-gradient(115deg, #d8d0fb 0%, #c3d6f6 38%, #f6efc6 68%, #f5d5ea 100%);
+  --ease-pop: cubic-bezier(.22,.9,.3,1);
+}
 .dd-tab {
-  height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; cursor: pointer;
-  font-size: 15px; font-weight: 500; color: var(--dd-muted);
+  position: relative; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; cursor: pointer;
+  font-size: 15px; font-weight: 500; color: var(--dd-muted); transition: color .2s linear;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
-.dd-tab:hover { color: var(--dd-ink); background: #F6F7F8; }
-.dd-tab[aria-selected="true"] { color: var(--dd-ink); background: var(--dd-surface-2); }
-.dd-count { background: var(--dd-accent); color: #fff; font-size: 12px; font-weight: 600; border-radius: 9px; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; }
+.dd-tab:hover:not([aria-selected="true"]) { color: var(--dd-ink); background: #F6F7F8; }
+.dd-tab[aria-selected="true"] { color: var(--dd-ink); }
+.dd-tab-pill { position: absolute; inset: 0; border-radius: 999px; background: var(--dd-surface-2); overflow: hidden; opacity: 0; pointer-events: none; }
+.dd-tab[aria-selected="true"] .dd-tab-pill { opacity: 1; }
+.dd-tab-sheen { position: absolute; inset: 0; background: var(--iri); opacity: 0; }
+.dd-tab-label { position: relative; white-space: pre; }
+.dd-tab-label span { display: inline-block; }
+.dd-count { position: relative; background: var(--dd-accent); color: #fff; font-size: 12px; font-weight: 600; border-radius: 9px; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; }
+.dd-tab-glow {
+  position: absolute; left: 0; top: 14px; width: 46px; height: 32px; margin-left: -23px; border-radius: 50%;
+  background: var(--iri); filter: blur(9px); opacity: 0; pointer-events: none;
+}
+.dd-tab-spark { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; border-radius: 50%; opacity: 0; pointer-events: none; }
 
+/* Entering tab: the pill blooms from an 8px dot (clip-path, so wide and narrow
+   tabs keep round ends), iridescent at first, then settles to gray. */
+.dd-tab.on .dd-tab-pill  { animation: dd-tab-bloom 410ms var(--ease-pop) 150ms both; }
+.dd-tab.on .dd-tab-sheen { animation: dd-tab-sheen 330ms linear 300ms both; }
+.dd-tab.on .dd-tab-label { animation: dd-tab-dim 520ms linear both; }
+.dd-tab.on .dd-tab-label span { animation: dd-tab-wave 380ms cubic-bezier(.3,.7,.3,1) calc(240ms + var(--i) * 18ms); }
+.dd-tab.on .dd-tab-spark { animation: dd-tab-spark 150ms ease-out 150ms both; }
+/* Leaving tab: the pill tucks in and fades; the label drains to gray (color transition). */
+.dd-tab.off .dd-tab-pill { animation: dd-tab-tuck 200ms cubic-bezier(.4,0,1,1) both; }
+
+@keyframes dd-tab-bloom {
+  0%   { opacity: 1; clip-path: inset(calc(50% - 4px) calc(50% - 4px) round 999px); transform: translateY(3px); }
+  12%  { opacity: 1; clip-path: inset(calc(50% - 5px) calc(50% - 5px) round 999px); transform: translateY(3px); }
+  100% { opacity: 1; clip-path: inset(0 0 round 999px); transform: none; }
+}
+@keyframes dd-tab-sheen { from { opacity: 1 } to { opacity: 0 } }
+@keyframes dd-tab-dim   { 0% { opacity: 1 } 29% { opacity: .35 } 58% { opacity: .35 } 100% { opacity: 1 } }
+@keyframes dd-tab-wave  { 0% { transform: none } 35% { transform: translateY(3px) } 100% { transform: none } }
+@keyframes dd-tab-tuck  {
+  from { opacity: 1; clip-path: inset(0 0 round 999px); }
+  to   { opacity: 0; clip-path: inset(3px 7px round 999px); }
+}
+@keyframes dd-tab-spark {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+  40%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); }
+}
+
+/* Views: all mounted, stacked; the old one fades out fast, the new one rises in. */
+.dd-views { flex: 1; position: relative; min-height: 0; }
 .dd-body { flex: 1; overflow: auto; padding: 4px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
-.dd-foot { display: flex; gap: 8px; padding: 12px 18px 16px; background: var(--dd-surface); }
+.dd-views > .dd-body { position: absolute; inset: 0; }
+.dd-body[hidden] { display: none; }
+.dd-view-out { animation: dd-view-out 120ms linear both; pointer-events: none; }
+.dd-view-in  { animation: dd-view-in 340ms var(--ease-pop, cubic-bezier(.22,.9,.3,1)) 220ms backwards; }
+@keyframes dd-view-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes dd-view-in  { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+
+/* Reduced motion: no glow, wave or tuck; the pill fades in and the content swaps at once.
+   (motion.css stops all animation; this one fade is allowed back on purpose.) */
+@media (prefers-reduced-motion: reduce) {
+  .dd-tab-glow, .dd-tab-spark { display: none; }
+  .dd-root .dd-tab.on .dd-tab-pill { animation: dd-fade-in 150ms linear both !important; }
+}
+.dd-foot { display: flex; gap: 8px; padding: 12px 18px 16px; background: var(--dd-surface); border-top: 1px solid var(--dd-divider); box-shadow: 0 -6px 16px rgba(16,24,40,.04); }
 .dd-btn {
   flex: 1; height: 40px; border-radius: 999px; font-size: 15px; font-weight: 500; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px;
@@ -59,11 +122,12 @@
 
 /* Verdict */
 .dd-verdict { display: flex; flex-direction: column; gap: 10px; }
-.dd-verdict-top { display: flex; gap: 12px; align-items: center; }
+.dd-verdict-top { display: flex; gap: 12px; align-items: flex-start; }
+.dd-verdict-top > .dd-mark { margin-top: 2px; }
 .dd-verdict-text { flex: 1; min-width: 0; }
 .dd-level-row { display: flex; align-items: baseline; gap: 8px; }
 .dd-level { font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
-.dd-summary { font-size: 15px; margin-top: 2px; color: var(--dd-ink-2); }
+.dd-summary { font-size: 15px; margin-top: 4px; color: var(--dd-ink-2); text-wrap: pretty; }
 .dd-low { color: var(--dd-low-ink); }
 .dd-medium { color: var(--dd-careful-ink); }
 .dd-high { color: var(--dd-high-ink); }
@@ -85,9 +149,13 @@
 .dd-price { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--dd-divider); }
 .dd-price-line { font-size: 15px; display: flex; gap: 8px; }
 .dd-label { font-weight: 500; }
-.dd-track { position: relative; height: 4px; border-radius: 2px; background: var(--dd-track); margin: 4px 6px; }
-.dd-range { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: rgba(79,98,196,.3); }
-.dd-pin { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--dd-accent); border: 2px solid #fff; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px rgba(79,98,196,.35); }
+.dd-track { position: relative; height: 6px; border-radius: 3px; background: var(--dd-track); margin: 6px 6px 0; }
+.dd-range { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: rgba(46,139,94,.35); }
+.dd-pin { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--dd-accent); border: 2px solid #fff; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(16,24,40,.25); }
+.dd-pin.under { background: var(--dd-high); }
+.dd-track-labels { position: relative; height: 16px; margin: 0 6px; font-size: 12px; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
+.dd-track-labels span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-weight: 600; color: var(--dd-ink-2); }
+.dd-track-labels span.range { font-weight: 500; color: var(--dd-low-ink); }
 
 /* Watch out */
 .dd-watch-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
@@ -105,7 +173,7 @@
 .dd-disclose .chev { margin-left: auto; transition: transform .15s ease; color: var(--dd-muted); }
 .dd-disclose[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .dd-good { margin-top: 8px; }
-.dd-foot-note { font-size: 12px; text-align: center; color: var(--dd-muted); margin: 0; }
+.dd-foot-note { font-size: 12px; text-align: center; color: var(--dd-muted); margin: 4px 16px 0; text-wrap: balance; }
 
 /* Report tab */
 .dd-field { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 600; }
@@ -185,8 +253,10 @@ textarea.dd-input { resize: vertical; }
 .dd-fine { margin: 0; font-size: 13px; color: var(--dd-muted); }
 .dd-small { font-size: 13px; }
 .dd-list { margin: 4px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
-.dd-flag { border-color: rgba(217,83,79,.35); background: linear-gradient(0deg, rgba(217,83,79,.05), rgba(217,83,79,.05)), var(--dd-surface); display: flex; flex-direction: column; gap: 6px; }
-.dd-flag-title { font-weight: 600; color: var(--dd-high-ink); }
+.dd-flag { border-left: 3px solid var(--dd-high); background: var(--dd-surface); display: flex; flex-direction: column; gap: 6px; }
+.dd-flag-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--dd-high-ink); }
+.dd-flag-title svg { flex: none; }
+.dd-earlier h3 { margin-bottom: 2px; }
 .dd-earlier { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
 .dd-earlier p { margin: 0; }
 .dd-identified { font-size: 13px; color: var(--dd-muted); }

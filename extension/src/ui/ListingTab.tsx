@@ -21,8 +21,8 @@ const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 
 export function ListingTab({ listing, report, history }: { listing: Listing; report: RiskReport; history: HistoryEntry[] }) {
   return (
     <>
-      <CommunityFlag community={report.community} />
       <Verdict report={report} />
+      <CommunityFlag community={report.community} />
       <AiPhotoNotice report={report} listing={listing} />
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
@@ -83,13 +83,11 @@ function Verdict({ report }: { report: RiskReport }) {
 }
 
 function ListingCard({ listing, report }: { listing: Listing; report: RiskReport }) {
+  // Reports aren't repeated here: the flag card already shows them.
   const allFacts = sellerFacts(listing);
   // "joined Sep 2016" goes next to the seller's name; the rest are chips.
   const joined = allFacts.find((f) => f.startsWith("joined "));
   const facts = allFacts.filter((f) => f !== joined);
-  // The community flag card already says this when the seller is flagged.
-  if (report.communityReports > 0 && !report.community?.flagged)
-    facts.push(`reported by ${report.communityReports} ${report.communityReports === 1 ? "person" : "people"}`);
   const p = report.priceCheck;
   const hasRange = p && p.typicalLow !== null && p.typicalHigh !== null;
   const who = sellerName(listing);
@@ -163,7 +161,16 @@ function PriceRow({ low, high, price, estimate }: { low: number; high: number; p
       </div>
       <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
         <span className="dd-range" style={{ left: pct(low), width: `calc(${pct(high)} - ${pct(low)})` }} />
-        <span className="dd-pin" style={{ left: pct(price) }} />
+        <span className={`dd-pin${price < low ? " under" : ""}`} style={{ left: pct(price) }} />
+      </div>
+      <div className="dd-track-labels" aria-hidden="true">
+        <span style={{ left: pct(price) }}>{money(price)}</span>
+        {/* Only when the pin sits outside the range; otherwise the two labels collide. */}
+        {(price < low || price > high) && (
+          <span className="range" style={{ left: `calc((${pct(low)} + ${pct(high)}) / 2)` }}>
+            typical
+          </span>
+        )}
       </div>
     </>
   );

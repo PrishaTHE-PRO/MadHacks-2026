@@ -16,7 +16,7 @@
   border-radius: 999px; padding: 4px 12px 4px 5px; }
 .dd-compact .dd-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dd-ink-2); }
 .dd-compact .dd-pattern { font-weight: 600; }
-.dd-why { flex: none; font-weight: 600; color: var(--dd-accent-ink); }
+.dd-why { flex: none; font-weight: 600; color: var(--dd-accent-ink); padding-left: 6px; margin-left: 2px; border-left: 1px solid var(--dd-divider); }
 
 /* Expanded: a card. */
 .dd-expanded { box-sizing: border-box; width: 100%; border-radius: 16px; padding: 12px 14px; }
@@ -27,6 +27,7 @@
 .dd-ex-matters { color: var(--dd-ink); }
 .dd-ex-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
 .dd-ex-links button { font-weight: 600; color: var(--dd-accent-ink); }
+.dd-ex-links button.dd-quiet { margin-left: auto; font-weight: 500; color: var(--dd-muted); }
 
 .danger .dd-pattern, .danger .dd-ex-title { color: var(--dd-high-ink); }
 .caution .dd-pattern, .caution .dd-ex-title { color: var(--dd-careful-ink); }
