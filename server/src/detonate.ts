@@ -20,6 +20,7 @@
 // interceptor hits a dead proxy. WebSockets, service workers, WebRTC and
 // downloads are off.
 
+import { existsSync, readdirSync } from "node:fs";
 import type { Browser, BrowserContext, Page, Route } from "playwright-core";
 import { BRANDS, hostOfLink, isOfficialDomain, registrableDomain } from "../../shared/linkCheck";
 import { assertPublicUrl, BlockedUrlError, guardedFetch } from "./netGuard";
@@ -211,33 +212,80 @@ let browserPromise: Promise<Browser> | null = null;
 
 export class DetonationUnavailable extends Error {}
 
+const LAUNCH_ARGS = [
+  "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+  "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+  "--dns-prefetch-disable",
+  "--disable-background-networking",
+  "--disable-features=InterestFeedContentSuggestions,MediaRouter,OptimizationHints,Translate",
+  "--no-first-run",
+  "--mute-audio",
+];
+
+/**
+ * Browsers to try, in order: CHROMIUM_PATH, Playwright's own version, then any
+ * other Chromium already on this computer (another Playwright version, or
+ * regular Chrome). So a preview works even when the exact version isn't installed.
+ */
+function browserCandidates(): (string | undefined)[] {
+  const out: (string | undefined)[] = [];
+  if (process.env.CHROMIUM_PATH) out.push(process.env.CHROMIUM_PATH);
+  out.push(undefined); // Playwright's own download
+  const home = process.env.HOME ?? "";
+  const caches = [`${home}/Library/Caches/ms-playwright`, `${home}/.cache/ms-playwright`];
+  for (const dir of caches) {
+    let names: string[] = [];
+    try {
+      names = readdirSync(dir).filter((n) => /^chromium(_headless_shell)?-\d+$/.test(n)).sort().reverse();
+    } catch {
+      continue;
+    }
+    for (const n of names) {
+      for (const rel of [
+        "chrome-headless-shell-mac-arm64/chrome-headless-shell",
+        "chrome-headless-shell-mac-x64/chrome-headless-shell",
+        "chrome-mac/headless_shell",
+        "chrome-headless-shell-linux64/chrome-headless-shell",
+        "chrome-linux/headless_shell",
+        "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+        "chrome-linux64/chrome",
+        "chrome-linux/chrome",
+      ])
+        out.push(`${dir}/${n}/${rel}`);
+    }
+  }
+  out.push(
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+  );
+  return out.filter((p) => p === undefined || existsSync(p));
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
     browserPromise = (async () => {
       const { chromium } = await import("playwright-core");
-      try {
-        return await chromium.launch({
-          headless: true,
-          // Optional: use an already-installed Chrome/Chromium instead of Playwright's download.
-          executablePath: process.env.CHROMIUM_PATH || undefined,
-          // Anything the interceptor doesn't handle goes to a proxy that isn't there, so it fails.
-          proxy: { server: "http://127.0.0.1:9", bypass: "<-loopback>" },
-          args: [
-            "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
-            "--webrtc-ip-handling-policy=disable_non_proxied_udp",
-            "--dns-prefetch-disable",
-            "--disable-background-networking",
-            "--disable-features=InterestFeedContentSuggestions,MediaRouter,OptimizationHints,Translate",
-            "--no-first-run",
-            "--mute-audio",
-          ],
-        });
-      } catch (err) {
-        browserPromise = null;
-        throw new DetonationUnavailable(
-          `The headless browser isn't installed on the server. Run: npx playwright-core install chromium-headless-shell (${err instanceof Error ? err.message.split("\n")[0] : err})`,
-        );
+      let lastError: unknown;
+      for (const executablePath of browserCandidates()) {
+        try {
+          return await chromium.launch({
+            headless: true,
+            executablePath,
+            // Anything the interceptor doesn't handle goes to a proxy that isn't there, so it fails.
+            proxy: { server: "http://127.0.0.1:9", bypass: "<-loopback>" },
+            args: LAUNCH_ARGS,
+          });
+        } catch (err) {
+          lastError = err;
+        }
       }
+      browserPromise = null;
+      throw new DetonationUnavailable(
+        `No browser for safe previews on the server. Run: npx playwright-core install chromium-headless-shell (${lastError instanceof Error ? lastError.message.split("\n")[0] : lastError})`,
+      );
     })();
     void browserPromise.then((b) => b.on("disconnected", () => (browserPromise = null))).catch(() => {});
   }
