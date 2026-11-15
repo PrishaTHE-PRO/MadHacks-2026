@@ -81,6 +81,11 @@ const Analysis = z.object({
   })),
   price_looks_placeholder: z.boolean(),
   item: z.object({
+    name: z
+      .string()
+      .describe(
+        "The product's name in 2-6 words, the way a shopper would say it, e.g. 'Coach Tabby 26 shoulder bag', 'Grey striped long-sleeve top'. Plain words: no ellipsis, hashtags, emoji, sizes or sales talk",
+      ),
     brand: z.string().nullable().describe("Brand as normally written, e.g. 'Louis Vuitton'. null if unbranded or unclear"),
     model: z.string().nullable().describe("Model or product line, e.g. 'Neverfull MM'. null if unclear"),
     category: z.string().describe("Short category, e.g. 'Handbag', 'Hybrid bike', 'Room sublet'"),
@@ -121,7 +126,7 @@ Context about ${PLATFORM_NAMES[platform]}:
 ${PLATFORM_CONTEXT[platform]}
 
 Your jobs:
-1. Identify the item: brand, model, category and condition, from the title, description and photos. Check the brand matches what the photos show.
+1. Identify the item: a short name for it, brand, model, category and condition, from the title, description and photos. Check the brand matches what the photos show.
 2. Estimate what this exact item usually sells for used (or new, if it's new) in the listing's currency. Give a range and be honest about confidence: use "low" for unusual or vague items.
 3. List red flags the buyer should know about that the rule checks you're given don't already cover: stock or catalog photos for a used item, another shop's watermark, photos that don't match the title or brand, missing tag/serial shots for a luxury item, visible counterfeit tells, pressure tactics, off-platform contact, vague or copy-pasted descriptions.
 4. Classify what the post actually offers using its text and photos together: item_for_sale, rental, service, event_or_promo, job, wanted_post, or unclear. A food event flyer is an event_or_promo; do not assume every post sells an item.

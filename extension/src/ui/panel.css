@@ -127,22 +127,26 @@
 /* Listing */
 .dd-listing { display: flex; flex-direction: column; gap: 10px; }
 .dd-item { display: flex; gap: 10px; align-items: center; }
+/* Photo thumbnails (the AI-photo notice). */
 .dd-thumb { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; flex: none; background: var(--dd-surface-2); display: grid; place-items: center; color: var(--dd-muted); }
+/* The listing's price, in the thumbnail's spot: a tile that grows for long prices ("$1,250"). */
+.dd-price-tag {
+  flex: none; min-width: 52px; height: 52px; padding: 0 10px; border-radius: 12px;
+  /* A faint lavender wash with a slight shift toward blue and pink: a hint of the logo, not a gradient you notice. */
+  background: linear-gradient(135deg, #F4F1FE 0%, #EFF0FC 60%, #F7F0F9 100%);
+  border: 1px solid rgba(110,96,200,.14);
+  display: grid; place-items: center; font-size: 17px; font-weight: 650; color: #3A3470;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap;
+}
 .dd-item-text { min-width: 0; flex: 1; }
-.dd-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The product name: bigger than card headings. It's already short (see displayName), so it wraps instead of ending in "…". */
+.dd-title { font-size: 18px; line-height: 1.3; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .dd-meta { font-size: 13px; color: var(--dd-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dd-meta a { font-weight: 600; text-decoration: none; }
 .dd-meta a:hover { text-decoration: underline; }
 .dd-price { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--dd-divider); }
 .dd-price-line { font-size: 15px; display: flex; gap: 8px; }
 .dd-label { font-weight: 500; }
-.dd-track { position: relative; height: 6px; border-radius: 3px; background: var(--dd-track); margin: 6px 6px 0; }
-.dd-range { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: rgba(46,139,94,.35); }
-.dd-pin { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--dd-accent); border: 2px solid #fff; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(16,24,40,.25); }
-.dd-pin.under { background: var(--dd-high); }
-.dd-track-labels { position: relative; height: 16px; margin: 0 6px; font-size: 12px; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
-.dd-track-labels span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-weight: 600; color: var(--dd-ink-2); }
-.dd-track-labels span.range { font-weight: 500; color: var(--dd-low-ink); }
 
 /* Watch out */
 .dd-watch-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }

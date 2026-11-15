@@ -12,7 +12,7 @@ delete process.env.EBAY_CLIENT_SECRET;
 const listing: Listing = JSON.parse(readFileSync(new URL("./fixtures/facebook-flyer.json", import.meta.url), "utf8"));
 const jpeg = `data:image/jpeg;base64,${readFileSync(new URL("./fixtures/images/flyer.jpg", import.meta.url)).toString("base64")}`;
 const analysis: ListingAnalysis = {
-  item: { brand: null, model: null, category: "Food event", condition: null },
+  item: { name: "Food event flyer", brand: null, model: null, category: "Food event", condition: null },
   search_query: "food event", price_estimate: { typical_low: null, typical_high: null, confidence: "low", note: "Event promotion" },
   red_flags: [], risk_adjust: 0, listing_type: "event_or_promo", price_looks_placeholder: true,
   photos: [{ index: 0, kind: "graphic_flyer_or_ad", ai_generated: "likely", shows_listed_item: false, note: "Garbled lettering." }],

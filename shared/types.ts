@@ -108,6 +108,8 @@ export interface PriceCheck {
 
 /** What Claude thinks the item actually is, used for brand and price checks. */
 export interface NormalizedItem {
+  /** A short, plain name for display, e.g. "Coach Tabby 26 shoulder bag" (missing on older cached reports). */
+  name?: string;
   brand: string | null;
   model: string | null;
   category: string;
