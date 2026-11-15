@@ -9,6 +9,7 @@ import { bubbleSvg } from "../ui/bubbleSvg";
 import tokens from "../ui/tokens.css";
 import motion from "../ui/motion.css";
 import badgeCss from "./badge.css";
+import { makeHost, rootOf } from "./stealth";
 
 export type BadgeState =
   | { state: "loading" }
@@ -107,7 +108,7 @@ export function renderBadge(
 
 // --- The live badge on the page ---
 
-let host: HTMLDivElement | null = null;
+let host: HTMLDivElement | null = null; // unmarked, closed shadow root (stealth.ts)
 let lastState: BadgeState["state"] | null = null;
 
 const openPanel = () => {
@@ -116,13 +117,10 @@ const openPanel = () => {
 
 export function showBadge(s: BadgeState) {
   if (!host?.isConnected) {
-    host = document.createElement("div");
-    host.id = "dealdig-badge-host";
-    host.setAttribute("data-dealdig", "badge");
-    host.attachShadow({ mode: "open" });
+    host = makeHost();
     document.documentElement.appendChild(host);
   }
-  renderBadge(host.shadowRoot!, s, openPanel, { arrive: lastState === "loading" && s.state !== "loading" });
+  renderBadge(rootOf(host), s, openPanel, { arrive: lastState === "loading" && s.state !== "loading" });
   lastState = s.state;
 }
 

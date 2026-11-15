@@ -19,8 +19,10 @@ import type { ChatAdapter } from "../chat/adapter";
 import { startChatWatcher } from "../chat/watch";
 import { sellPagePlatform } from "../sellPages";
 import { installUploadGuard, showSellBadge } from "./uploadGuard";
+import { startOutboundCleaning } from "./outbound";
 
 installUploadGuard();
+startOutboundCleaning();
 
 interface SiteReader {
   matches(url: string): boolean;
@@ -35,10 +37,30 @@ async function poll(url: string, timeoutMs: number, attempt: () => Listing | nul
   let last: Listing | null = null;
   while (Date.now() < deadline && location.href === url) {
     last = attempt();
-    if (last && accept(last)) return last;
+    if (last && accept(last)) return settlePhotos(url, last, attempt, accept);
     await sleep(400);
   }
   return last;
+}
+
+/**
+ * The first good read often has only the photo on screen: the rest of the
+ * carousel loads a moment later. Keep reading for up to 2 seconds while more
+ * photos appear, and stop once the count holds steady for two reads.
+ */
+async function settlePhotos(url: string, first: Listing, attempt: () => Listing | null, accept: (l: Listing) => boolean) {
+  let best = first;
+  let steady = 0;
+  const deadline = Date.now() + 2000;
+  while (steady < 2 && Date.now() < deadline && location.href === url) {
+    await sleep(350);
+    const next = attempt();
+    if (next && accept(next) && next.id === best.id && next.photos.length > best.photos.length) {
+      best = next;
+      steady = 0;
+    } else steady++;
+  }
+  return best;
 }
 
 // Poshmark: the data lives in an inline script that deletes itself, so re-fetch the HTML.

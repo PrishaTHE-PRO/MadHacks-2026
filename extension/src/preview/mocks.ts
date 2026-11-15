@@ -3,6 +3,8 @@
 import type { Listing, RiskReport, Signal } from "../../../shared/types";
 import type { ChatTabState } from "../messages";
 import type { HistoryEntry } from "../historyCore";
+import type { SentSummary } from "../../../shared/privacy";
+import type { ShieldSummary } from "../privacy/shield";
 
 /** A soft gradient "photo" so the preview needs no network. */
 const photo = (a: string, b: string) =>
@@ -349,3 +351,30 @@ export const mockHistory: HistoryEntry[] = [
     lastSeenAt: Date.now() - 5 * HOUR,
   },
 ];
+
+// --- Private browsing ---
+
+
+export const mockShield: ShieldSummary = {
+  site: "poshmark.com",
+  on: true,
+  paused: false,
+  total: 14,
+  blocked: [
+    { domain: "doubleclick.net", category: "advertising", about: "Google's ad network", count: 4 },
+    { domain: "criteo.com", category: "advertising", about: "Criteo retargeting ads", count: 2 },
+    { domain: "google-analytics.com", category: "analytics", about: "Google Analytics", count: 3 },
+    { domain: "googletagmanager.com", category: "analytics", about: "Google Tag Manager, which loads other trackers", count: 1 },
+    { domain: "connect.facebook.net", category: "social", about: "Meta Pixel", count: 2 },
+    { domain: "analytics.tiktok.com", category: "social", about: "TikTok Pixel", count: 2 },
+  ],
+};
+
+export const mockSent: SentSummary = {
+  at: Date.parse("2026-11-14T12:00:00Z"),
+  fields: ["title", "price", "description", "photo links", "seller's public profile", "listing link (no tags)"],
+  photoFingerprints: 4,
+  photoCopies: 4,
+  webPhotos: false,
+  linkTrimmed: true,
+};

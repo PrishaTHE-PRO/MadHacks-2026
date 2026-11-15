@@ -2,8 +2,9 @@
 // Compact pill: bubble · pattern name · Why? (the reason is in the tooltip and the card).
 // Why? expands it: bubble · title · reason · why this matters · Hide details · Report · Not a scam.
 //
-// Each message gets one shadow-DOM host (so the site's CSS can't break it),
-// marked data-dealdig so the watcher ignores it. We only ever append our host;
+// Each message gets one closed shadow-DOM host (so the site's CSS can't break
+// it and its scripts can't read it), with no marker attribute: the watcher
+// recognises it through content/stealth.ts. We only ever append our host;
 // the site's own message text is never edited or hidden.
 
 import { CHAT_PATTERN_BY_ID } from "../../../shared/chatPatterns";
@@ -13,6 +14,7 @@ import { bubbleSvg } from "../ui/bubbleSvg";
 import tokens from "../ui/tokens.css";
 import motion from "../ui/motion.css";
 import chipsCss from "./chips.css";
+import { makeHost, rootOf } from "../content/stealth";
 
 export interface ChipActions {
   report(flag: ChatFlag): void;
@@ -131,17 +133,15 @@ export function showChips(el: HTMLElement, messageId: string, flags: ChatFlag[],
   if (!entry || !entry.host.isConnected || entry.host.parentElement !== el) {
     created = !entry; // a re-attach after the site re-rendered isn't "new"
     entry?.host.remove();
-    const host = document.createElement("div");
-    host.dataset.dealdig = "chip";
-    host.attachShadow({ mode: "open" });
+    const host = makeHost();
     el.append(host);
     entry = { host, sig: "", expanded: entry?.expanded ?? new Set() };
     hosts.set(messageId, entry);
   }
   if (entry.sig !== sig) {
-    renderChips(entry.host.shadowRoot!, flags, actions, entry.expanded, undo);
+    renderChips(rootOf(entry.host), flags, actions, entry.expanded, undo);
     entry.sig = sig;
-    if (created) entry.host.shadowRoot!.querySelector(".dd-chips")?.classList.add("enter");
+    if (created) rootOf(entry.host).querySelector(".dd-chips")?.classList.add("enter");
   }
 }
 

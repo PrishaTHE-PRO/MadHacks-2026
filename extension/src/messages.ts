@@ -1,6 +1,7 @@
 // Messages passed between content scripts, the background worker and the side panel.
 
 import type { ChatContext, ChatFlag, ChatPlatform, ChatRole, Listing, ListingStep, RiskReport } from "../../shared/types";
+import type { OpenHow } from "./privacy/openHow";
 
 export type ExtensionMessage =
   | { type: "ANALYZE_LISTING"; listing: Listing }
@@ -11,7 +12,15 @@ export type ExtensionMessage =
   // Link guard warning page → background: "Continue anyway" for this site.
   | { type: "ALLOW_SITE"; domain: string; url: string }
   // Link guard warning page → background: "Go back" with no page to go back to.
-  | { type: "CLOSE_TAB" };
+  | { type: "CLOSE_TAB" }
+  // Content → background: a link clicked on a marketplace, to open without tracking tags or referrer.
+  | { type: "OPEN_CLEAN"; url: string; how: OpenHow }
+  // Side panel → background: the tracker shield summary for a tab (→ ShieldSummary).
+  | { type: "PRIVACY_SUMMARY"; tabId: number }
+  // Side panel → background: open a listing in an incognito window (→ PeekResult).
+  | { type: "OPEN_PRIVATELY"; url: string }
+  // Side panel → background: delete everything DealDig keeps on this device.
+  | { type: "WIPE_EVERYTHING" };
 
 export type AnalyzeResponse = { ok: true; report: RiskReport } | { ok: false; error: string };
 
@@ -30,6 +39,9 @@ export type TabState =
   | { status: "error"; listing: Listing; error: string; offline?: boolean }; // offline: server unreachable
 
 export const tabKey = (tabId: number) => `tab:${tabId}`;
+
+/** chrome.storage.session: exactly what the last listing check in this tab sent the server (SentSummary). */
+export const sentKey = (tabId: number) => `sent:${tabId}`;
 
 // --- Chat safety ---
 

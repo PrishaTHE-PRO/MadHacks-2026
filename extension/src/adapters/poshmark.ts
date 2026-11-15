@@ -79,7 +79,7 @@ export function parsePoshmarkHtml(html: string, pageUrl: string): Listing | null
 
   const photos: string[] = [d.cover_shot, ...(d.pictures ?? [])]
     .filter(Boolean)
-    .map((p: { path_large?: string; path?: string }) => p.path_large ?? p.path)
+    .map((p: { path_large?: string; path?: string; url_large?: string; url?: string }) => p.url_large ?? p.path_large ?? p.url ?? p.path)
     .filter((p: unknown): p is string => typeof p === "string")
     .map((p: string) => (p.startsWith("http") ? p : IMAGE_HOST + p));
 

@@ -10,6 +10,10 @@ import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { Panel, type PanelTab, type PanelView } from "../ui/Panel";
 import { mountInShadow } from "../ui/shadow";
 import { HistoryCard } from "../ui/HistoryCard";
+import { PrivacyCard } from "../ui/PrivacyCard";
+import { PrivacySettingsCard } from "../ui/PrivacySettings";
+import { DEFAULT_SETTINGS, type PrivacySettings } from "../privacy/settings";
+import { mockSent, mockShield } from "./mocks";
 import { arrivingFlag, mockHistory, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
 import type { ListingStep } from "../../../shared/types";
 
@@ -97,6 +101,18 @@ const initial = (): StateId => {
   return STATES.some((s) => s.id === h) ? h : "high";
 };
 
+/** Privacy settings with local state (the real panel saves to chrome.storage). */
+function PreviewSettings() {
+  const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS);
+  return (
+    <PrivacySettingsCard
+      settings={settings}
+      onChange={async (key, on) => (setSettings((s) => ({ ...s, [key]: on })), true)}
+      onWipe={async () => {}}
+    />
+  );
+}
+
 function Preview() {
   const [state, setState] = useState<StateId>(initial);
   const [toast, setToast] = useState("");
@@ -177,7 +193,13 @@ function Preview() {
               onClose={() => setOpen(false)}
               onRetry={() => setToast("Try again: would re-run the listing check.")}
               history={mockHistory}
-              tools={<HistoryCard history={mockHistory} />}
+              privacy={<PrivacyCard summary={mockShield} sent={mockSent} siteName={v.site} onPause={(p) => setToast(p ? "Would pause the shield on this site and reload." : "Would resume the shield and reload.")} />}
+              tools={
+                <>
+                  <HistoryCard history={mockHistory} />
+                  <PreviewSettings />
+                </>
+              }
             />
           </div>
         </div>

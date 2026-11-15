@@ -6,6 +6,7 @@ import { SERVER_URL } from "./config";
 import {
   chatKey,
   flagKey,
+  sentKey,
   tabKey,
   type AnalyzeResponse,
   type ChatTabState,
@@ -21,8 +22,33 @@ import { allowSite, guardChatFlags, startLinkGuard } from "./guard";
 import { unwrapRedirector } from "./guardCore";
 import { isMarketplacePhotoUrl } from "../../shared/photoHosts";
 import { canReuseListingReport } from "../../shared/listingCheck";
+import { forAnalysis, summarizeSent, type SentSummary } from "../../shared/privacy";
+import { loadSettings, SETTINGS_KEY, withDefaults, type PrivacySettings } from "./privacy/settings";
+import { applyShield, forgetTab, pageStarted, shieldSummary } from "./privacy/shield";
+import { maybeClearTrackerCookies, noteTabUrl, openClean, openPrivately, startHistoryScrub, wipeEverything } from "./privacy/noTrace";
 
 startLinkGuard();
+startHistoryScrub();
+
+// Per-tab results stay with the extension's own pages (the default, made explicit):
+// content scripts, which run inside marketplace pages, can't read them.
+chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" }).catch(() => {});
+
+// Tracker shield and link cleaning follow the privacy settings.
+void loadSettings().then(applyShield).catch((e) => console.warn("[DealDig] shield not applied", e));
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !(SETTINGS_KEY in changes)) return;
+  const before = withDefaults(changes[SETTINGS_KEY].oldValue as Partial<PrivacySettings> | undefined);
+  const after = withDefaults(changes[SETTINGS_KEY].newValue as Partial<PrivacySettings> | undefined);
+  void applyShield(after).catch((e) => console.warn("[DealDig] shield not applied", e));
+  // Cached reports were made with the other photo setting: check again next time.
+  if (before.webPhotos !== after.webPhotos) void clearCachedReports();
+});
+
+async function clearCachedReports() {
+  const all = await chrome.storage.session.get(null);
+  await chrome.storage.session.remove(Object.keys(all).filter((k) => k.startsWith("report:")));
+}
 
 // Right-click any link: "Preview link safely". The server opens it in a
 // throwaway browser and the result shows in DealDig's preview page; the link
@@ -92,6 +118,7 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(consol
 async function analyze(
   listing: Listing,
   onProgress: (p: { plan?: ListingStep[]; step?: ListingStep }) => void = () => {},
+  onSent: (s: SentSummary) => void = () => {},
 ): Promise<RiskReport> {
   const cacheKey = `report:${listing.platform}:${listing.id}`;
   const cached = (await chrome.storage.session.get(cacheKey))[cacheKey] as
@@ -100,13 +127,19 @@ async function analyze(
   if (cached && canReuseListingReport(cached.report) && Date.now() - cached.at < CACHE_MS) return cached.report;
 
   // Photos are fingerprinted here first (part of "Reading the listing" in the sidebar).
+  // Each photo also gets a small JPEG copy for Claude to look at (sent, never stored).
   const photos = await Promise.all(listing.photos.slice(0, HASHED_PHOTOS).map(preparePhoto));
   const photoHashes = photos.map((p) => p.hash);
   const photoData = photos.map((p) => p.data);
+  // Only public listing details, with the link cut to its canonical form;
+  // photos go to Google only if the user turned that on.
+  const options = { webPhotos: (await loadSettings()).webPhotos };
+  const sent = forAnalysis(listing);
+  onSent(summarizeSent(listing, sent, photoHashes, options, Date.now(), photoData));
   const res = await fetch(`${SERVER_URL}/analyze-listing?progress=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ listing, photoHashes, photoData }),
+    body: JSON.stringify({ listing: sent, photoHashes, photoData, options }),
   });
   if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
 
@@ -138,20 +171,24 @@ async function setTab(tabId: number, state: TabState) {
 }
 
 /** Check a listing and store the result for the tab (the side panel renders it). */
-async function runListing(tabId: number, listing: Listing): Promise<AnalyzeResponse> {
+async function runListing(tabId: number, listing: Listing, incognito = false): Promise<AnalyzeResponse> {
   let loading: TabState & { status: "loading" } = { status: "loading", listing };
   await setTab(tabId, loading);
   // Progress writes are chained so a late one can't overwrite the final result.
   let writes = Promise.resolve();
   try {
-    const report = await analyze(listing, (p) => {
-      loading = { ...loading, ...p };
-      const snapshot = loading;
-      writes = writes.then(() => setTab(tabId, snapshot));
-    });
+    const report = await analyze(
+      listing,
+      (p) => {
+        loading = { ...loading, ...p };
+        const snapshot = loading;
+        writes = writes.then(() => setTab(tabId, snapshot));
+      },
+      (sent) => void chrome.storage.session.set({ [sentKey(tabId)]: sent }),
+    );
     await writes;
-    // Personal history stays on this device (chrome.storage.local).
-    await saveCheckToHistory(listing, report).catch((e) => console.warn("[DealDig] history not saved", e));
+    // Personal history stays on this device (chrome.storage.local), and never for private windows.
+    if (!incognito) await saveCheckToHistory(listing, report).catch((e) => console.warn("[DealDig] history not saved", e));
     await setTab(tabId, { status: "done", listing, report });
     return { ok: true, report };
   } catch (err) {
@@ -172,7 +209,7 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
   const tabId = sender.tab?.id;
 
   if (msg.type === "ANALYZE_LISTING" && tabId !== undefined) {
-    void runListing(tabId, msg.listing).then(sendResponse);
+    void runListing(tabId, msg.listing, sender.tab?.incognito).then(sendResponse);
     return true; // keep the channel open for the async response
   }
 
@@ -183,7 +220,8 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
       const state = (await chrome.storage.session.get(key))[key] as TabState | undefined;
       if (!state) return;
       await chrome.storage.session.remove(`report:${state.listing.platform}:${state.listing.id}`);
-      const res = await runListing(msg.tabId, state.listing);
+      const tab = await chrome.tabs.get(msg.tabId).catch(() => null);
+      const res = await runListing(msg.tabId, state.listing, tab?.incognito);
       const note: ContentMessage = { type: "LISTING_RESULT", listingId: state.listing.id, res };
       chrome.tabs.sendMessage(msg.tabId, note).catch(() => {});
     })();
@@ -210,6 +248,28 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
     return false;
   }
 
+  if (msg.type === "OPEN_CLEAN" && tabId !== undefined) {
+    void openClean(tabId, msg.url, msg.how).catch((e) => console.warn("[DealDig] couldn't open link", e));
+    return false;
+  }
+
+  if (msg.type === "PRIVACY_SUMMARY") {
+    void loadSettings()
+      .then((s) => shieldSummary(msg.tabId, s))
+      .then(sendResponse);
+    return true;
+  }
+
+  if (msg.type === "OPEN_PRIVATELY") {
+    void openPrivately(msg.url).then(sendResponse);
+    return true;
+  }
+
+  if (msg.type === "WIPE_EVERYTHING") {
+    void wipeEverything().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+
   if (msg.type === "OPEN_PANEL" && tabId !== undefined) {
     chrome.sidePanel.open({ tabId }).catch(() => {
       // Chrome only allows this right after a user gesture; the toolbar icon always works.
@@ -219,13 +279,21 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void chrome.storage.session.remove([tabKey(tabId), chatKey(tabId)]);
+  void chrome.storage.session.remove([tabKey(tabId), chatKey(tabId), sentKey(tabId)]);
+  forgetTab(tabId);
+  void maybeClearTrackerCookies().catch((e) => console.warn("[DealDig] tracker cookies not cleared", e));
+});
+
+// Count blocked trackers per page, not per tab lifetime.
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (d.frameId === 0) pageStarted(d.tabId, d.timeStamp);
 });
 
 // A navigation stops any chat watcher on the old page; the content script on
 // the new page says so again if it's still a chat.
 chrome.tabs.onUpdated.addListener((tabId, info) => {
   if (info.status === "loading" && info.url) void setChatWatching(tabId, null, false);
+  if (info.url) noteTabUrl(info.url);
 });
 
 /** Mark the tab's chat as watched or not (the sidebar's "Watching this chat" dot). */

@@ -1,11 +1,15 @@
 // Personal history and anonymous reporting identity (spec §7.1). Everything
 // here lives in chrome.storage.local, on this device only: it is never sent
-// to the server. History entries expire after 90 days, and the user can
+// to the server. History is sealed with AES-GCM (privacy/vault.ts), and the
+// "Don't keep DealDig history" setting stops it being saved at all. History entries expire after 90 days, and the user can
 // forget one seller or clear it all. Clearing history never removes reports
 // already sent, so a scammer can't ask a victim to "reset" their record.
 
 import type { Listing, Platform, ReportCategory, RiskReport } from "../../shared/types";
 import { isFresh, withCheck, type HistoryEntry } from "./historyCore";
+import { loadSettings } from "./privacy/settings";
+import { vaultKey } from "./privacy/vault";
+import { isSealed, seal, unseal } from "./privacy/vaultCore";
 
 export { earlierVisits, HISTORY_DAYS, type HistoryEntry } from "./historyCore";
 
@@ -13,20 +17,44 @@ const HISTORY_KEY = "history";
 const MY_REPORTS_KEY = "myReports";
 const REPORTER_KEY = "reporterId";
 
+async function readAll(): Promise<HistoryEntry[]> {
+  const stored = (await chrome.storage.local.get(HISTORY_KEY))[HISTORY_KEY] as unknown;
+  if (Array.isArray(stored)) {
+    // Saved before history was sealed: seal it now.
+    await writeAll(stored as HistoryEntry[]).catch(() => {});
+    return stored as HistoryEntry[];
+  }
+  if (!isSealed(stored)) return [];
+  const key = await vaultKey(false);
+  if (!key) return []; // the key is gone (site data cleared): the old history can't be read
+  try {
+    return await unseal<HistoryEntry[]>(key, stored);
+  } catch {
+    return [];
+  }
+}
+
+async function writeAll(entries: HistoryEntry[]) {
+  if (!entries.length) return chrome.storage.local.remove(HISTORY_KEY);
+  const key = await vaultKey(true);
+  if (!key) throw new Error("No history key");
+  await chrome.storage.local.set({ [HISTORY_KEY]: await seal(key, entries) });
+}
+
 export async function loadHistory(now = Date.now()): Promise<HistoryEntry[]> {
-  const all = ((await chrome.storage.local.get(HISTORY_KEY))[HISTORY_KEY] as HistoryEntry[] | undefined) ?? [];
-  return all.filter((h) => isFresh(h, now));
+  return (await readAll()).filter((h) => isFresh(h, now));
 }
 
 export async function saveCheckToHistory(listing: Listing, report: RiskReport) {
+  if ((await loadSettings()).noHistory) return;
   const now = Date.now();
-  await chrome.storage.local.set({ [HISTORY_KEY]: withCheck(await loadHistory(now), listing, report, now) });
+  await writeAll(withCheck(await loadHistory(now), listing, report, now));
 }
 
 export async function forgetSeller(platform: Platform, sellerId: string, listingId: string) {
   const all = await loadHistory();
   const keep = all.filter((h) => h.platform !== platform || (sellerId ? h.sellerId !== sellerId : h.listingId !== listingId));
-  await chrome.storage.local.set({ [HISTORY_KEY]: keep });
+  await writeAll(keep);
 }
 
 export async function clearHistory() {

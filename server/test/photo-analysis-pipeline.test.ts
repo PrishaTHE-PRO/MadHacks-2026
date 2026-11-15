@@ -35,7 +35,7 @@ test("pipeline sends image bytes and scores findings; text-only and failed check
   try {
     const { analyzeListing } = await import("../src/analyze");
     await t.test("supplied JPEG is sent as base64 and the flyer stays low risk with an AI-photo notice", async () => {
-      const report = await analyzeListing(listing, undefined, undefined, [jpeg]);
+      const report = await analyzeListing(listing, undefined, undefined, undefined, [jpeg]);
       assert.equal(sent.find((block) => block.type === "image")?.source?.type, "base64");
       assert.equal(report.score, 15); // the AI-looking photo is a notice, not points
       assert.equal(report.aiImage?.verdict, "likely");
@@ -56,13 +56,13 @@ test("pipeline sends image bytes and scores findings; text-only and failed check
     });
     await t.test("duplicate and out-of-range photo indices cannot inflate coverage", async () => {
       output = { ...analysis, photos: [analysis.photos[0], analysis.photos[0], { ...analysis.photos[0], index: 8 }] };
-      const report = await analyzeListing(listing, undefined, undefined, [jpeg]);
+      const report = await analyzeListing(listing, undefined, undefined, undefined, [jpeg]);
       assert.equal(report.coverage.photos.checked, 1);
       assert.equal(report.photoAssessments?.length, 1);
     });
     await t.test("an API failure exposes the missing AI/photo checks", async () => {
       fail = true;
-      const report = await analyzeListing(listing, undefined, undefined, [jpeg]);
+      const report = await analyzeListing(listing, undefined, undefined, undefined, [jpeg]);
       assert.equal(report.aiUsed, false);
       assert.equal(report.coverage.ai, false);
       assert.equal(report.aiUnavailableReason, "API key rejected (HTTP 401)");

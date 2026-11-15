@@ -136,6 +136,17 @@ export function startLinkGuard() {
   chrome.tabs.onRemoved.addListener((tabId) => void setGuarded(tabId, false));
 }
 
+/**
+ * A tab DealDig itself opened for a link clicked on a marketplace (outbound
+ * link cleaning). Chrome doesn't report it as opened from that page, so mark
+ * it guarded and check the destination here.
+ */
+export async function guardOpenedTab(tabId: number, url: string) {
+  await setGuarded(tabId, true);
+  const to = destinationToCheck({ toUrl: url, guardedTab: true });
+  if (to) await maybeStop(tabId, to);
+}
+
 /** "Continue anyway" on the warning page: allow this site for the session and open it. */
 export async function allowSite(tabId: number, domain: string, url: string) {
   await chrome.storage.session.set({ [ALLOWED(domain)]: true });

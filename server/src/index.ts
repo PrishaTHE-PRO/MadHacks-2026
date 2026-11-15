@@ -2,7 +2,7 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { analyzeListing, listingPlan } from "./analyze";
-import { addReport, communityStats, withdrawReport } from "./db";
+import { addReport, communityStats, purgeOldListingTexts, withdrawReport } from "./db";
 import { aiEnabled } from "./claude";
 import { analyzeChat } from "./chat";
 import { findSpots, MeetupError } from "./meetup";
@@ -42,7 +42,10 @@ const ListingBody = z.object({
     .loose(),
   /** dHash per photo (same order as listing.photos), null where the extension couldn't read it. */
   photoHashes: z.array(z.string().refine(isPhotoHash).nullable()).max(20).optional(),
+  /** Small JPEG copies of the first photos, for Claude to look at (never stored). */
   photoData: z.array(z.string().max(1500000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/).nullable()).max(4).optional(),
+  /** The user's choices for this check. Photos go to outside services only with webPhotos: true. */
+  options: z.object({ webPhotos: z.boolean().optional() }).optional(),
 });
 
 // The device's random reporter id: 128+ bits as hex, never tied to an account.
@@ -170,8 +173,11 @@ app.post("/analyze-listing", async (req, res) => {
   const listing = parsed.data.listing as unknown as Listing;
   const started = Date.now();
   const photoHashes = parsed.data.photoHashes;
+  // Requests without options (older extensions) don't send photos out either.
+  const opts = { webPhotos: parsed.data.options?.webPhotos === true };
+  // Never log which listing was checked: the platform and result are enough to debug.
   const log = (score: number, level: string) =>
-    console.log(`[analyze] ${listing.platform}/${listing.id} → ${score} (${level}) in ${Date.now() - started}ms`);
+    console.log(`[analyze] ${listing.platform} → ${score} (${level}) in ${Date.now() - started}ms`);
 
   // ?progress=1: stream newline-delimited JSON (plan, each step, then the report)
   // so the extension can show which stage is running. Otherwise, plain JSON.
@@ -179,9 +185,9 @@ app.post("/analyze-listing", async (req, res) => {
     res.setHeader("Content-Type", "application/x-ndjson");
     res.setHeader("Cache-Control", "no-store");
     const send = (line: ListingProgress) => res.write(`${JSON.stringify(line)}\n`);
-    send({ plan: listingPlan() });
+    send({ plan: listingPlan(opts) });
     try {
-      const report = await analyzeListing(listing, photoHashes, (step) => send({ step }), parsed.data.photoData);
+      const report = await analyzeListing(listing, photoHashes, (step) => send({ step }), opts, parsed.data.photoData);
       log(report.score, report.level);
       send({ report });
     } catch (err) {
@@ -192,7 +198,7 @@ app.post("/analyze-listing", async (req, res) => {
     return;
   }
 
-  const report = await analyzeListing(listing, photoHashes, undefined, parsed.data.photoData);
+  const report = await analyzeListing(listing, photoHashes, undefined, opts, parsed.data.photoData);
   log(report.score, report.level);
   res.json(report);
 });
@@ -267,6 +273,10 @@ app.post("/meetup/reply", async (req, res) => {
   }
   res.json(await draftSafeReply(parsed.data));
 });
+
+// Listing descriptions are kept only for the copied-text check, and not forever.
+purgeOldListingTexts();
+setInterval(purgeOldListingTexts, 24 * 60 * 60 * 1000).unref();
 
 app.listen(PORT, () => {
   console.log(`DealDig server on http://localhost:${PORT} (Claude ${aiEnabled() ? "on" : "off: set ANTHROPIC_API_KEY"})`);

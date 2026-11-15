@@ -1,6 +1,6 @@
 // Bundles the extension into dist/. `node build.mjs --watch` rebuilds on save.
 import * as esbuild from "esbuild";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const watch = process.argv.includes("--watch");
@@ -30,6 +30,18 @@ copy(join(pkgDir("tesseract.js"), "dist/worker.min.js"), "vendor/tesseract/worke
 for (const f of ["tesseract-core-lstm.wasm.js", "tesseract-core-simd-lstm.wasm.js", "tesseract-core-relaxedsimd-lstm.wasm.js"])
   copy(join(pkgDir("tesseract.js-core"), f), `vendor/tesseract-core/${f}`);
 copy(join(pkgDir("@tesseract.js-data/eng"), "4.0.0_best_int/eng.traineddata.gz"), "vendor/tessdata/eng.traineddata.gz");
+
+// Tracker shield rule files (declarativeNetRequest static rulesets), built
+// from shared/privacy.ts so the rules and the side panel use one list.
+const writeRules = async () => {
+  const out = await esbuild.build({ entryPoints: ["../shared/privacy.ts"], bundle: true, format: "esm", write: false, logLevel: "silent" });
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
+  mkdirSync("dist/rules", { recursive: true });
+  writeFileSync("dist/rules/trackers.json", JSON.stringify(mod.buildTrackerRules(), null, 1));
+  writeFileSync("dist/rules/strict.json", JSON.stringify(mod.buildStrictRules(), null, 1));
+  writeFileSync("dist/rules/clean-urls.json", JSON.stringify(mod.buildCleanUrlRules(), null, 1));
+};
+await writeRules();
 
 const options = {
   entryPoints: {

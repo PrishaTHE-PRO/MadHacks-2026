@@ -14,10 +14,39 @@ function readLinks(root: ParentNode): PageLink[] {
   }));
 }
 
+const usable = (u: string | null | undefined): u is string => Boolean(u && /^https?:/i.test(u));
+
+/** Largest candidate in a srcset ("a.jpg 140w, b.jpg 1600w"). */
+function largestInSrcset(srcset: string | null): string | undefined {
+  if (!srcset) return undefined;
+  const parts = srcset.split(",").map((c) => {
+    const [url, size = "0"] = c.trim().split(/\s+/);
+    return { url, size: parseFloat(size) || 0 };
+  });
+  return parts.filter((p) => usable(p.url)).sort((a, b) => b.size - a.size)[0]?.url;
+}
+
+/**
+ * The image's real URL. Carousels lazy-load: photos you haven't swiped to yet
+ * often have an empty or placeholder `src` and the real URL in a data attribute
+ * or srcset, so look there too.
+ */
+function imageUrl(img: HTMLImageElement): string | undefined {
+  const candidates = [
+    img.getAttribute("data-zoom-src"),
+    img.currentSrc,
+    img.src,
+    img.getAttribute("data-src"),
+    img.getAttribute("data-lazy-src"),
+    largestInSrcset(img.getAttribute("srcset") ?? img.getAttribute("data-srcset")),
+  ];
+  return candidates.find(usable);
+}
+
 function readImages(root: ParentNode): PageImage[] {
   return [...root.querySelectorAll<HTMLImageElement>("img")].slice(0, MAX_IMAGES).flatMap((img) => {
-    const src = img.currentSrc || img.src;
-    if (!src || src.startsWith("data:")) return [];
+    const src = imageUrl(img);
+    if (!src) return [];
     const r = img.getBoundingClientRect();
     return [
       {

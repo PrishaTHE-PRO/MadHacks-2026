@@ -77,3 +77,17 @@ test("rules flag an obviously risky listing", () => {
   }
   assert.equal(r.score, 20 + 15 + 10 + 5 + 20 + 15);
 });
+
+test("reads every picture, whether it has a path or a full url", () => {
+  const s = structuredClone(state) as typeof state & Record<string, any>;
+  const d = (s as any)["$_listing_details"].listingDetails;
+  d.pictures = [
+    { path_large: "posts/2026/11/01/abc123/l_2.jpg" },
+    { url_large: "https://di2ponv0v5otw.cloudfront.net/posts/2026/11/01/abc123/l_3.jpg" },
+    { url: "https://di2ponv0v5otw.cloudfront.net/posts/2026/11/01/abc123/m_4.jpg" },
+  ];
+  const page = `<html><body><script>window.__INITIAL_STATE__=${JSON.stringify(s)};(function(){var s;}())</script></body></html>`;
+  const l = parsePoshmarkHtml(page, url);
+  assert.ok(l);
+  assert.equal(l.photos.length, 4);
+});

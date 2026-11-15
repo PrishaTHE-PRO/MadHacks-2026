@@ -13,14 +13,15 @@ import type { ChatContext, ChatFlag, ChatRole } from "../../../shared/types";
 import { dismissedKey, flagKey, roleKey, threadKey, type ContentMessage } from "../messages";
 import type { ChatAdapter } from "./adapter";
 import { removeAllChips, removeChips, showChips } from "./chips";
+import { isOurs } from "../content/stealth";
 
 const DEBOUNCE_MS = 800;
 const TICK_MS = 1000;
 const WINDOW = 10; // messages sent for classification
 const UNDO_MS = 6000; // how long "Not a scam" offers Undo
 
-/** Mutations from our own chips (data-dealdig) shouldn't trigger a rescan. */
-const ours = (n: Node) => n instanceof Element && (n.hasAttribute("data-dealdig") || !!n.closest("[data-dealdig]"));
+/** Mutations from our own chips shouldn't trigger a rescan. */
+const ours = (n: Node) => isOurs(n);
 const onlyOurs = (records: MutationRecord[]) =>
   records.every((r) => ours(r.target) || ([...r.addedNodes, ...r.removedNodes].length > 0 && [...r.addedNodes, ...r.removedNodes].every(ours)));
 
