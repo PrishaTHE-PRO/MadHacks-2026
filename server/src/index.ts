@@ -4,7 +4,6 @@ import { analyzeListing } from "./analyze";
 import { addReport, communityStats, withdrawReport } from "./db";
 import { aiEnabled } from "./claude";
 import { findSpots, MeetupError } from "./meetup";
-import { draftSafeReply } from "./reply";
 import { PLATFORMS, REPORT_CATEGORIES, type Listing, type ReportCategory, type ReportResponse } from "../../shared/types";
 import { isPhotoHash } from "../../shared/photohash";
 
@@ -57,16 +56,6 @@ const SpotsBody = z
     riskLevel: z.enum(["low", "medium", "high"]).optional(),
   })
   .refine((b) => b.area || b.listingLocation, { message: "Give an area or a listing location" });
-
-const ReplyBody = z.object({
-  listing: z.object({ title: z.string().max(300), price: z.number(), platform: z.enum(PLATFORMS) }),
-  role: z.enum(["buyer", "seller"]),
-  tone: z.enum(["friendly", "firm"]),
-  spot: z.object({ name: z.string().min(1).max(200), address: z.string().max(300).optional() }),
-  time: z.string().trim().min(1).max(100),
-  theirMessage: z.string().max(2000).optional(),
-  riskReasons: z.array(z.string().max(300)).max(5).optional(),
-});
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, ai: aiEnabled() });
@@ -122,15 +111,6 @@ app.post("/meetup/spots", async (req, res) => {
       res.status(500).json({ error: "Couldn't look up meeting spots." });
     }
   }
-});
-
-app.post("/meetup/reply", async (req, res) => {
-  const parsed = ReplyBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request", issues: parsed.error.issues });
-    return;
-  }
-  res.json(await draftSafeReply(parsed.data));
 });
 
 app.listen(PORT, () => {
