@@ -1,6 +1,6 @@
-// Listing tab: community flag, verdict (score out of 100 + level), AI-photo
+// Listing tab: verdict (level only, never a number), community flag, AI-photo
 // notice, earlier visits, listing + price, "What we found" (every reason with its
-// points and proof links, summing to the score), photo and description checks
+// proof links, biggest first), photo and description checks
 // and (for local deals) the meetup helper.
 
 import { useState } from "react";
@@ -21,6 +21,7 @@ const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 
 export function ListingTab({ listing, report, history, onRetry }: { listing: Listing; report: RiskReport; history: HistoryEntry[]; onRetry(): void }) {
   return (
     <>
+      <Verdict report={report} />
       <CommunityFlag community={report.community} />
       {report.signals.some((s) => s.id === "not-an-item") && (
         <section className="dd-card" aria-label="Listing type">
@@ -28,7 +29,6 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
           <p>This appears to be an ad, service or event. These checks are designed for items for sale.</p>
         </section>
       )}
-      <Verdict report={report} />
       <AiPhotoNotice report={report} listing={listing} />
       <button className="dd-btn secondary" onClick={onRetry}>Check again</button>
       <EarlierVisits listing={listing} history={history} />
@@ -42,11 +42,17 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
           <MeetupHelper listing={listing} report={report} />
         </div>
       )}
-      <p className="dd-foot-note">
-        Most serious first · {report.coverage?.ai ? "rules + Claude" : "rules only · AI analysis unavailable"} ·{" "}
-        {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-      </p>
     </>
+  );
+}
+
+/** How the check was made; the Panel puts it last, under the history card. */
+export function ListingFootNote({ report }: { report: RiskReport }) {
+  return (
+    <p className="dd-foot-note">
+      Most serious first · {report.coverage?.ai ? "rules + Claude" : "rules only · AI analysis unavailable"} ·{" "}
+      {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+    </p>
   );
 }
 
@@ -81,9 +87,8 @@ function Verdict({ report }: { report: RiskReport }) {
 }
 
 function ListingCard({ listing, report }: { listing: Listing; report: RiskReport }) {
+  // Reports aren't repeated here: the flag card and "What we found" already show them.
   const facts = sellerFacts(listing);
-  if (report.communityReports > 0)
-    facts.push(`reported by ${report.communityReports} ${report.communityReports === 1 ? "person" : "people"}`);
   const p = report.priceCheck;
   const hasRange = p && p.typicalLow !== null && p.typicalHigh !== null;
   const who = sellerName(listing);
@@ -165,7 +170,16 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
       </div>
       <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
         <span className="dd-range" style={{ left: pct(low), width: `calc(${pct(high)} - ${pct(low)})` }} />
-        <span className="dd-pin" style={{ left: pct(price) }} />
+        <span className={`dd-pin${price < low ? " under" : ""}`} style={{ left: pct(price) }} />
+      </div>
+      <div className="dd-track-labels" aria-hidden="true">
+        <span style={{ left: pct(price) }}>{money(price)}</span>
+        {/* Only when the pin sits outside the range; otherwise the two labels collide. */}
+        {(price < low || price > high) && (
+          <span className="range" style={{ left: `calc((${pct(low)} + ${pct(high)}) / 2)` }}>
+            typical
+          </span>
+        )}
       </div>
     </>
   );

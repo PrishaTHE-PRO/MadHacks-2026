@@ -100,7 +100,7 @@ export const mediumReport: RiskReport = {
   maxScore: 100,
   level: "medium",
   summary:
-    "This listing scores 45/100 mainly because photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller, and it's priced 55% below similar bags. Ask for a tag and serial photo before you buy. Photo 2 may be AI-generated; that's your call.",
+    "Be careful: photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller, and it's priced 55% below similar bags. Ask for a tag and serial photo before you buy. Photo 2 may be AI-generated; that's your call.",
   topReasons: [
     "Photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller. This seller is likely using someone else's photos.",
     "Priced 55% below the typical $310 (estimate). Classic bait pricing.",

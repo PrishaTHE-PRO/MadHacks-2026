@@ -23,7 +23,12 @@ export function CommunityFlag({ community }: { community?: CommunityInfo }) {
   if (!community?.flagged) return null;
   return (
     <section className="dd-card dd-flag" role="alert">
-      <div className="dd-flag-title">⚑ Flagged by {community.reportersLast30Days} people in the last 30 days</div>
+      <div className="dd-flag-title">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3.5 14V2.5m0 0h8l-1.8 3 1.8 3h-8" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Flagged by {community.reportersLast30Days} people in the last 30 days
+      </div>
       <ul className="dd-list">
         {community.categories.slice(0, 3).map((c) => (
           <li key={c.category}>
@@ -44,6 +49,7 @@ export function EarlierVisits({ listing, history }: { listing: Listing; history:
   if (!previous && !otherListings.length) return null;
   return (
     <section className="dd-card dd-earlier" aria-label="Earlier visits">
+      <h3>Earlier visits</h3>
       {previous && (
         <p>
           You looked at this listing {ago(previous.seenAt)}. It was {LEVEL_LABEL[previous.level]} then.

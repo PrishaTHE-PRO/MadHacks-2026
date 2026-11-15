@@ -8,7 +8,7 @@
   padding: 14px; box-shadow: var(--dd-shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px;
 }
 .dd-legacy .card.dragging { border: 1px dashed var(--dd-accent); }
-.dd-legacy h2 { margin: 0; font-size: 13px; font-weight: 500; color: var(--dd-muted); }
+.dd-legacy h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--dd-ink-2); letter-spacing: -.005em; }
 .dd-legacy p { margin: 0; }
 .dd-legacy .muted { color: var(--dd-muted); }
 .dd-legacy .small { font-size: 12px; }

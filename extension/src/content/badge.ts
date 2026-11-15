@@ -1,5 +1,5 @@
 // Small floating badge on listing pages (docs/ui-redesign-task.md, Phase 4).
-// A white pill: bubble · verdict · score out of 100, with a hover card showing the top
+// A white pill: bubble · verdict (level only), with a hover card showing the top
 // reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
@@ -89,7 +89,10 @@ export function renderBadge(
     card.setAttribute("role", "note");
     const top = el("div", "dd-hover-top");
     const words = el("div");
-    words.append(el("div", `dd-hover-level dd-word ${level}`, label));
+    // Same shape as the pill: the level in color (levels only, never a number).
+    const head = el("div", "dd-hover-head");
+    head.append(el("span", `dd-hover-level dd-word ${level}`, label));
+    words.append(head);
     top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
     const reason = s.report.topReasons[0] ?? s.report.summary;
     const link = el("button", "dd-hover-link", "See details");
