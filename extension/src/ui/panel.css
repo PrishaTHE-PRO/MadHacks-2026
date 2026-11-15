@@ -359,3 +359,4 @@ textarea.dd-input { resize: vertical; }
 .dd-why-head .chev { flex: none; color: var(--dd-muted); transition: transform .15s ease; }
 .dd-why-head[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .dd-why-body { padding: 0 0 2px; }
+.dd-why-open .dd-why-body { padding-top: 12px; } /* verdict reasons: always shown, no See more */

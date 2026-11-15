@@ -3,7 +3,6 @@
 // visits, listing + price, one card for copied photos
 // and text, and (for local deals) the meetup helper.
 
-import { useState } from "react";
 import { LOCAL_PLATFORMS, type Listing, type RiskLevel, type RiskReport, type Severity, type Signal } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { MeetupHelper } from "../sidepanel/Meetup";
@@ -186,12 +185,11 @@ function Proof({ signal }: { signal: Signal }) {
 }
 
 /**
- * "See more" at the bottom of the verdict box: every warning, biggest first
+ * The bottom of the verdict box, always shown: every warning, biggest first
  * (a red or yellow "!"), then good signs (a green "+") and notes in the same
  * list. No numbers: users see the level only.
  */
 function WhyScore({ report }: { report: RiskReport }) {
-  const [expanded, setExpanded] = useState(false);
   // Points only set the order (biggest reason first); users never see numbers.
   const risky = report.signals
     .filter((s) => s.points > 0)
@@ -201,46 +199,38 @@ function WhyScore({ report }: { report: RiskReport }) {
   const rest = report.signals.filter((s) => s.points === 0).sort((a, b) => order[a.severity] - order[b.severity]);
   if (!risky.length && !rest.length) return null;
   return (
-    <div className="dd-why" aria-label="Why this level">
-      <button className="dd-why-head" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-        <span>See more</span>
-        <svg className="chev" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="dd-why-body">
-          <ul className="dd-rows">
-            {risky.map((s, i) => (
-              <li key={s.id} {...rowIn(i)}>
-                <span className={`dd-points ${s.severity}`} aria-label={s.severity === "danger" ? "Red flag" : "Warning"}>
-                  !
+    <div className="dd-why dd-why-open" aria-label="Why this level">
+    <div className="dd-why-body">
+        <ul className="dd-rows">
+          {risky.map((s, i) => (
+            <li key={s.id} {...rowIn(i)}>
+              <span className={`dd-points ${s.severity}`} aria-label={s.severity === "danger" ? "Red flag" : "Warning"}>
+                !
+              </span>
+              <span className="dd-row-text">
+                <span>{s.text}</span>
+                <Proof signal={s} />
+              </span>
+            </li>
+          ))}
+          {rest.map((s, i) => (
+            <li key={s.id} {...rowIn(risky.length + i)}>
+              {s.severity === "good" ? (
+                <span className="dd-points good" aria-label="Good sign">
+                  +
                 </span>
-                <span className="dd-row-text">
-                  <span>{s.text}</span>
-                  <Proof signal={s} />
-                </span>
-              </li>
-            ))}
-            {rest.map((s, i) => (
-              <li key={s.id} {...rowIn(risky.length + i)}>
-                {s.severity === "good" ? (
-                  <span className="dd-points good" aria-label="Good sign">
-                    +
-                  </span>
-                ) : (
-                  // Notes have no marker; the empty slot keeps the text lined up.
-                  <span className="dd-points blank" aria-hidden="true" />
-                )}
-                <span className="dd-row-text">
-                  <span>{s.text}</span>
-                  <Proof signal={s} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+              ) : (
+                // Notes have no marker; the empty slot keeps the text lined up.
+                <span className="dd-points blank" aria-hidden="true" />
+              )}
+              <span className="dd-row-text">
+                <span>{s.text}</span>
+                <Proof signal={s} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
