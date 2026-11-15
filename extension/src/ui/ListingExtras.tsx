@@ -102,9 +102,8 @@ const OWNER_ORDER: Record<CopyOwner, number> = { "other-seller": 0, unknown: 1, 
 const byRisk = <T extends { owner: CopyOwner; kind: SiteKind }>(a: T, b: T) =>
   OWNER_ORDER[a.owner] - OWNER_ORDER[b.owner] || Number(a.kind === "other") - Number(b.kind === "other");
 
-/** Short status lines when a web search didn't run. */
+/** Short status lines when a web search didn't finish (nothing is said when it's off). */
 const WEB_STATUS = {
-  off: "Web search is off; only DealDig listings were compared.",
   failed: "Web search didn't finish; only DealDig listings were compared.",
   skipped: "Description too short to search the web.",
 } as const;
@@ -130,7 +129,7 @@ export function CopiesCard({ report, listing }: { report: RiskReport; listing: L
   const found = web.length + (indexMatches?.length ?? 0) + text.length;
   const foundAnywhere = allWeb.length + (report.photoMatches?.length ?? 0) + allText.length;
   const notes = [
-    photoStatus === "off" || photoStatus === "failed" ? WEB_STATUS[photoStatus] : "",
+    photoStatus === "failed" ? WEB_STATUS.failed : "", // "off" isn't mentioned
     indexMatches === undefined && photos.length ? "Couldn't fingerprint these photos." : "",
     textStatus === "skipped" || textStatus === "failed" ? WEB_STATUS[textStatus] : "",
   ].filter(Boolean);
