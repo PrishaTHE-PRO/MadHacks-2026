@@ -140,39 +140,22 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
       )}
       {p && hasRange && (
         <div className="dd-price">
-          <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} estimate={p.basis === "ai-estimate"} />
+          <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} />
         </div>
       )}
     </section>
   );
 }
 
-function PriceRow({ low, high, price, estimate }: { low: number; high: number; price: number; estimate: boolean }) {
-  const max = Math.max(high, price) * 1.3 || 1;
-  const pct = (n: number) => `${Math.min(100, Math.max(0, (n / max) * 100))}%`;
+/** "Price  usually $40–$90 · $40": the usual range, then this listing's price in bold. */
+function PriceRow({ low, high, price }: { low: number; high: number; price: number }) {
   return (
-    <>
-      <div className="dd-price-line">
-        <span className="dd-label">Price</span>
-        <span className="dd-muted">
-          usually {money(low)}–{money(high)}
-          {estimate ? " (est.)" : ""} · <strong className="dd-ink">this one {money(price)}</strong>
-        </span>
-      </div>
-      <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
-        <span className="dd-range" style={{ left: pct(low), width: `calc(${pct(high)} - ${pct(low)})` }} />
-        <span className={`dd-pin${price < low ? " under" : ""}`} style={{ left: pct(price) }} />
-      </div>
-      <div className="dd-track-labels" aria-hidden="true">
-        <span style={{ left: pct(price) }}>{money(price)}</span>
-        {/* Only when the pin sits outside the range; otherwise the two labels collide. */}
-        {(price < low || price > high) && (
-          <span className="range" style={{ left: `calc((${pct(low)} + ${pct(high)}) / 2)` }}>
-            typical
-          </span>
-        )}
-      </div>
-    </>
+    <div className="dd-price-line">
+      <span className="dd-label">Price</span>
+      <span className="dd-muted">
+        usually {money(low)}–{money(high)} · <strong className="dd-ink">{money(price)}</strong>
+      </span>
+    </div>
   );
 }
 

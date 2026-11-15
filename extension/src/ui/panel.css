@@ -138,13 +138,6 @@
 .dd-price { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--dd-divider); }
 .dd-price-line { font-size: 15px; display: flex; gap: 8px; }
 .dd-label { font-weight: 500; }
-.dd-track { position: relative; height: 6px; border-radius: 3px; background: var(--dd-track); margin: 6px 6px 0; }
-.dd-range { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: rgba(46,139,94,.35); }
-.dd-pin { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--dd-accent); border: 2px solid #fff; transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(16,24,40,.25); }
-.dd-pin.under { background: var(--dd-high); }
-.dd-track-labels { position: relative; height: 16px; margin: 0 6px; font-size: 12px; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
-.dd-track-labels span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-weight: 600; color: var(--dd-ink-2); }
-.dd-track-labels span.range { font-weight: 500; color: var(--dd-low-ink); }
 
 /* Watch out */
 .dd-watch-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
