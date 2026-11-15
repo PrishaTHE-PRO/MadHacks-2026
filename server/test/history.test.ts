@@ -25,6 +25,7 @@ const report = (score: number): RiskReport => ({
   listingId: "x",
   platform: "facebook",
   score,
+  maxScore: 100,
   level: score >= 60 ? "high" : score >= 30 ? "medium" : "low",
   summary: "",
   topReasons: [`reason ${score}`],

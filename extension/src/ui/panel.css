@@ -217,3 +217,43 @@ textarea.dd-input { resize: vertical; }
 .dd-level-pill.low { background: var(--dd-low); }
 .dd-level-pill.medium { background: var(--dd-careful); }
 .dd-level-pill.high { background: var(--dd-high); }
+
+/* Score out of 100 */
+.dd-level-row { justify-content: space-between; }
+.dd-score { font-size: 13px; color: var(--dd-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dd-score strong { font-size: 20px; font-weight: 600; }
+.dd-score.dd-low strong { color: var(--dd-low-ink); }
+.dd-score.dd-medium strong { color: var(--dd-careful-ink); }
+.dd-score.dd-high strong { color: var(--dd-high-ink); }
+.dd-scale { margin-top: 12px; }
+.dd-scale-track { position: relative; height: 6px; }
+.dd-scale-track span { position: absolute; top: 1px; height: 4px; border-radius: 2px; background: var(--dd-track); }
+.dd-scale-track span.on.low { background: var(--dd-low); }
+.dd-scale-track span.on.medium { background: var(--dd-careful); }
+.dd-scale-track span.on.high { background: var(--dd-high); }
+.dd-scale-pin { position: absolute; top: -3px; width: 4px; height: 12px; margin-left: -2px; border-radius: 2px; background: var(--dd-ink); box-shadow: 0 0 0 2px var(--dd-surface); }
+.dd-scale-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--dd-muted); }
+
+/* "Why N/100": points per reason, proof links */
+.dd-points { flex: none; min-width: 32px; text-align: center; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 1px 6px; border-radius: 999px; background: var(--dd-accent-wash); color: var(--dd-accent-ink); margin-top: 1px; }
+.dd-points.danger { background: rgba(217,83,79,.1); color: var(--dd-high-ink); }
+.dd-points.caution { background: rgba(217,154,43,.12); color: var(--dd-careful-ink); }
+.dd-row-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dd-proof { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+.dd-proof a { color: var(--dd-accent-ink); overflow-wrap: anywhere; }
+.dd-total { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--dd-divider); font-size: 12px; font-weight: 600; color: var(--dd-ink-2); text-align: right; }
+
+/* Web matches: who posted the copy */
+.dd-matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.dd-matches li { display: flex; gap: 8px; align-items: flex-start; overflow-wrap: anywhere; }
+.dd-owner { flex: none; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--dd-surface-2); color: var(--dd-ink-2); margin-top: 1px; white-space: nowrap; }
+.dd-owner.danger { background: rgba(217,83,79,.1); color: var(--dd-high-ink); }
+.dd-owner.caution { background: rgba(217,154,43,.12); color: var(--dd-careful-ink); }
+.dd-owner.good { background: rgba(46,139,94,.1); color: var(--dd-low-ink); }
+.dd-quote { display: block; margin-top: 4px; padding-left: 8px; border-left: 2px solid var(--dd-border); color: var(--dd-ink-2); font-size: 12px; font-style: italic; }
+
+/* AI-generated photo notice: informational, the user decides */
+.dd-ai-notice { border: 1px solid rgba(217,154,43,.35); background: linear-gradient(0deg, rgba(217,154,43,.06), rgba(217,154,43,.06)), var(--dd-surface); display: flex; flex-direction: column; gap: 8px; }
+.dd-ai-title { font-weight: 600; color: var(--dd-careful-ink); }
+.dd-ai-body { display: flex; gap: 10px; align-items: flex-start; }
+.dd-ai-body .dd-list { flex: 1; margin: 0; }

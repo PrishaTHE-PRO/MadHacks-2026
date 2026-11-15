@@ -1,14 +1,14 @@
-// Listing tab: community flag, verdict, earlier visits, listing + price,
-// "Watch out" signals, photo check and (for local deals) the meetup helper.
-// Levels only: the score picks the level in rules.ts but is never shown, and
-// signals are listed most serious first without points.
+// Listing tab: community flag, verdict (score out of 100 + level), AI-photo
+// notice, earlier visits, listing + price, "Why N/100" (every reason with its
+// points and proof links, summing to the score), photo and description checks
+// and (for local deals) the meetup helper.
 
 import { useState } from "react";
-import { LOCAL_PLATFORMS, type Listing, type RiskLevel, type RiskReport, type Severity } from "../../../shared/types";
+import { LOCAL_PLATFORMS, SCORE_MAX, type Listing, type RiskLevel, type RiskReport, type Severity, type Signal } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
-import { CommunityFlag, EarlierVisits, PhotoCheck } from "./ListingExtras";
+import { AiPhotoNotice, CommunityFlag, CopiedText, EarlierVisits, PhotoCheck } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
 
 /** Watch-out rows come in one after another, most serious first. */
@@ -23,10 +23,12 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
     <>
       <CommunityFlag community={report.community} />
       <Verdict report={report} />
+      <AiPhotoNotice report={report} listing={listing} />
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
-      <WatchOut report={report} />
+      <WhyScore report={report} />
       <PhotoCheck report={report} listing={listing} />
+      <CopiedText report={report} />
       {LOCAL_PLATFORMS.includes(listing.platform) && (
         // Main's meetup helper, styled for the sidebar by legacy.css.
         <div className="dd-legacy">
@@ -34,28 +36,52 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
         </div>
       )}
       <p className="dd-foot-note">
-        Most serious first · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
+        Score computed in code from the reasons above · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
         {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
       </p>
     </>
   );
 }
 
+/** Where each level starts on the 0-100 scale (rules.ts levelFor). */
+const LEVEL_FROM: Record<RiskLevel, number> = { low: 0, medium: 30, high: 60 };
+
 function Verdict({ report }: { report: RiskReport }) {
-  const { level } = report;
+  const { level, score } = report;
+  const max = report.maxScore ?? SCORE_MAX; // reports cached before the score was shown lack it
+  const pct = (n: number) => `${Math.min(100, Math.max(0, (n / max) * 100))}%`;
   return (
     <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
         <Bubble size={40} icon={iconForLevel(level)} />
         <div className="dd-verdict-text">
-          <div className={`dd-level dd-${level} dd-word-in`}>{LEVEL_WORD[level]}</div>
+          <div className="dd-level-row">
+            <div className={`dd-level dd-${level} dd-word-in`}>{LEVEL_WORD[level]}</div>
+            <div className={`dd-score dd-${level}`} aria-label={`Risk score ${score} out of ${max}`}>
+              <strong>{score}</strong>/{max}
+            </div>
+          </div>
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
-      <div className="dd-bar" role="img" aria-label={`Risk level: ${LEVEL_WORD[level]}`}>
-        {LEVELS.map((l) => (
-          <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
-        ))}
+      <div className="dd-scale" role="img" aria-label={`Risk score ${score} out of ${max}: ${LEVEL_WORD[level]}`}>
+        <div className="dd-scale-track">
+          {LEVELS.map((l, i) => {
+            const end = LEVELS[i + 1] ? LEVEL_FROM[LEVELS[i + 1]] : max;
+            return (
+              <span
+                key={l}
+                className={l === level ? `on ${l} dd-grow` : undefined}
+                style={{ left: pct(LEVEL_FROM[l]), width: `calc(${pct(end)} - ${pct(LEVEL_FROM[l])} - 3px)` }}
+              />
+            );
+          })}
+          <i className="dd-scale-pin" style={{ left: pct(score) }} />
+        </div>
+        <div className="dd-scale-labels" aria-hidden="true">
+          <span>0 · no red flags</span>
+          <span>{max} · very risky</span>
+        </div>
       </div>
     </section>
   );
@@ -152,12 +178,28 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
   );
 }
 
-function WatchOut({ report }: { report: RiskReport }) {
+/** Proof links under a reason: the duplicate listing, the page with the same text... */
+function Proof({ signal }: { signal: Signal }) {
+  if (!signal.links?.length) return null;
+  return (
+    <span className="dd-proof">
+      {signal.links.map((l) => (
+        <a key={l.url} href={l.url} target="_blank" rel="noreferrer noopener" title={l.url}>
+          {l.label} ↗
+        </a>
+      ))}
+    </span>
+  );
+}
+
+/** Every reason that added points, with the points: they add up to the score. */
+function WhyScore({ report }: { report: RiskReport }) {
   const [open, setOpen] = useState(false);
-  // Signals that raised the risk, most serious first (points only decide the order).
+  const max = report.maxScore ?? SCORE_MAX;
   const risky = report.signals
     .filter((s) => s.points > 0)
     .sort((a, b) => b.points - a.points || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  const sum = risky.reduce((n, s) => n + s.points, 0);
   // Everything else: good signs first, then notes (e.g. "account is about 73 days old").
   const order = { good: 0, caution: 1, info: 2, danger: 3 } as const;
   const rest = report.signals.filter((s) => s.points === 0).sort((a, b) => order[a.severity] - order[b.severity]);
@@ -168,21 +210,31 @@ function WatchOut({ report }: { report: RiskReport }) {
     .filter(Boolean)
     .join(" · ");
   return (
-    <section className="dd-card" aria-label="Watch out">
+    <section className="dd-card" aria-label={`Why ${report.score} out of ${max}`}>
       <div className="dd-watch-head">
-        <h3>Watch out</h3>
+        <h3>
+          Why {report.score}/{max}
+        </h3>
       </div>
       {risky.length ? (
-        <ul className="dd-rows">
-          {risky.map((s, i) => (
-            <li key={s.id} {...rowIn(i)}>
-              <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
-              <span>{s.text}</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="dd-rows">
+            {risky.map((s, i) => (
+              <li key={s.id} {...rowIn(i)}>
+                <span className={`dd-points ${s.severity}`}>+{s.points}</span>
+                <span className="dd-row-text">
+                  <span>{s.text}</span>
+                  <Proof signal={s} />
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="dd-total">
+            {sum > max ? `${sum} points, capped at ${max}` : `Total ${report.score}/${max}`}
+          </p>
+        </>
       ) : (
-        <p className="dd-note">No warning signs found.</p>
+        <p className="dd-note">No warning signs found, so the score is {report.score}/{max}.</p>
       )}
       {rest.length > 0 && (
         <>
@@ -197,7 +249,10 @@ function WatchOut({ report }: { report: RiskReport }) {
               {rest.map((s) => (
                 <li key={s.id}>
                   <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
-                  <span>{s.text}</span>
+                  <span className="dd-row-text">
+                    <span>{s.text}</span>
+                    <Proof signal={s} />
+                  </span>
                 </li>
               ))}
             </ul>

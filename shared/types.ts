@@ -79,7 +79,18 @@ export interface Signal {
   source: "rules" | "ai" | "community";
   /** Risk points this signal added to the score (0 for good/info signals). */
   points: number;
+  /** Proof the user can open: the duplicate listing, the page with the same text, ... */
+  links?: EvidenceLink[];
 }
+
+/** A page that backs up a signal, shown as a link next to it. */
+export interface EvidenceLink {
+  label: string; // e.g. "eBay listing by @other_seller"
+  url: string;
+}
+
+/** Scores run from 0 (no red flags) to SCORE_MAX (very risky). */
+export const SCORE_MAX = 100;
 
 export type Confidence = "low" | "medium" | "high";
 
@@ -117,10 +128,72 @@ export interface PhotoMatch {
   mirrored: boolean;
 }
 
+/**
+ * Who posted a copy of this listing's photo or text, as far as we can tell.
+ * "same-seller": this seller's own listing or profile (crossposting, relisting): fine.
+ * "other-seller": a different account: the photos or text came from someone else.
+ * "unknown": a marketplace listing whose seller we couldn't read.
+ */
+export type CopyOwner = "same-seller" | "other-seller" | "unknown";
+
+/** What kind of site a copy turned up on. */
+export type SiteKind = "marketplace" | "social" | "stock" | "ai-art" | "other";
+
+/** A web page that shows the same photo, from a reverse image search (Google Vision). */
+export interface WebPhotoMatch {
+  photoIndex: number; // which photo of this listing
+  pageUrl: string;
+  pageTitle: string;
+  site: string; // hostname without www.
+  siteName: string; // "eBay", "Depop", "reddit.com", ...
+  kind: SiteKind;
+  owner: CopyOwner;
+  /** The other page's seller or account, when we could read it. */
+  username?: string;
+  /** "full": the exact image. "partial": a crop or edit of it. */
+  match: "full" | "partial";
+}
+
+/** Another listing or page with the same description text. */
+export interface TextMatch {
+  source: "dealdig" | "web"; // DealDig's index of checked listings, or a web search
+  url: string;
+  title: string;
+  site: string;
+  siteName: string;
+  kind: SiteKind;
+  owner: CopyOwner;
+  username?: string;
+  /** The shared passage, as it appears in this listing. */
+  excerpt: string;
+  /** Share of this description's phrases found on the other page (0-1). */
+  overlap: number;
+}
+
+/**
+ * Photos that may be AI-generated. Shown to the user as a notice and never
+ * added to the score: detectors make mistakes, so the user decides.
+ */
+export interface AiImageCheck {
+  verdict: "likely" | "possible";
+  photoIndexes: number[]; // 0-based
+  /** What points to it, one line each: visible tells, a detector score, an AI-art site match. */
+  evidence: string[];
+  links: EvidenceLink[];
+}
+
+/** Which of the web checks ran, so the UI can say what wasn't checked. */
+export interface WebCheckStatus {
+  photos: "done" | "off" | "failed";
+  text: "done" | "off" | "skipped" | "failed"; // skipped: description too short or generic to search
+  aiDetector: "done" | "off" | "failed";
+}
+
 export interface RiskReport {
   listingId: string;
   platform: Platform;
   score: number; // 0 (safe) - 100 (very risky), computed in code from `signals[].points`
+  maxScore: typeof SCORE_MAX; // shown as "score/maxScore"
   level: RiskLevel; // 0-29 low, 30-59 medium (caution), 60+ high
   summary: string; // one line explaining the score (Claude when available)
   topReasons: string[]; // up to 3 biggest contributors, one line each
@@ -131,15 +204,23 @@ export interface RiskReport {
   community?: CommunityInfo;
   /** Listings by other sellers with the same photos (spec §3.1). Omitted when photos couldn't be fingerprinted. */
   photoMatches?: PhotoMatch[];
+  /** Web pages with the same photos (reverse image search), same seller's own pages included. */
+  webPhotoMatches?: WebPhotoMatch[];
+  /** Other listings or pages with the same description text. */
+  textMatches?: TextMatch[];
+  /** Set when a photo may be AI-generated. A notice for the user, not part of the score. */
+  aiImage?: AiImageCheck;
+  webCheck?: WebCheckStatus;
   aiUsed: boolean;
   checkedAt: string;
 }
 
 /**
  * Stages of a listing check, reported live when the client asks for progress
- * (POST /analyze-listing?progress=1). "item" and "summary" only run with Claude.
+ * (POST /analyze-listing?progress=1). "item" and "summary" only run with Claude;
+ * "web" only runs when a reverse image search or web text search is configured.
  */
-export type ListingStep = "seller" | "item" | "price" | "summary";
+export type ListingStep = "seller" | "web" | "item" | "price" | "summary";
 
 /** One line of the progress stream (newline-delimited JSON). */
 export type ListingProgress =
