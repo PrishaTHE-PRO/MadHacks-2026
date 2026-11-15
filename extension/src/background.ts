@@ -18,8 +18,22 @@ import type { ChatContext, ChatFlag, ChatReport, Listing, ListingProgress, Listi
 import { dhashFromRgba } from "../../shared/photohash";
 import { saveCheckToHistory } from "./history";
 import { allowSite, guardChatFlags, startLinkGuard } from "./guard";
+import { unwrapRedirector } from "./guardCore";
 
 startLinkGuard();
+
+// Right-click any link: "Preview link safely". The server opens it in a
+// throwaway browser and the result shows in DealDig's preview page; the link
+// itself is never loaded in the user's browser.
+const SAFE_PREVIEW_MENU = "dealdig-safe-preview";
+// Re-created on every worker start (onInstalled alone can miss it after a reload).
+chrome.contextMenus.removeAll(() => {
+  chrome.contextMenus.create({ id: SAFE_PREVIEW_MENU, title: "Preview link safely with DealDig", contexts: ["link"] }, () => void chrome.runtime.lastError);
+});
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== SAFE_PREVIEW_MENU || !info.linkUrl || !/^https?:\/\//i.test(info.linkUrl)) return;
+  void chrome.tabs.create({ url: chrome.runtime.getURL(`safeview.html?url=${encodeURIComponent(unwrapRedirector(info.linkUrl))}`), index: tab ? tab.index + 1 : undefined });
+});
 
 const CACHE_MS = 10 * 60 * 1000;
 const HASHED_PHOTOS = 4;

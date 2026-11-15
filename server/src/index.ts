@@ -8,6 +8,8 @@ import { analyzeChat } from "./chat";
 import { findSpots, MeetupError } from "./meetup";
 import { draftSafeReply } from "./reply";
 import { checkDestination } from "./links";
+import { BlockedUrlError } from "./netGuard";
+import { detonate, DetonationBusy, DetonationUnavailable } from "./detonate";
 import {
   CHAT_PLATFORMS,
   PLATFORMS,
@@ -128,6 +130,30 @@ app.post("/check-url", async (req, res) => {
   const verdict = await checkDestination(parsed.data.url);
   console.log(`[guard] ${verdict.domain} → ${verdict.verdict}`); // the domain only, never the full link
   res.json(verdict);
+});
+
+// Safe URL detonation: open a link in the server's throwaway headless browser
+// and report what it does, so the user never loads it. Only sent when the user
+// asks ("Preview safely"). Private and internal addresses are refused.
+app.post("/detonate", async (req, res) => {
+  const parsed = CheckUrlBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid URL", issues: parsed.error.issues });
+    return;
+  }
+  try {
+    const report = await detonate(parsed.data.url);
+    console.log(`[detonate] ${report.domain} → ${report.verdict} in ${report.tookMs} ms`); // domain only
+    res.json(report);
+  } catch (err) {
+    if (err instanceof BlockedUrlError) res.status(422).json({ error: err.message });
+    else if (err instanceof DetonationBusy) res.status(429).json({ error: err.message });
+    else if (err instanceof DetonationUnavailable) res.status(503).json({ error: err.message });
+    else {
+      console.error("[detonate] failed:", err);
+      res.status(500).json({ error: "Couldn't open that link safely." });
+    }
+  }
 });
 
 app.get("/health", (_req, res) => {

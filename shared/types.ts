@@ -414,3 +414,27 @@ export interface ChatReport {
   communityReports?: number;
   checkedAt: string;
 }
+
+// --- Safe URL detonation (POST /detonate) ---
+
+export interface DetonationFinding {
+  severity: "danger" | "caution" | "info";
+  text: string;
+}
+
+/** What the server's throwaway browser saw when it opened a link for the user. */
+export interface DetonationReport {
+  url: string;
+  finalUrl: string;
+  domain: string;
+  verdict: "danger" | "caution" | "ok";
+  findings: DetonationFinding[];
+  title: string;
+  redirects: string[];
+  /** JPEG data URL of what a real visitor sees. */
+  screenshot: string | null;
+  /** What a security scanner saw, only when it differs (cloaking). */
+  scannerScreenshot: string | null;
+  cloaking: boolean;
+  tookMs: number;
+}

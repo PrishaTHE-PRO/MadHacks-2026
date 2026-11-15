@@ -56,6 +56,7 @@
       .controls { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
       .row { display: flex; gap: 8px; flex-wrap: wrap; }
       textarea { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); resize: vertical; }
+      .text a { color: #9ab8ff; text-decoration: underline; overflow-wrap: anywhere; }
       button { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 10px; border: 0; background: #4f46e5; color: #fff; cursor: pointer; }
       button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
       button:disabled { opacity: .5; cursor: default; }
@@ -131,7 +132,17 @@
         author.textContent = from === "me" ? "You" : "Jordan Reyes";
         const p = document.createElement("p");
         p.className = "text";
-        p.textContent = text;
+        // Links become clickable (like a real chat), so the link guard and safe preview can be tried here.
+        for (const part of text.split(/(https?:\/\/[^\s]+)/)) {
+          if (/^https?:\/\//.test(part)) {
+            const a = document.createElement("a");
+            a.href = part;
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.textContent = part;
+            p.append(a);
+          } else p.append(part);
+        }
         msg.append(author, p);
         thread.append(msg);
         thread.scrollTop = thread.scrollHeight;

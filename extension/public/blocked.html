@@ -40,6 +40,7 @@
       .primary:hover { background: #4456b3; }
       .quiet { background: var(--surface-2); color: var(--ink-2); font-weight: 500; }
       .quiet:hover { background: #e7e8eb; }
+      .tip.preview { margin-top: 18px; padding-top: 0; border-top: 0; }
       .tip { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--divider); font-size: 13px; color: var(--muted); }
       .tip button { all: unset; cursor: pointer; color: var(--accent-ink); font-weight: 600; }
       .tip button:hover { text-decoration: underline; }
@@ -55,6 +56,10 @@
         <button class="primary" id="back">Go back</button>
         <button class="quiet" id="continue">Continue anyway</button>
       </div>
+      <p class="tip preview">
+        Curious what's there? DealDig's server can open it for you in a throwaway browser and show you a picture, without the site ever seeing you.
+        <button id="preview">Preview it safely</button>
+      </p>
       <p class="tip">
         Want this protection everywhere? Turn on Chrome's secure DNS with a filtering provider (Cloudflare 1.1.1.2 or Quad9).
         <button id="dns">Open setting</button>

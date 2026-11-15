@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DealDig safe preview</title>
+    <style>
+      :root {
+        --ink: #1f2330; --ink-2: #3a3f4e; --muted: #5b6070; --accent: #4f62c4; --accent-ink: #2f3c86;
+        --high: #d9534f; --high-ink: #8e2a1a; --med: #e0a03a; --med-ink: #7a4e0c; --low: #3f9d6a; --low-ink: #1f5e3c;
+        --surface-2: #f0f1f3; --divider: #eceef1;
+        color-scheme: light;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; padding: 24px 16px;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink);
+        background:
+          radial-gradient(70% 60% at 0% 0%, rgba(240,190,210,.28), transparent 60%),
+          radial-gradient(60% 60% at 100% 10%, rgba(190,180,245,.30), transparent 60%),
+          radial-gradient(60% 60% at 50% 100%, rgba(160,215,240,.28), transparent 60%), #fff;
+      }
+      main {
+        width: 100%; max-width: 920px; margin: 0 auto; background: #fff; border-radius: 20px; padding: 28px;
+        box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 36px rgba(16,24,40,.10);
+        border-top: 4px solid var(--accent);
+      }
+      main[data-verdict="danger"] { border-top-color: var(--high); }
+      main[data-verdict="caution"] { border-top-color: var(--med); }
+      main[data-verdict="ok"] { border-top-color: var(--low); }
+      .brand { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 14px; }
+      h1 { margin: 0 0 6px; font-size: 24px; line-height: 1.25; }
+      main[data-verdict="danger"] h1 { color: var(--high-ink); }
+      main[data-verdict="caution"] h1 { color: var(--med-ink); }
+      main[data-verdict="ok"] h1 { color: var(--low-ink); }
+      .domain { margin: 0 0 18px; color: var(--ink-2); overflow-wrap: anywhere; }
+      .domain b { color: var(--ink); }
+      .privacy { margin: 0 0 18px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); font-size: 13px; color: var(--ink-2); }
+      ul.findings { margin: 0 0 20px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+      ul.findings li { display: flex; gap: 10px; align-items: flex-start; }
+      ul.findings li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 8px; background: var(--muted); }
+      ul.findings li[data-s="danger"]::before { background: var(--high); }
+      ul.findings li[data-s="caution"]::before { background: var(--med); }
+      ul.findings li[data-s="info"]::before { background: var(--low); }
+      .shots { display: grid; gap: 14px; grid-template-columns: 1fr; margin: 0 0 20px; }
+      .shots.two { grid-template-columns: 1fr 1fr; }
+      @media (max-width: 640px) { .shots.two { grid-template-columns: 1fr; } }
+      figure { margin: 0; }
+      figure img { display: block; width: 100%; border-radius: 12px; border: 1px solid var(--divider); }
+      figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+      details { margin: 0 0 20px; font-size: 13px; color: var(--ink-2); }
+      details ol { margin: 8px 0 0; padding-left: 20px; overflow-wrap: anywhere; }
+      summary { cursor: pointer; font-weight: 600; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; }
+      button {
+        flex: 1 1 160px; height: 44px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .primary { background: var(--accent); color: #fff; }
+      .primary:hover { background: #4456b3; }
+      .quiet { background: var(--surface-2); color: var(--ink-2); font-weight: 500; }
+      .quiet:hover { background: #e7e8eb; }
+      .loading { display: flex; gap: 12px; align-items: center; color: var(--ink-2); margin: 8px 0 20px; }
+      .spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--divider); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main id="main">
+      <p class="brand">DealDig safe preview</p>
+      <h1 id="headline">Opening this link safely…</h1>
+      <p class="domain">Link: <b id="link"></b></p>
+      <p class="privacy">
+        DealDig's server opened this link in a throwaway browser, twice: once as a security scanner and once as a normal visitor.
+        The site saw our server, not you: not your IP address, cookies or accounts.
+      </p>
+      <div class="loading" id="loading"><div class="spinner"></div><span>Visiting the page from our server. This takes a few seconds.</span></div>
+      <ul class="findings" id="findings"></ul>
+      <div class="shots" id="shots"></div>
+      <details id="chain" hidden>
+        <summary>Where the link went</summary>
+        <ol id="hops"></ol>
+      </details>
+      <div class="row">
+        <button class="primary" id="close">Close</button>
+        <button class="quiet" id="open" hidden>Open the real site anyway</button>
+      </div>
+    </main>
+    <script src="safeview.js"></script>
+  </body>
+</html>

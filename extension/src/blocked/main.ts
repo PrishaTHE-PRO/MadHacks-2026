@@ -33,6 +33,10 @@ document.getElementById("continue")!.addEventListener("click", () => {
   if (url && /^https?:\/\//i.test(url)) void send({ type: "ALLOW_SITE", domain, url });
 });
 
+document.getElementById("preview")!.addEventListener("click", () => {
+  if (url && /^https?:\/\//i.test(url)) location.href = chrome.runtime.getURL(`safeview.html?url=${encodeURIComponent(url)}`);
+});
+
 document.getElementById("dns")!.addEventListener("click", () => {
   void chrome.tabs.create({ url: "chrome://settings/security" });
 });
