@@ -1,7 +1,7 @@
 // Personal history and anonymous reporting identity (spec §7.1). Everything
 // here lives in chrome.storage.local, on this device only: it is never sent
 // to the server. History is sealed with AES-GCM (privacy/vault.ts), and the
-// "Don't keep DealDig history" setting stops it being saved at all. History entries expire after 90 days, and the user can
+// "Don't keep Second Look history" setting stops it being saved at all. History entries expire after 90 days, and the user can
 // forget one seller or clear it all. Clearing history never removes reports
 // already sent, so a scammer can't ask a victim to "reset" their record.
 

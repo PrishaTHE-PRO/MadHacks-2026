@@ -1,4 +1,4 @@
-// The DealDig bubble mark as an SVG string: the one source for the artwork.
+// The Second Look bubble mark as an SVG string: the one source for the artwork.
 // The React <Bubble> renders it, and the on-page badge and chat chips (plain
 // DOM, no React) insert it directly. All values are our own constants, so the
 // string is safe to insert as HTML.

@@ -1,6 +1,6 @@
 // Small floating badge on listing pages (docs/ui-redesign-task.md, Phase 4).
 // A white pill: bubble · verdict (level only), with a hover card showing the top
-// reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
+// reason. Clicking opens the Second Look sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
 import type { RiskReport } from "../../../shared/types";
@@ -58,14 +58,14 @@ export function renderBadge(
 
   if (s.state === "loading") {
     pill.append(mark(28, "none", "pl"), el("span", "dd-word sheen dd-sheen", "Checking…"));
-    pill.setAttribute("aria-label", "DealDig is checking this listing");
+    pill.setAttribute("aria-label", "Second Look is checking this listing");
   } else if (s.state === "sell") {
     pill.append(mark(28, "check", "ps"), el("span", "dd-word", "Check your photos before posting"));
-    pill.setAttribute("aria-label", "DealDig: check your photos before posting. Open DealDig");
+    pill.setAttribute("aria-label", "Second Look: check your photos before posting. Open Second Look");
   } else if (s.state === "held") {
     const photos = `${s.count} photo${s.count === 1 ? "" : "s"}`;
     pill.append(mark(28, "alert", "ph"), el("span", "dd-word medium", `Holding ${photos}`), el("span", "dd-sub", "Click to check"));
-    pill.setAttribute("aria-label", `DealDig is holding ${photos} before upload. Open DealDig to check them`);
+    pill.setAttribute("aria-label", `Second Look is holding ${photos} before upload. Open Second Look to check them`);
     // A sibling of the pill (buttons can't be nested).
     const skip = el("button", "dd-skip", "Skip");
     skip.type = "button";
@@ -76,14 +76,14 @@ export function renderBadge(
     return;
   } else if (s.state === "error") {
     pill.append(mark(28, "dash", "pe"), el("span", "dd-word", "Can't check this page"));
-    pill.setAttribute("aria-label", `DealDig: can't check this page. ${s.message}. Open DealDig`);
+    pill.setAttribute("aria-label", `Second Look: can't check this page. ${s.message}. Open Second Look`);
     pill.title = s.message;
   } else {
     // Levels only: the score picks the level but is never shown.
     const { level } = s.report;
     const label = riskLabel(s.report);
     pill.append(mark(28, level === "low" ? "check" : "alert", "pd"), el("span", `dd-word ${level}`, label));
-    pill.setAttribute("aria-label", `DealDig: ${label}. Open details`);
+    pill.setAttribute("aria-label", `Second Look: ${label}. Open details`);
 
     // Hover card: bubble + level, the top reason, "See details".
     const card = el("div", "dd-hover");

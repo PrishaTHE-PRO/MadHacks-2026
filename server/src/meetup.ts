@@ -20,7 +20,7 @@ const OVERPASS_URLS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 // Nominatim and Overpass ask clients to identify themselves. Keep it generic.
-const USER_AGENT = "DealDig/0.1 (hackathon prototype)";
+const USER_AGENT = "SecondLook/0.1 (hackathon prototype)";
 
 /** At or above this price, suggest a police station first. */
 export const HIGH_VALUE_PRICE = 250;

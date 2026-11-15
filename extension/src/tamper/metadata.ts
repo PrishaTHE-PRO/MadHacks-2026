@@ -344,7 +344,7 @@ export function checkFileBytes(b: Uint8Array): FileReport {
   if (kind === "pdf") return checkPdf(b);
   return {
     kind,
-    findings: [{ severity: "info", text: "DealDig can check JPEG, PNG and WebP images and PDFs. Try a screenshot or a PDF." }],
+    findings: [{ severity: "info", text: "Second Look can check JPEG, PNG and WebP images and PDFs. Try a screenshot or a PDF." }],
     details: [],
   };
 }

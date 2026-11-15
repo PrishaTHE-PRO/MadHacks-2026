@@ -1,4 +1,4 @@
-// The DealDig demo chat (extension/demo/chat.html, served by the server at
+// The Second Look demo chat (extension/demo/chat.html, served by the server at
 // /demo/chat). A backup for the live demo if a real site's DOM breaks.
 
 import type { ChatAdapter } from "./adapter";

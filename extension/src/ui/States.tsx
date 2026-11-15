@@ -69,7 +69,7 @@ export function CantConnectState({ onRetry }: { onRetry(): void }) {
   return (
     <div className="dd-state" role="alert">
       <Bubble size={56} icon="dash" />
-      <h2>Can't reach the DealDig server</h2>
+      <h2>Can't reach the Second Look server</h2>
       <p>Chat warnings still work. Start the server:</p>
       <code className="dd-code">npm run server</code>
       <button className="dd-btn primary" onClick={onRetry}>

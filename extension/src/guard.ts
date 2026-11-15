@@ -8,7 +8,7 @@
 //   2. Any other page opened from a marketplace tab is checked as it starts
 //      loading: on the device for look-alikes, then the server's /check-url
 //      (domain age, Safe Browsing, Cloudflare's security resolver). A bad
-//      verdict sends the tab to DealDig's warning page.
+//      verdict sends the tab to Second Look's warning page.
 // Everything else the user browses is never checked. "Continue anyway"
 // allows that site for the session. If the server is down, pages load as normal.
 
@@ -60,7 +60,7 @@ export async function guardChatFlags(ctx: ChatContext, flags: ChatFlag[]) {
     if (!msg || msg.fromMe) continue;
     for (const link of suspiciousLinks(msg.text, ctx.platform)) {
       const domain = domainOf(link);
-      if (domain) await blockDomain(domain, [f.reason]).catch((e) => console.warn("[DealDig guard] rule failed", e));
+      if (domain) await blockDomain(domain, [f.reason]).catch((e) => console.warn("[Second Look guard] rule failed", e));
     }
   }
 }
@@ -122,7 +122,7 @@ export function startLinkGuard() {
     if (["typed", "auto_bookmark", "generated", "keyword"].includes(d.transitionType)) void setGuarded(d.tabId, false);
   });
 
-  // A blocking rule fired: replace Chrome's plain error page with DealDig's warning.
+  // A blocking rule fired: replace Chrome's plain error page with Second Look's warning.
   chrome.webNavigation.onErrorOccurred.addListener((d) => {
     if (d.frameId !== 0 || !d.error.includes("ERR_BLOCKED_BY_CLIENT")) return;
     void (async () => {
@@ -137,7 +137,7 @@ export function startLinkGuard() {
 }
 
 /**
- * A tab DealDig itself opened for a link clicked on a marketplace (outbound
+ * A tab Second Look itself opened for a link clicked on a marketplace (outbound
  * link cleaning). Chrome doesn't report it as opened from that page, so mark
  * it guarded and check the destination here.
  */

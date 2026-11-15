@@ -1,7 +1,7 @@
 // Copied description check: is this listing's text in another listing?
 //
 // Two sources:
-//   1. DealDig's own index of descriptions from listings users have checked
+//   1. Second Look's own index of descriptions from listings users have checked
 //      (free, instant, grows with every check)
 //   2. a web search for the description's most distinctive sentences
 //      (Claude's web search tool), each hit confirmed by opening the page and
@@ -93,7 +93,7 @@ export function overlap(a: string, b: string, n = SHINGLE): { overlap: number; e
 
 export const longEnough = (description: string) => words(distinctiveText(description)).length >= MIN_WORDS;
 
-/** Matches from DealDig's own description index. Pure, tested. */
+/** Matches from Second Look's own description index. Pure, tested. */
 export function localTextMatches(listing: Listing, stored: StoredText[]): TextMatch[] {
   const mine = distinctiveText(listing.description);
   if (words(mine).length < MIN_WORDS) return [];

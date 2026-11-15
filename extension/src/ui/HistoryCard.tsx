@@ -44,12 +44,12 @@ export function HistoryCard({ history }: { history: HistoryEntry[] }) {
       <p className="dd-fine">On this device only, encrypted, for {HISTORY_DAYS} days. Clearing keeps reports you sent.</p>
       {needsIncognito && (
         <p className="dd-fine" role="status">
-          To view privately, turn on <strong>Allow in Incognito</strong> for DealDig.{" "}
+          To view privately, turn on <strong>Allow in Incognito</strong> for Second Look.{" "}
           <button
             className="dd-link dd-small"
             onClick={() => void chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` })}
           >
-            Open DealDig's settings
+            Open Second Look's settings
           </button>
         </p>
       )}

@@ -1,4 +1,4 @@
-// Private browsing (design doc "DealDig Private Browsing"): tracker rules,
+// Private browsing (design doc "Second Look Private Browsing"): tracker rules,
 // URL cleaning, what a listing check sends, Safe Browsing URL expressions,
 // the history vault, and the server's photo opt-in and text retention.
 import { test } from "node:test";
@@ -142,12 +142,12 @@ test("the listing goes out with its link cut to the canonical form, nothing else
   assert.equal(canonicalUrl("nope"), "nope");
 });
 
-test("the 'DealDig sent' summary counts photo copies sent for Claude", () => {
+test("the 'Second Look sent' summary counts photo copies sent for Claude", () => {
   const s = summarizeSent(listing, forAnalysis(listing), ["abcd"], { webPhotos: false }, 1, ["data:image/jpeg;base64,AA==", null]);
   assert.equal(s.photoCopies, 1);
 });
 
-test("the 'DealDig sent' summary is built from the request itself", () => {
+test("the 'Second Look sent' summary is built from the request itself", () => {
   const s = summarizeSent(listing, forAnalysis(listing), ["abcd", null], { webPhotos: false }, 1);
   assert.deepEqual(s, {
     at: 1,

@@ -81,7 +81,7 @@ export async function shieldSummary(tabId: number, s: PrivacySettings): Promise<
     cache.set(tabId, { at: Date.now(), summary });
     return summary;
   } catch (err) {
-    console.warn("[DealDig shield] getMatchedRules failed:", err);
+    console.warn("[Second Look shield] getMatchedRules failed:", err);
     return { ...(hit?.summary ?? { blocked: [], total: 0 }), ...base, stale: true };
   }
 }

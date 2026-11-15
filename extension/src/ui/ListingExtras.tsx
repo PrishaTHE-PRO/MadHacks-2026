@@ -1,6 +1,6 @@
 // Listing-tab cards from main's side panel, in the sidebar's style:
 // community flag (spec §7.2), earlier visits from on-device history (§7.1)
-// "Copies elsewhere" (stolen photos from DealDig's index and the web, plus the
+// "Copies elsewhere" (stolen photos from Second Look's index and the web, plus the
 // copied description, in one card) and the AI-photo notice.
 
 import {
@@ -108,7 +108,7 @@ const WEB_STATUS = {
 } as const;
 
 /**
- * Copies of this listing elsewhere: photos (DealDig's index + reverse image
+ * Copies of this listing elsewhere: photos (Second Look's index + reverse image
  * search on the web) and the description, each match linked as proof, plus
  * free Lens / TinEye links per photo.
  */

@@ -1,4 +1,4 @@
-// The DealDig sidebar (Chrome side panel). Renders the redesigned UI from the
+// The Second Look sidebar (Chrome side panel). Renders the redesigned UI from the
 // per-tab state the background worker keeps in chrome.storage:
 //   tab:<tabId>   listing check (loading / done / error)
 //   chat:<tabId>  chat warnings for the chat open in that tab
@@ -94,7 +94,7 @@ async function changeSetting(key: keyof PrivacySettings, on: boolean): Promise<b
     if (!granted) return false;
   }
   await saveSettings({ [key]: on });
-  // Off again: give the permission back, so DealDig holds no more access than it uses.
+  // Off again: give the permission back, so Second Look holds no more access than it uses.
   if (permission && !on) await chrome.permissions.remove({ permissions: [permission] }).catch(() => {});
   return true;
 }

@@ -1,5 +1,5 @@
 // UI preview page: chrome-extension://<extension id>/preview.html
-// Renders the DealDig sidebar with mock data in a sidebar-sized frame, so it
+// Renders the Second Look sidebar with mock data in a sidebar-sized frame, so it
 // can be checked without a marketplace or the server.
 
 import { useEffect, useState } from "react";
@@ -90,7 +90,7 @@ function viewFor(id: Exclude<StateId, "bubbles" | "onpage">): { view: PanelView;
     case "empty":
       return { view: { kind: "empty" } };
     case "offline":
-      return { view: { kind: "error", message: "Can't reach the DealDig server. Is it running?", offline: true }, site: PLATFORM_NAMES.ebay };
+      return { view: { kind: "error", message: "Can't reach the Second Look server. Is it running?", offline: true }, site: PLATFORM_NAMES.ebay };
     case "unreadable":
       return { view: { kind: "error", message: "Couldn't read this listing.", offline: false }, site: "Facebook" };
   }
@@ -160,7 +160,7 @@ function Preview() {
           </button>
         ))}
       </nav>
-      <p className="pv-title">DealDig sidebar preview · mock data, made-up sellers</p>
+      <p className="pv-title">Second Look sidebar preview · mock data, made-up sellers</p>
       {toast && (
         <div className="pv-toast" role="status">
           {toast}

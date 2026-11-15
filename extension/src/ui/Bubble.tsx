@@ -1,4 +1,4 @@
-// The DealDig bubble mark, used everywhere: logo, verdict, badge, chips, states.
+// The Second Look bubble mark, used everywhere: logo, verdict, badge, chips, states.
 // The bubble is never tinted by risk; only the glyph changes:
 //   low → "check", medium/high → "alert", error / can't check → "dash", logo → "none".
 // The artwork itself lives in bubbleSvg.ts (shared with the non-React badge and chips).

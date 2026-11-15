@@ -1,4 +1,4 @@
-// The DealDig sidebar: header, Listing · Chat tabs, body, footer. "Report seller"
+// The Second Look sidebar: header, Listing · Chat tabs, body, footer. "Report seller"
 // in the footer opens the report form as its own view (no tab of its own).
 // Pure UI: it renders a `PanelView` and reports clicks through callbacks, so
 // the preview page can drive it with mock data and the side panel with the
@@ -135,21 +135,21 @@ export function Panel(props: PanelProps) {
 
   return (
     // Keyed by tab/page in the side panel, so switching browser tabs crossfades.
-    <div className="dd-pop dd-fade-in" role="region" aria-label="DealDig">
+    <div className="dd-pop dd-fade-in" role="region" aria-label="Second Look">
       <header className="dd-head">
         <Bubble size={36} />
         <div className="dd-head-text">
-          <div className="dd-name">DealDig</div>
+          <div className="dd-name">Second Look</div>
           <div className="dd-site">{site ? `Checking ${site}` : "Scam checks for listings and chats"}</div>
         </div>
-        <button className="dd-close" aria-label="Close DealDig" onClick={onClose}>
+        <button className="dd-close" aria-label="Close Second Look" onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
       </header>
 
-      <div className="dd-tabs" role="tablist" aria-label="DealDig sections" onKeyDown={onTabKey}>
+      <div className="dd-tabs" role="tablist" aria-label="Second Look sections" onKeyDown={onTabKey}>
         {TABS.map((t) => {
           const motion = t.id === tab ? (switches ? "on" : "static") : t.id === prev ? "off" : "";
           return (

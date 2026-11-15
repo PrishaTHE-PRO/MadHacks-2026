@@ -1,6 +1,6 @@
 // "Who knows you looked": what the tracker shield stopped on this page, who
 // still sees the view (the marketplace itself, honestly), and exactly what
-// DealDig sent for its check. Pure UI, so the preview can render it with mocks.
+// Second Look sent for its check. Pure UI, so the preview can render it with mocks.
 
 import { useState } from "react";
 import { CATEGORY_LABEL, type SentSummary, type TrackerCategory } from "../../../shared/privacy";
@@ -124,13 +124,13 @@ function SentRow({ sent }: { sent?: SentSummary }) {
     <li>
       <span className="dd-who-mark info" aria-hidden="true">i</span>
       <div className="dd-who-text">
-        <span className="dd-who-title">DealDig sent: public listing details only</span>
+        <span className="dd-who-title">Second Look sent: public listing details only</span>
         <span className="dd-fine">
           {sent.fields.join(", ")}, and {photos}{copies}.
           {sent.linkTrimmed ? " Tracking tags and session codes were cut from the link." : ""}
         </span>
         <span className="dd-fine">
-          Not sent: your marketplace account, your cookies, or your DealDig reporter ID. The server doesn't record who checked which listing.
+          Not sent: your marketplace account, your cookies, or your Second Look reporter ID. The server doesn't record who checked which listing.
           Claude (Anthropic) reviews the listing for the risk level.
           {sent.webPhotos
             ? " Photos also went to Google and Sightengine to find copies and AI fakes (you turned this on)."

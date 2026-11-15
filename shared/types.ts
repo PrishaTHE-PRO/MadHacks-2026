@@ -6,7 +6,7 @@ export const PLATFORMS = ["poshmark", "ebay", "facebook"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 /**
- * Sites where DealDig can check chats. Separate from `PLATFORMS` (listing
+ * Sites where Second Look can check chats. Separate from `PLATFORMS` (listing
  * checks): a site can have chat support before it has a listing adapter.
  * "generic" is the paste box and any site without a chat adapter.
  */
@@ -135,7 +135,7 @@ export interface CheckCoverage {
   price: boolean;
 }
 
-/** Another listing that uses the same (or a mirrored) photo, from DealDig's shared index. */
+/** Another listing that uses the same (or a mirrored) photo, from Second Look's shared index. */
 export interface PhotoMatch {
   photoIndex: number; // which photo of this listing matched
   platform: Platform;
@@ -175,7 +175,7 @@ export interface WebPhotoMatch {
 
 /** Another listing or page with the same description text. */
 export interface TextMatch {
-  source: "dealdig" | "web"; // DealDig's index of checked listings, or a web search
+  source: "dealdig" | "web"; // Second Look's index of checked listings, or a web search
   url: string;
   title: string;
   site: string;
@@ -440,7 +440,7 @@ export interface ChatReport {
   platform: ChatPlatform;
   flags: ChatFlag[];
   aiUsed: boolean;
-  /** Prior DealDig reports about the other party, when the thread shows their id. */
+  /** Prior Second Look reports about the other party, when the thread shows their id. */
   communityReports?: number;
   checkedAt: string;
 }

@@ -1,4 +1,4 @@
-/* The DealDig sidebar. Lives in a shadow root together with tokens.css,
+/* The Second Look sidebar. Lives in a shadow root together with tokens.css,
    motion.css and backdrop.css. */
 
 .dd-root, .dd-root * { box-sizing: border-box; }

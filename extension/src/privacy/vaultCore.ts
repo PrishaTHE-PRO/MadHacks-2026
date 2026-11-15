@@ -1,4 +1,4 @@
-// AES-GCM sealing for data DealDig keeps on the device (check history).
+// AES-GCM sealing for data Second Look keeps on the device (check history).
 // Pure WebCrypto with the key passed in, so Node tests can run it.
 
 export interface Sealed {

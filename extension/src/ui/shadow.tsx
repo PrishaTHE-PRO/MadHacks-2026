@@ -1,4 +1,4 @@
-// Mount React UI inside a shadow root with the DealDig styles, so the host
+// Mount React UI inside a shadow root with the Second Look styles, so the host
 // page's CSS can't reach in (and ours can't leak out).
 
 import { createRoot, type Root } from "react-dom/client";

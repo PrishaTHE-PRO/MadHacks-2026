@@ -4,7 +4,7 @@
 //     tags removed and no Referer (a tab the extension opens has no referrer)
 //   - private peek: open a listing in an incognito window
 //   - clear tracker cookies when the last marketplace tab closes (optional `browsingData`)
-//   - wipe everything DealDig keeps
+//   - wipe everything Second Look keeps
 
 import { cookieClearOrigins, stripTrackingParams } from "../../../shared/privacy";
 import { guardOpenedTab } from "../guard";

@@ -6,7 +6,7 @@
 //     → CHAT_RESULT back → chips updated
 //
 // Each message id is sent to the server once; chips are re-attached if the
-// site re-renders a message. DealDig never types or sends anything.
+// site re-renders a message. Second Look never types or sends anything.
 
 import { prefilter } from "../../../shared/chatPatterns";
 import type { ChatContext, ChatFlag, ChatRole } from "../../../shared/types";

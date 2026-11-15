@@ -175,7 +175,7 @@ export function PhotoPrivacy({ tabId }: { tabId: number | null }) {
 
       {!held && (
         <p className="muted">
-          Pick photos in the listing's own photo button and DealDig holds them here first. Or drop photos below.{" "}
+          Pick photos in the listing's own photo button and Second Look holds them here first. Or drop photos below.{" "}
           <strong>Photos never leave this device.</strong>
         </p>
       )}
@@ -287,7 +287,7 @@ function PhotoCard({
         const faces = await detectFaces(bitmap);
         if (!cancelled) setRegions((r) => [...r, ...faces]);
       } catch (err) {
-        console.error("[DealDig] face detection failed", err);
+        console.error("[Second Look] face detection failed", err);
         setWarnings((w) => [...w, "Face detection didn't run. Draw boxes over any faces yourself."]);
       }
 
@@ -297,7 +297,7 @@ function PhotoCard({
         const text = await detectText(bitmap);
         if (!cancelled) setRegions((r) => [...r, ...text]);
       } catch (err) {
-        console.error("[DealDig] text detection failed", err);
+        console.error("[Second Look] text detection failed", err);
         setWarnings((w) => [...w, "Text detection didn't run. Draw boxes over any addresses yourself."]);
       }
       if (!cancelled) setStep("ready");

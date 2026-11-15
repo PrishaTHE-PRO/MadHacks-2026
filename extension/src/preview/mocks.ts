@@ -205,12 +205,12 @@ export const highReport: RiskReport = {
   level: "high",
   summary: "Don't send a deposit. See the room in person first.",
   topReasons: [
-    "Reported by 3 DealDig users.",
+    "Reported by 3 Second Look users.",
     "Priced 52% below the typical $780 (estimate). Classic bait pricing.",
     "Listing mentions paying or contacting outside Facebook Marketplace. That removes your buyer protection.",
   ],
   signals: [
-    sig("community-reports", "danger", "Reported by 3 DealDig users.", 30, "community"),
+    sig("community-reports", "danger", "Reported by 3 Second Look users.", 30, "community"),
     sig("price-bait", "danger", "Priced 52% below the typical $780 (estimate). Classic bait pricing.", 20),
     sig("off-platform", "danger", "Listing mentions paying or contacting outside Facebook Marketplace. That removes your buyer protection.", 15),
     sig("joined-this-year", "caution", "Seller joined Facebook this year (2026).", 10),

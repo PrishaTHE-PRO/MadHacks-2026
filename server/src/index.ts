@@ -282,5 +282,5 @@ purgeOldListingTexts();
 setInterval(purgeOldListingTexts, 24 * 60 * 60 * 1000).unref();
 
 app.listen(PORT, () => {
-  console.log(`DealDig server on http://localhost:${PORT} (Claude ${aiEnabled() ? "on" : "off: set ANTHROPIC_API_KEY"})`);
+  console.log(`Second Look server on http://localhost:${PORT} (Claude ${aiEnabled() ? "on" : "off: set ANTHROPIC_API_KEY"})`);
 });

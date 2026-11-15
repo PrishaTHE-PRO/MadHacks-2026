@@ -1,6 +1,6 @@
 // Meetup helper (spec §4.2, §4.3): suggest 3 safe public places between the
 // user and the item, pick a daylight time, and draft a reply the user can
-// copy into the chat. DealDig never sends messages on its own.
+// copy into the chat. Second Look never sends messages on its own.
 
 import { useEffect, useState } from "react";
 import { SERVER_URL } from "../config";
@@ -67,7 +67,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 const errorText = (err: unknown) =>
-  err instanceof TypeError ? "Can't reach the DealDig server. Is it running?" : err instanceof Error ? err.message : String(err);
+  err instanceof TypeError ? "Can't reach the Second Look server. Is it running?" : err instanceof Error ? err.message : String(err);
 
 export function MeetupHelper({ listing, report }: { listing: Listing; report: RiskReport }) {
   const [area, setArea] = useState("");
@@ -264,7 +264,7 @@ export function MeetupHelper({ listing, report }: { listing: Listing; report: Ri
                 <button onClick={copy}>Copy</button>
               </div>
               <p className="muted small">
-                {replyAi ? "AI draft." : "Template."} DealDig never sends it for you.
+                {replyAi ? "AI draft." : "Template."} Second Look never sends it for you.
               </p>
             </div>
           )}

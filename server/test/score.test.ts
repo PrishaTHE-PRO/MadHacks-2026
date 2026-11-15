@@ -118,7 +118,7 @@ test("reports add 10 per person up to 30; 3 people in 30 days flags the seller b
   const two = runRules(listing(), { community: community(2, 1), now: NOW });
   const sig = two.signals.find((s) => s.id === "community-reports")!;
   assert.equal(sig.points, 20);
-  assert.equal(sig.text, "Reported by 2 people on DealDig: asked for a deposit before viewing (1), asked to pay off-platform (1).");
+  assert.equal(sig.text, "Reported by 2 people on Second Look: asked for a deposit before viewing (1), asked to pay off-platform (1).");
   assert.ok(!ids(two).includes("community-flag"));
 
   const many = runRules(listing(), { community: community(6, 3), now: NOW });

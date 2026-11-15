@@ -126,7 +126,7 @@ export function savePhotoHashes(
   });
 }
 
-/** The seller of a listing DealDig has already checked, found by its URL. */
+/** The seller of a listing Second Look has already checked, found by its URL. */
 export function knownListingByUrl(url: string): { platform: string; sellerId: string; sellerUsername: string } | null {
   const clean = url.split(/[?#]/)[0].replace(/\/$/, "");
   const row = db

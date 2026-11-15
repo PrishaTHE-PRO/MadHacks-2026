@@ -81,7 +81,7 @@ function ReportSeller({ listing, onCancel }: { listing: Listing; onCancel(): voi
       {community.flagged ? " Buyers now see a warning." : ""}
     </p>
   );
-  const errorLine = status === "error" && <p className="dd-note dd-err">Can't reach the DealDig server.</p>;
+  const errorLine = status === "error" && <p className="dd-note dd-err">Can't reach the Second Look server.</p>;
 
   if (mine && !editing)
     return (

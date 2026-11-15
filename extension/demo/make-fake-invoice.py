@@ -1,5 +1,5 @@
-# Fictional fishy invoice for the DealDig demo chat (sublet scam).
-# Its EXIF says it was saved by Photoshop: the tell DealDig's edit check finds.
+# Fictional fishy invoice for the Second Look demo chat (sublet scam).
+# Its EXIF says it was saved by Photoshop: the tell Second Look's edit check finds.
 import sys
 from PIL import Image, ImageDraw, ImageFont
 out = sys.argv[1]

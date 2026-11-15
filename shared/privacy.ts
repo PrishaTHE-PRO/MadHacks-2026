@@ -1,4 +1,4 @@
-// Private browsing (design doc "DealDig Private Browsing"): the tracker list,
+// Private browsing (design doc "Second Look Private Browsing"): the tracker list,
 // the declarativeNetRequest rules built from it, URL cleaning, and what the
 // extension sends the server for a listing check. Pure, with no chrome.* calls,
 // so build.mjs can generate the rule files from it and Node tests can import it.
@@ -246,7 +246,7 @@ export function forAnalysis(listing: Listing): Listing {
   return { ...listing, url: canonicalUrl(listing.url) };
 }
 
-/** Shown in the side panel's "DealDig sent" row, built from the exact request body. */
+/** Shown in the side panel's "Second Look sent" row, built from the exact request body. */
 export interface SentSummary {
   at: number;
   /** Listing fields that had a value, in plain words. */

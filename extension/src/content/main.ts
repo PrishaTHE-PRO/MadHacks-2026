@@ -127,7 +127,7 @@ async function check(url: string) {
   try {
     listing = await reader.read(url);
   } catch (err) {
-    console.warn("[DealDig] could not read listing", err);
+    console.warn("[Second Look] could not read listing", err);
   }
   if (url !== location.href) return; // user moved on while we were reading
   if (!listing) {

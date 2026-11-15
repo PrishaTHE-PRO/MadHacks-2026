@@ -29,10 +29,10 @@ const GROUPS: { title: string; rows: Row[] }[] = [
     ],
   },
   {
-    title: "DealDig itself",
+    title: "Second Look itself",
     rows: [
       { key: "webPhotos", name: "Check photos with outside services", about: "Sends listing photos to Google and Sightengine to find copies on the web and AI fakes." },
-      { key: "noHistory", name: "Don't keep DealDig history", about: "Checks aren't saved on this device. Earlier visits won't be shown." },
+      { key: "noHistory", name: "Don't keep Second Look history", about: "Checks aren't saved on this device. Earlier visits won't be shown." },
     ],
   },
 ];
@@ -85,7 +85,7 @@ export function PrivacySettingsCard({ settings, onChange, onWipe }: PrivacySetti
       <div>
         <p className="dd-settings-group">Wipe</p>
         {wiped ? (
-          <p className="dd-fine" style={{ marginTop: 8 }}>Done. DealDig's history, reports list and saved results are gone from this device.</p>
+          <p className="dd-fine" style={{ marginTop: 8 }}>Done. Second Look's history, reports list and saved results are gone from this device.</p>
         ) : confirmWipe ? (
           <div className="dd-btn-row" style={{ marginTop: 8 }}>
             <button
@@ -101,7 +101,7 @@ export function PrivacySettingsCard({ settings, onChange, onWipe }: PrivacySetti
         ) : (
           <>
             <p className="dd-fine" style={{ marginTop: 8 }}>
-              Deletes your DealDig history, the sellers you reported, your anonymous reporter ID and saved results. Reports already sent stay sent.
+              Deletes your Second Look history, the sellers you reported, your anonymous reporter ID and saved results. Reports already sent stay sent.
             </p>
             <button className="dd-link dd-small dd-danger-btn" style={{ marginTop: 6 }} onClick={() => setConfirmWipe(true)}>
               Wipe everything

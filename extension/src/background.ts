@@ -1,5 +1,5 @@
 // Background service worker: the only part of the extension that talks to the
-// DealDig server. Results are kept in chrome.storage.session (per tab) so the
+// Second Look server. Results are kept in chrome.storage.session (per tab) so the
 // side panel can render them and survives the worker being shut down.
 
 import { SERVER_URL } from "./config";
@@ -35,12 +35,12 @@ startHistoryScrub();
 chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" }).catch(() => {});
 
 // Tracker shield and link cleaning follow the privacy settings.
-void loadSettings().then(applyShield).catch((e) => console.warn("[DealDig] shield not applied", e));
+void loadSettings().then(applyShield).catch((e) => console.warn("[Second Look] shield not applied", e));
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !(SETTINGS_KEY in changes)) return;
   const before = withDefaults(changes[SETTINGS_KEY].oldValue as Partial<PrivacySettings> | undefined);
   const after = withDefaults(changes[SETTINGS_KEY].newValue as Partial<PrivacySettings> | undefined);
-  void applyShield(after).catch((e) => console.warn("[DealDig] shield not applied", e));
+  void applyShield(after).catch((e) => console.warn("[Second Look] shield not applied", e));
   // Cached reports were made with the other photo setting: check again next time.
   if (before.webPhotos !== after.webPhotos) void clearCachedReports();
 });
@@ -51,12 +51,12 @@ async function clearCachedReports() {
 }
 
 // Right-click any link: "Preview link safely". The server opens it in a
-// throwaway browser and the result shows in DealDig's preview page; the link
+// throwaway browser and the result shows in Second Look's preview page; the link
 // itself is never loaded in the user's browser.
 const SAFE_PREVIEW_MENU = "dealdig-safe-preview";
 // Re-created on every worker start (onInstalled alone can miss it after a reload).
 chrome.contextMenus.removeAll(() => {
-  chrome.contextMenus.create({ id: SAFE_PREVIEW_MENU, title: "Preview link safely with DealDig", contexts: ["link"] }, () => void chrome.runtime.lastError);
+  chrome.contextMenus.create({ id: SAFE_PREVIEW_MENU, title: "Preview link safely with Second Look", contexts: ["link"] }, () => void chrome.runtime.lastError);
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== SAFE_PREVIEW_MENU || !info.linkUrl || !/^https?:\/\//i.test(info.linkUrl)) return;
@@ -188,7 +188,7 @@ async function runListing(tabId: number, listing: Listing, incognito = false): P
     );
     await writes;
     // Personal history stays on this device (chrome.storage.local), and never for private windows.
-    if (!incognito) await saveCheckToHistory(listing, report).catch((e) => console.warn("[DealDig] history not saved", e));
+    if (!incognito) await saveCheckToHistory(listing, report).catch((e) => console.warn("[Second Look] history not saved", e));
     await setTab(tabId, { status: "done", listing, report });
     return { ok: true, report };
   } catch (err) {
@@ -196,7 +196,7 @@ async function runListing(tabId: number, listing: Listing, incognito = false): P
     await writes;
     const offline = err instanceof TypeError;
     const error = offline
-      ? "Can't reach the DealDig server. Is it running?"
+      ? "Can't reach the Second Look server. Is it running?"
       : err instanceof Error
         ? err.message
         : String(err);
@@ -249,7 +249,7 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
   }
 
   if (msg.type === "OPEN_CLEAN" && tabId !== undefined) {
-    void openClean(tabId, msg.url, msg.how).catch((e) => console.warn("[DealDig] couldn't open link", e));
+    void openClean(tabId, msg.url, msg.how).catch((e) => console.warn("[Second Look] couldn't open link", e));
     return false;
   }
 
@@ -281,7 +281,7 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
 chrome.tabs.onRemoved.addListener((tabId) => {
   void chrome.storage.session.remove([tabKey(tabId), chatKey(tabId), sentKey(tabId)]);
   forgetTab(tabId);
-  void maybeClearTrackerCookies().catch((e) => console.warn("[DealDig] tracker cookies not cleared", e));
+  void maybeClearTrackerCookies().catch((e) => console.warn("[Second Look] tracker cookies not cleared", e));
 });
 
 // Count blocked trackers per page, not per tab lifetime.
@@ -415,7 +415,7 @@ async function callChatServer(tabId: number, ctx: ChatContext) {
       state.aiUsed = report.aiUsed;
     });
   } catch (err) {
-    console.warn("[DealDig] chat check failed, keeping regex flags:", err);
+    console.warn("[Second Look] chat check failed, keeping regex flags:", err);
     await updateChat(tabId, ctx, (state) => {
       state.status = "offline";
     });

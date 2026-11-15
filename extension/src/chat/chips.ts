@@ -64,7 +64,7 @@ export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipAc
     if (!expanded.has(key)) {
       const chip = el("div", `dd-surface dd-compact ${sev}`);
       chip.setAttribute("role", "note");
-      chip.setAttribute("aria-label", `DealDig warning: ${p.name}. ${flag.reason}`);
+      chip.setAttribute("aria-label", `Second Look warning: ${p.name}. ${flag.reason}`);
       const text = el("span", "dd-text");
       text.title = flag.reason;
       // Just the pattern name: a reason cut off mid-word reads worse than none. Why? has it.

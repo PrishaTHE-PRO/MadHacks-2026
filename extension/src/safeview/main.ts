@@ -44,7 +44,7 @@ function render(r: DetonationReport) {
   $("main").dataset.verdict = r.verdict;
   $("headline").textContent = HEADLINES[r.verdict];
   $("link").textContent = r.domain || url;
-  document.title = `${HEADLINES[r.verdict]} · DealDig`;
+  document.title = `${HEADLINES[r.verdict]} · Second Look`;
   setFindings(r.findings);
 
   const shots = $("shots");
@@ -71,7 +71,7 @@ function render(r: DetonationReport) {
   const open = $("open") as HTMLButtonElement;
   open.hidden = false;
   open.onclick = () => {
-    if (r.verdict === "danger" && !confirm(`DealDig found signs this is a scam. Open ${r.domain} anyway?`)) return;
+    if (r.verdict === "danger" && !confirm(`Second Look found signs this is a scam. Open ${r.domain} anyway?`)) return;
     void chrome.runtime.sendMessage({ type: "ALLOW_SITE", domain: r.domain, url: r.finalUrl } satisfies ExtensionMessage).catch(() => {});
   };
 }
@@ -98,7 +98,7 @@ async function run() {
     $("headline").textContent = "Couldn't preview this link";
     const msg = err instanceof Error ? err.message : String(err);
     setFindings([
-      { severity: "caution", text: /fetch|network|timed? ?out|abort/i.test(msg) ? "The DealDig server didn't answer. Is it running?" : msg },
+      { severity: "caution", text: /fetch|network|timed? ?out|abort/i.test(msg) ? "The Second Look server didn't answer. Is it running?" : msg },
       { severity: "caution", text: "Until it's checked, treat a link from a marketplace chat as unsafe." },
     ]);
   } finally {

@@ -7,7 +7,7 @@
 //
 // We find the other page's account three ways, cheapest first:
 //   1. the URL itself (poshmark.com/closet/<user>, depop.com/products/<user>-...)
-//   2. DealDig's own index (a listing someone already checked)
+//   2. Second Look's own index (a listing someone already checked)
 //   3. fetching the page and reading the seller link (Poshmark, eBay, Etsy, Mercari)
 // When none works the owner is "unknown", and the rules count it for less.
 
@@ -175,7 +175,7 @@ export function isSameListing(listing: Listing, url: string): boolean {
   return false;
 }
 
-/** A known account for a URL from DealDig's own index, if any listing there has it. */
+/** A known account for a URL from Second Look's own index, if any listing there has it. */
 export type IndexLookup = (url: string) => PageAccount | null;
 
 export interface OwnerResult {

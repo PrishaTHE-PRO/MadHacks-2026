@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DealDig demo chat</title>
+    <title>Second Look demo chat</title>
     <!--
-      DealDig demo chat (spec §9 step 3). A static, fictional chat for the live
-      demo and as a backup if a real site's DOM breaks. Served by the DealDig
+      Second Look demo chat (spec §9 step 3). A static, fictional chat for the live
+      demo and as a backup if a real site's DOM breaks. Served by the Second Look
       server at http://localhost:8787/demo/chat, where the extension's demo
       adapter (extension/src/chat/demo.ts) reads it.
 
@@ -65,7 +65,7 @@
     </style>
   </head>
   <body>
-    <div class="banner">DealDig demo chat · fictional people and listing, for demonstration only</div>
+    <div class="banner">Second Look demo chat · fictional people and listing, for demonstration only</div>
     <div class="app">
       <header class="card">
         <div class="avatar" aria-hidden="true">J</div>
@@ -106,7 +106,7 @@
           <button id="send-them" class="ghost">Send as Jordan</button>
           <button id="send-invoice" class="ghost">Send invoice as Jordan</button>
         </div>
-        <p class="hint">“Next message” plays the scripted scam one step at a time. DealDig flags each message as it appears.</p>
+        <p class="hint">“Next message” plays the scripted scam one step at a time. Second Look flags each message as it appears.</p>
       </section>
     </div>
 
@@ -169,7 +169,7 @@
         nextBtn.disabled = false;
       });
       const compose = document.getElementById("compose");
-      // A made-up fishy invoice: DealDig checks images on the device and flags this one as edited.
+      // A made-up fishy invoice: Second Look checks images on the device and flags this one as edited.
       document.getElementById("send-invoice").addEventListener("click", () => {
         add("them", "Here's the official invoice from the housing office. Pay it tonight so I can hold the room for you.", "/demo/fake-invoice.jpg");
       });

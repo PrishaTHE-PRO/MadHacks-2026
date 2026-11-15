@@ -19,7 +19,7 @@ export type ExtensionMessage =
   | { type: "PRIVACY_SUMMARY"; tabId: number }
   // Side panel → background: open a listing in an incognito window (→ PeekResult).
   | { type: "OPEN_PRIVATELY"; url: string }
-  // Side panel → background: delete everything DealDig keeps on this device.
+  // Side panel → background: delete everything Second Look keeps on this device.
   | { type: "WIPE_EVERYTHING" };
 
 export type AnalyzeResponse = { ok: true; report: RiskReport } | { ok: false; error: string };

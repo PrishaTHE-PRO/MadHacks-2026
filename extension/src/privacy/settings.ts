@@ -15,7 +15,7 @@ export interface PrivacySettings {
   scrubHistory: boolean;
   /** Send listing photos to Google to find copies on the web (Phase 1, opt-in). */
   webPhotos: boolean;
-  /** Don't keep DealDig's own check history (Phase 1). */
+  /** Don't keep Second Look's own check history (Phase 1). */
   noHistory: boolean;
   /** Clear tracker cookies when the last marketplace tab closes (Phase 3, needs `browsingData`). */
   clearTrackerCookies: boolean;

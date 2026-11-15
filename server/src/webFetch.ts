@@ -8,7 +8,7 @@
 
 const TIMEOUT_MS = 6000;
 const MAX_REDIRECTS = 3;
-const USER_AGENT = "Mozilla/5.0 (compatible; DealDig/1.0; +listing-safety-check)";
+const USER_AGENT = "Mozilla/5.0 (compatible; SecondLook/1.0; +listing-safety-check)";
 
 /** True for hosts we must never fetch: localhost, bare names, private and link-local IPs. */
 export function isBlockedHost(hostname: string): boolean {

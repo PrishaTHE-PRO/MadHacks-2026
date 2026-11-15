@@ -160,7 +160,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     photos.length > 0 && new Set(photos.map((p) => p.index)).size === listing.photos.length && !photos.some((p) => p.shows_listed_item);
   if (noRealPhoto) add("no-real-photo", "caution", "None of the photos show the actual item. Ask for a real photo before paying.", POINTS.noRealPhoto, "ai");
   const notAnItem = ai?.listingType && ["event_or_promo", "service", "job", "wanted_post"].includes(ai.listingType);
-  if (notAnItem) add("not-an-item", "info", "This looks like an ad, service or other non-item post. DealDig's checks are built for item listings.", 0, "ai");
+  if (notAnItem) add("not-an-item", "info", "This looks like an ad, service or other non-item post. Second Look's checks are built for item listings.", 0, "ai");
 
   // --- Community reports (one per person, last 12 months) ---
   const community = input.community;
@@ -169,7 +169,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     add(
       "community-reports",
       "danger",
-      `Reported by ${n} ${n > 1 ? "people" : "person"} on DealDig: ${reportSummary(community)}.`,
+      `Reported by ${n} ${n > 1 ? "people" : "person"} on Second Look: ${reportSummary(community)}.`,
       Math.min(POINTS.reportsMax, n * POINTS.reportEach),
       "community",
     );
@@ -322,7 +322,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     });
   }
 
-  // --- Photos reused from other sellers' listings (DealDig's index) ---
+  // --- Photos reused from other sellers' listings (Second Look's index) ---
   const photoStart = signals.length;
   const photoMatches = input.photoMatches ?? [];
   const indexLinks: EvidenceLink[] = photoMatches.slice(0, 3).map((m) => ({
@@ -392,7 +392,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     add(
       "web-photo-unknown",
       "caution",
-      `${photoLabel([m])} also appears in ${where_(m)}${unknown.length > 1 ? ` and ${unknown.length - 1} more` : ""}. DealDig couldn't read who posted it: open it and check whether it's the same seller.`,
+      `${photoLabel([m])} also appears in ${where_(m)}${unknown.length > 1 ? ` and ${unknown.length - 1} more` : ""}. Second Look couldn't read who posted it: open it and check whether it's the same seller.`,
       POINTS.webPhotoUnknownListing,
       "rules",
       webLinks(unknown),
@@ -456,7 +456,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     add(
       "text-copied-unknown",
       "caution",
-      `The same description is in ${where_(t)}: "${t.excerpt}". DealDig couldn't read who posted it: check whether it's the same seller.`,
+      `The same description is in ${where_(t)}: "${t.excerpt}". Second Look couldn't read who posted it: check whether it's the same seller.`,
       POINTS.textCopiedUnknown,
       "rules",
       textLinks(textUnknown),

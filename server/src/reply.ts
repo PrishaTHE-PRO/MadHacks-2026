@@ -1,6 +1,6 @@
 // Drafted replies for the meetup helper (implementation spec §4.3).
 // Claude writes the reply when a key is set; otherwise a template does.
-// Either way the user edits and sends it: DealDig never sends messages.
+// Either way the user edits and sends it: Second Look never sends messages.
 
 import type { DraftReplyInput, DraftReplyResponse } from "../../shared/types";
 import { aiEnabled, draftReply as draftWithClaude } from "./claude";

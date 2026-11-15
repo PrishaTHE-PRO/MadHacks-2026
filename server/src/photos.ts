@@ -2,7 +2,7 @@
 //
 // The extension fingerprints each listing photo (a 64-bit dHash, see
 // shared/photohash.ts) and sends only the hashes. Here we compare them against
-// every other listing DealDig users have checked, then store this listing's
+// every other listing Second Look users have checked, then store this listing's
 // hashes so later checks can match against it. The index gets stronger with
 // every user, like community reports.
 

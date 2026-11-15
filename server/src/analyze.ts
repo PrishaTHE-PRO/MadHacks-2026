@@ -101,7 +101,7 @@ export async function analyzeListing(
     );
   }
 
-  // Copied description, from DealDig's own index (free), then add this one to it.
+  // Copied description, from Second Look's own index (free), then add this one to it.
   let textMatches: TextMatch[] = localTextMatches(listing, otherListingTexts(listing.platform, listing.id));
   saveListingText({ ...listing, sellerId, sellerUsername: listing.seller.username, text: listing.description });
 

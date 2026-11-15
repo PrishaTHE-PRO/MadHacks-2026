@@ -15,7 +15,7 @@ try {
 
 document.getElementById("domain")!.textContent = domain || "this site";
 const list = document.getElementById("reasons")!;
-for (const r of reasons.length ? reasons : ["It matched DealDig's phishing checks."]) {
+for (const r of reasons.length ? reasons : ["It matched Second Look's phishing checks."]) {
   const li = document.createElement("li");
   li.textContent = r; // textContent, never innerHTML: reasons name scammer-chosen domains
   list.append(li);

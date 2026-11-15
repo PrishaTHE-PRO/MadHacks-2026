@@ -1,6 +1,6 @@
 // The history key lives in the extension's IndexedDB as a non-extractable
 // CryptoKey: the browser can use it, but nothing (including us) can read the
-// raw key bytes out. This stops someone reading DealDig's history from the
+// raw key bytes out. This stops someone reading Second Look's history from the
 // profile folder on disk. It does not stop malware running as the user.
 
 import { newKey } from "./vaultCore";

@@ -1,6 +1,6 @@
-# DealDig
+# Second Look
 
-DealDig is a Chrome extension that helps you buy and sell safely on Poshmark, eBay and Facebook Marketplace. It catches scams before you send money and keeps your personal info from leaking. We built it for MadHacks 2026.
+Second Look is a Chrome extension that helps you buy and sell safely on Poshmark, eBay and Facebook Marketplace. It catches scams before you send money and keeps your personal info from leaking. We built it for MadHacks 2026.
 
 <table>
   <tr>
@@ -35,7 +35,7 @@ The extension reads the page you're on and sends only public listing info to our
 
 ```mermaid
 flowchart LR
-  E[Chrome extension] --> S[DealDig server]
+  E[Chrome extension] --> S[Second Look server]
   S --> C[Claude]
   S --> L[Link checks]
   S --> B[Safe link preview]

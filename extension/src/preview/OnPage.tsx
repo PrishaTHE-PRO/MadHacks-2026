@@ -59,7 +59,7 @@ export function OnPagePreview() {
             <span className="pv-cap">Checking</span>
           </div>
           <div className="pv-badge-slot">
-            <Badge state={{ state: "error", message: "Can't reach the DealDig server. Is it running?" }} />
+            <Badge state={{ state: "error", message: "Can't reach the Second Look server. Is it running?" }} />
             <span className="pv-cap">Can't check</span>
           </div>
         </div>

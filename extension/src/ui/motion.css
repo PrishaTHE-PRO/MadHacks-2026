@@ -1,4 +1,4 @@
-/* DealDig motion: short, quiet transitions that show something changed.
+/* Second Look motion: short, quiet transitions that show something changed.
    Everything stops under prefers-reduced-motion. */
 
 @keyframes dd-sheen   { from { background-position: -200px 0 } to { background-position: 200px 0 } }

@@ -1,4 +1,4 @@
-// "Check a pasted message": for chats DealDig can't read (Craigslist, Instagram,
+// "Check a pasted message": for chats Second Look can't read (Craigslist, Instagram,
 // texts, email). Regex warnings show instantly; the server's answer (regex +
 // Claude) replaces them when it arrives. If the server is down, they stay.
 

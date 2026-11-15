@@ -20,7 +20,7 @@ import { safeBrowsingByPrefix } from "./safeBrowsing";
 const RDAP_URL = "https://rdap.org/domain/";
 const SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
 const FILTERING_RESOLVER = "https://security.cloudflare-dns.com/dns-query";
-const USER_AGENT = "DealDig/0.1 (hackathon prototype)";
+const USER_AGENT = "SecondLook/0.1 (hackathon prototype)";
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Younger than this is "brand new" (danger). */
@@ -189,7 +189,7 @@ export async function resolverBlocks(domain: string, fetchImpl: typeof fetch = f
 export interface DestinationVerdict {
   url: string;
   domain: string;
-  /** "block": show DealDig's warning page before it loads. */
+  /** "block": show Second Look's warning page before it loads. */
   verdict: "block" | "ok";
   /** One line each, naming the domain. Only red-level reasons block. */
   reasons: string[];
