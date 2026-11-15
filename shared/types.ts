@@ -234,13 +234,13 @@ export type ListingProgress =
 // ---------------------------------------------------------------------------
 
 export const REPORT_CATEGORIES = {
-  "off-platform-payment": "Asked to pay outside the platform (Zelle, gift cards, wire...)",
-  "deposit-before-viewing": "Asked for a deposit before I could see it",
-  "fake-item": "Fake, counterfeit or not as described",
-  "no-show": "Took payment and never delivered or showed up",
+  "off-platform-payment": "Wanted payment off the platform (Zelle, gift cards…)",
+  "deposit-before-viewing": "Wanted a deposit before I saw it",
+  "fake-item": "Fake or not as described",
+  "no-show": "Took money, never delivered",
   "stolen-photos": "Used someone else's photos",
-  "fake-documents": "Sent fake receipts, IDs or documents",
-  "overpayment": "Overpaid and asked for money back",
+  "fake-documents": "Sent fake receipts or IDs",
+  "overpayment": "Overpaid, then wanted money back",
   "other": "Something else",
 } as const;
 export type ReportCategory = keyof typeof REPORT_CATEGORIES;

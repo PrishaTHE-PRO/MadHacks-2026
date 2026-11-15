@@ -1,5 +1,5 @@
 // Inline warning chips under chat messages (docs/ui-redesign-task.md, Phase 5).
-// Compact pill: bubble · "Pattern · reason" · Why?
+// Compact pill: bubble · pattern name · Why? (the reason is in the tooltip and the card).
 // Why? expands it: bubble · title · reason · why this matters · Hide details · Report · Not a scam.
 //
 // Each message gets one closed shadow-DOM host (so the site's CSS can't break
@@ -67,7 +67,8 @@ export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipAc
       chip.setAttribute("aria-label", `DealDig warning: ${p.name}. ${flag.reason}`);
       const text = el("span", "dd-text");
       text.title = flag.reason;
-      text.append(el("span", "dd-pattern", p.name), ` · ${flag.reason}`);
+      // Just the pattern name: a reason cut off mid-word reads worse than none. Why? has it.
+      text.append(el("span", "dd-pattern", p.name));
       const why = button("dd-why", "Why?", () => {
         expanded.add(key);
         rerender();
@@ -97,7 +98,7 @@ export function renderChips(root: ShadowRoot, flags: ChatFlag[], actions: ChipAc
     links.append(
       hide,
       button("", "Report", () => actions.report(flag)),
-      button("", "Not a scam", () => actions.dismiss(flag)),
+      button("dd-quiet", "Not a scam", () => actions.dismiss(flag)),
     );
     card.append(top, el("div", "dd-ex-divider"), matters, links);
     list.append(card);

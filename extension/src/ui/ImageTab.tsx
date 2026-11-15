@@ -21,12 +21,12 @@ const DOC_TYPES: { id: DocType; label: string }[] = [
 
 /** How to check each kind of document at its source. */
 const VERIFY: Record<DocType, string[]> = {
-  receipt: ["Call the store using a number you find yourself and confirm the order number.", "Ask for a photo of the item next to today's date."],
-  tracking: ["Type the tracking number into the carrier's own site, not a link they sent.", "Check it's going to your city."],
-  payment: ["Open your own bank or payment app and check the money is there.", "Never send back an \"overpayment\"."],
-  id: ["An ID doesn't make a deal safe. Never send yours back.", "For a vehicle, match the VIN to the car and run NICB's free VINCheck."],
-  lease: ["Look up the owner on the county property records.", "Don't pay a deposit before seeing the place."],
-  other: ["Check it with whoever issued it, using contact details you find yourself."],
+  receipt: ["Call the store yourself to confirm the order.", "Ask for a photo with today's date."],
+  tracking: ["Enter the number on the carrier's own site.", "Check it's going to your city."],
+  payment: ["Check your own bank app.", "Never refund an \"overpayment\"."],
+  id: ["An ID doesn't prove a deal is safe. Never send yours.", "Vehicle: run the VIN on NICB VINCheck."],
+  lease: ["Check the owner in county property records.", "No deposit before seeing it."],
+  other: ["Confirm it with whoever issued it, using a number you found yourself."],
 };
 
 interface Checked {
@@ -128,7 +128,7 @@ export function ImageTab() {
         }}
       />
       {!checked && !busy && (
-        <p className="dd-fine dd-center">Screenshots, receipts, IDs or PDFs from the seller. Checked on this device, never uploaded.</p>
+        <p className="dd-fine dd-center">Receipts, IDs or screenshots from the seller. Never uploaded.</p>
       )}
 
       {busy && <p className="dd-note dd-center">Checking…</p>}
@@ -153,7 +153,7 @@ export function ImageTab() {
                   </button>
                 </div>
               )}
-              {showHeat && <p className="dd-fine">Bright patches that stand out from similar areas may have been pasted in.</p>}
+              {showHeat && <p className="dd-fine">Bright patches may be pasted in.</p>}
             </>
           )}
 
@@ -212,7 +212,7 @@ export function ImageTab() {
               ))}
             </ul>
           )}
-          <p className="dd-fine">A clean file can still be fake. Check it at the source.</p>
+          <p className="dd-fine">Clean files can still be fake.</p>
         </section>
       )}
     </div>

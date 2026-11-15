@@ -29,7 +29,7 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
 
   const pasteButton = (
     <button className="dd-dashed" onClick={() => setPasting(true)}>
-      Check a pasted message <span className="dd-muted">· Craigslist, IG, texts</span>
+      Paste a chat to check
     </button>
   );
 
@@ -41,7 +41,7 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
         <div className="dd-state dd-state-compact">
           <Bubble size={56} />
           <h2>No chat open</h2>
-          <p>Open a marketplace chat and DealDig flags scam patterns under each message as they appear.</p>
+          <p>Open a marketplace chat to scan it.</p>
         </div>
         {pasteButton}
       </>
@@ -65,9 +65,9 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
           <div className="dd-summary">
             {count
               ? danger
-                ? "Don't send money, codes or personal info until you've read these."
-                : "Take it slow and keep the chat on the platform."
-              : "Nothing suspicious so far. DealDig keeps watching as messages arrive."}
+                ? "Don't send money, codes or personal info."
+                : "Keep the chat on the platform."
+              : "Still watching."}
           </div>
         </div>
       </section>
@@ -85,7 +85,7 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
           </div>
           <div className={`dd-watching ${chat.watching ? "on" : ""}`} role="status">
             <span className={`dd-watch-dot ${chat.watching ? "dd-live" : ""}`} aria-hidden="true" />
-            {chat.watching ? "Watching this chat" : "Paused · open the chat to keep watching"}
+            {chat.watching ? "Watching" : "Paused"}
           </div>
         </div>
         <RoleToggle role={role} onChange={onRole} />
@@ -94,9 +94,9 @@ export function ChatTab({ chat, role, dismissed, onRole, onShowDismissed }: Chat
       <WarningList flags={flags} quotes={chat.quotes} />
       {hidden > 0 && (
         <p className="dd-note dd-center">
-          {hidden} marked “Not a scam”.{" "}
+          {hidden} hidden ·{" "}
           <button className="dd-link" onClick={onShowDismissed}>
-            Show again
+            Show
           </button>
         </p>
       )}
