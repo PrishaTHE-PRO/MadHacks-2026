@@ -32,6 +32,7 @@ const report = (score: number): RiskReport => ({
   signals: [],
   communityReports: 0,
   aiUsed: false,
+  coverage: { seller: true, photos: { checked: 0, total: 1 }, ai: false, price: false },
   checkedAt: "",
 });
 

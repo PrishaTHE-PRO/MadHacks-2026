@@ -288,12 +288,12 @@ test("combineAiImage merges Claude, the detector and AI-art matches", () => {
   assert.equal(fromWeb?.links[0].url, "https://civitai.com/images/1");
 });
 
-// --- Score shown out of 100 ---
+// --- Levels only: no numbers in the summary ---
 
-test("fallback summary states the score out of 100 and the points behind it", () => {
+test("fallback summary names the level and the biggest reason, never a number", () => {
   const r = runRules(listing(), { webPhotoMatches: [webMatch()] });
   const text = fallbackSummary(r, levelFor(r.score));
-  assert.match(text, new RegExp(`${r.score}/100`));
-  assert.match(text, /\(\+25\)/);
-  assert.match(fallbackSummary(runRules(listing({ photos: ["a", "b"] })), "low"), /^0\/100: no red flags/);
+  assert.doesNotMatch(text, /\/100|\(\+\d+\)|points/);
+  assert.match(text, /@thriftqueen/);
+  assert.match(fallbackSummary(runRules(listing({ photos: ["a", "b"] })), "low"), /^No red flags/);
 });

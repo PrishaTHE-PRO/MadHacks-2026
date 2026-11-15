@@ -3,3 +3,5 @@ extension/dist/
 server/data/
 .env
 .DS_Store
+# Saved Facebook page contains session data; tests skip it when unavailable.
+server/test/fixtures/facebook-flyer.html

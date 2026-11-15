@@ -43,7 +43,7 @@ export function HistoryCard({ history }: { history: HistoryEntry[] }) {
                 {h.title}
               </a>
               <div className="dd-fine">
-                {h.score}/100 · {PLATFORM_NAMES[h.platform]} · {h.sellerName || "unknown seller"} · {ago(h.lastSeenAt)}
+                {PLATFORM_NAMES[h.platform]} · {h.sellerName || "unknown seller"} · {ago(h.lastSeenAt)}
               </div>
             </div>
             <button className="dd-link dd-small" onClick={() => void forgetSeller(h.platform, h.sellerId, h.listingId)}>

@@ -91,7 +91,7 @@ export function Panel(props: PanelProps) {
   } else {
     body = (
       <>
-        <ListingTab listing={view.listing} report={view.report} history={props.history} />
+        <ListingTab listing={view.listing} report={view.report} history={props.history} onRetry={props.onRetry} />
         {props.tools}
       </>
     );

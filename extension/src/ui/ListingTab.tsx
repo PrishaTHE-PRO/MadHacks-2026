@@ -1,29 +1,36 @@
 // Listing tab: community flag, verdict (score out of 100 + level), AI-photo
-// notice, earlier visits, listing + price, "Why N/100" (every reason with its
+// notice, earlier visits, listing + price, "What we found" (every reason with its
 // points and proof links, summing to the score), photo and description checks
 // and (for local deals) the meetup helper.
 
 import { useState } from "react";
-import { LOCAL_PLATFORMS, SCORE_MAX, type Listing, type RiskLevel, type RiskReport, type Severity, type Signal } from "../../../shared/types";
+import { LOCAL_PLATFORMS, type Listing, type RiskLevel, type RiskReport, type Severity, type Signal } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
 import { AiPhotoNotice, CommunityFlag, CopiedText, EarlierVisits, PhotoCheck } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
+import { coverageGaps, riskLabel } from "../../../shared/listingCheck";
 
 /** Watch-out rows come in one after another, most serious first. */
 const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
 
-const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 const LEVELS: RiskLevel[] = ["low", "medium", "high"];
 const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 
-export function ListingTab({ listing, report, history }: { listing: Listing; report: RiskReport; history: HistoryEntry[] }) {
+export function ListingTab({ listing, report, history, onRetry }: { listing: Listing; report: RiskReport; history: HistoryEntry[]; onRetry(): void }) {
   return (
     <>
       <CommunityFlag community={report.community} />
+      {report.signals.some((s) => s.id === "not-an-item") && (
+        <section className="dd-card" aria-label="Listing type">
+          <strong>Not a normal item listing</strong>
+          <p>This appears to be an ad, service or event. These checks are designed for items for sale.</p>
+        </section>
+      )}
       <Verdict report={report} />
       <AiPhotoNotice report={report} listing={listing} />
+      <button className="dd-btn secondary" onClick={onRetry}>Check again</button>
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
       <WhyScore report={report} />
@@ -36,7 +43,7 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
         </div>
       )}
       <p className="dd-foot-note">
-        Score computed in code from the reasons above · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
+        Most serious first · {report.coverage?.ai ? "rules + Claude" : "rules only · AI analysis unavailable"} ·{" "}
         {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
       </p>
     </>
@@ -47,41 +54,27 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
 const LEVEL_FROM: Record<RiskLevel, number> = { low: 0, medium: 30, high: 60 };
 
 function Verdict({ report }: { report: RiskReport }) {
-  const { level, score } = report;
-  const max = report.maxScore ?? SCORE_MAX; // reports cached before the score was shown lack it
-  const pct = (n: number) => `${Math.min(100, Math.max(0, (n / max) * 100))}%`;
+  const { level } = report;
+  const label = riskLabel(report);
+  const gaps = coverageGaps(report.coverage);
   return (
     <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
         <Bubble size={40} icon={iconForLevel(level)} />
         <div className="dd-verdict-text">
-          <div className="dd-level-row">
-            <div className={`dd-level dd-${level} dd-word-in`}>{LEVEL_WORD[level]}</div>
-            <div className={`dd-score dd-${level}`} aria-label={`Risk score ${score} out of ${max}`}>
-              <strong>{score}</strong>/{max}
-            </div>
-          </div>
+          <div className={`dd-level dd-${level} dd-word-in`}>{label}</div>
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
-      <div className="dd-scale" role="img" aria-label={`Risk score ${score} out of ${max}: ${LEVEL_WORD[level]}`}>
-        <div className="dd-scale-track">
-          {LEVELS.map((l, i) => {
-            const end = LEVELS[i + 1] ? LEVEL_FROM[LEVELS[i + 1]] : max;
-            return (
-              <span
-                key={l}
-                className={l === level ? `on ${l} dd-grow` : undefined}
-                style={{ left: pct(LEVEL_FROM[l]), width: `calc(${pct(end)} - ${pct(LEVEL_FROM[l])} - 3px)` }}
-              />
-            );
-          })}
-          <i className="dd-scale-pin" style={{ left: pct(score) }} />
-        </div>
-        <div className="dd-scale-labels" aria-hidden="true">
-          <span>0 · no red flags</span>
-          <span>{max} · very risky</span>
-        </div>
+      {gaps.length > 0 && <p className="dd-summary">Partial check: {gaps.join("; ")}.</p>}
+      {report.aiUnavailableReason && <p className="dd-summary">AI check unavailable: {report.aiUnavailableReason}.</p>}
+      {report.photoAssessments?.filter((p) => p.note && (p.ai_generated !== "no" || !p.shows_listed_item)).map((p) => (
+        <p className="dd-summary" key={p.index}>Photo {p.index + 1}: {p.note}</p>
+      ))}
+      <div className="dd-bar" role="img" aria-label={`Risk level: ${label}`}>
+        {LEVELS.map((l) => (
+          <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
+        ))}
       </div>
     </section>
   );
@@ -192,14 +185,13 @@ function Proof({ signal }: { signal: Signal }) {
   );
 }
 
-/** Every reason that added points, with the points: they add up to the score. */
+/** Every reason, biggest first, with its proof. No numbers: users see the level only. */
 function WhyScore({ report }: { report: RiskReport }) {
   const [open, setOpen] = useState(false);
-  const max = report.maxScore ?? SCORE_MAX;
+  // Points only set the order (biggest reason first); users never see numbers.
   const risky = report.signals
     .filter((s) => s.points > 0)
     .sort((a, b) => b.points - a.points || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
-  const sum = risky.reduce((n, s) => n + s.points, 0);
   // Everything else: good signs first, then notes (e.g. "account is about 73 days old").
   const order = { good: 0, caution: 1, info: 2, danger: 3 } as const;
   const rest = report.signals.filter((s) => s.points === 0).sort((a, b) => order[a.severity] - order[b.severity]);
@@ -210,18 +202,16 @@ function WhyScore({ report }: { report: RiskReport }) {
     .filter(Boolean)
     .join(" · ");
   return (
-    <section className="dd-card" aria-label={`Why ${report.score} out of ${max}`}>
+    <section className="dd-card" aria-label="What we found">
       <div className="dd-watch-head">
-        <h3>
-          Why {report.score}/{max}
-        </h3>
+        <h3>What we found</h3>
       </div>
       {risky.length ? (
         <>
           <ul className="dd-rows">
             {risky.map((s, i) => (
               <li key={s.id} {...rowIn(i)}>
-                <span className={`dd-points ${s.severity}`}>+{s.points}</span>
+                <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
                 <span className="dd-row-text">
                   <span>{s.text}</span>
                   <Proof signal={s} />
@@ -229,12 +219,9 @@ function WhyScore({ report }: { report: RiskReport }) {
               </li>
             ))}
           </ul>
-          <p className="dd-total">
-            {sum > max ? `${sum} points, capped at ${max}` : `Total ${report.score}/${max}`}
-          </p>
         </>
       ) : (
-        <p className="dd-note">No warning signs found, so the score is {report.score}/{max}.</p>
+        <p className="dd-note">No warning signs found.</p>
       )}
       {rest.length > 0 && (
         <>

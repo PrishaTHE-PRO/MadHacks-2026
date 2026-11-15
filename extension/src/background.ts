@@ -19,6 +19,8 @@ import { dhashFromRgba } from "../../shared/photohash";
 import { saveCheckToHistory } from "./history";
 import { allowSite, guardChatFlags, startLinkGuard } from "./guard";
 import { unwrapRedirector } from "./guardCore";
+import { isMarketplacePhotoUrl } from "../../shared/photoHosts";
+import { canReuseListingReport } from "../../shared/listingCheck";
 
 startLinkGuard();
 
@@ -37,31 +39,47 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 const CACHE_MS = 10 * 60 * 1000;
 const HASHED_PHOTOS = 4;
-// Decode at this size before averaging down to the 9×8 hash grid: big enough
+// Resize to this size before averaging down to the 9×8 hash grid: big enough
 // to smooth out noise, small enough to be quick.
 const HASH_DECODE = { w: 72, h: 64 };
 
 /**
- * Fingerprint a public listing photo (spec §3.1). Only the 16-character hash
- * is sent to the server. Needs host_permissions for the photo's CDN.
+ * Fingerprint a public listing photo and prepare a small JPEG for analysis.
+ * Needs host_permissions for the photo's CDN. Neither image is stored.
  */
-async function photoHash(url: string): Promise<string | null> {
+async function preparePhoto(url: string): Promise<{ hash: string | null; data: string | null }> {
+  const empty = { hash: null, data: null };
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
-    const bitmap = await createImageBitmap(await res.blob(), {
-      resizeWidth: HASH_DECODE.w,
-      resizeHeight: HASH_DECODE.h,
-      resizeQuality: "high",
-    });
-    const canvas = new OffscreenCanvas(HASH_DECODE.w, HASH_DECODE.h);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    return dhashFromRgba(ctx.getImageData(0, 0, HASH_DECODE.w, HASH_DECODE.h).data, HASH_DECODE.w, HASH_DECODE.h);
+    if (!isMarketplacePhotoUrl(url)) return empty;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: "error" });
+    if (!res.ok) return empty;
+    const blob = await res.blob();
+    if (blob.size > 5 * 1024 * 1024) return empty;
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const canvas = new OffscreenCanvas(HASH_DECODE.w, HASH_DECODE.h);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return empty;
+      ctx.drawImage(bitmap, 0, 0, HASH_DECODE.w, HASH_DECODE.h);
+      const hash = dhashFromRgba(ctx.getImageData(0, 0, HASH_DECODE.w, HASH_DECODE.h).data, HASH_DECODE.w, HASH_DECODE.h);
+      const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+      const preview = new OffscreenCanvas(Math.max(1, Math.round(bitmap.width * scale)), Math.max(1, Math.round(bitmap.height * scale)));
+      const previewCtx = preview.getContext("2d");
+      if (!previewCtx) return { hash, data: null };
+      previewCtx.fillStyle = "white";
+      previewCtx.fillRect(0, 0, preview.width, preview.height);
+      previewCtx.drawImage(bitmap, 0, 0, preview.width, preview.height);
+      const jpeg = await preview.convertToBlob({ type: "image/jpeg", quality: 0.8 });
+      if (jpeg.size > 1000000) return { hash, data: null };
+      const bytes = new Uint8Array(await jpeg.arrayBuffer());
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return { hash, data: `data:image/jpeg;base64,${btoa(binary)}` };
+    } finally {
+      bitmap.close();
+    }
   } catch {
-    return null; // CDN blocked or not an image: the rest of the check still runs
+    return empty; // the server can try fetching any missing images
   }
 }
 
@@ -79,14 +97,16 @@ async function analyze(
   const cached = (await chrome.storage.session.get(cacheKey))[cacheKey] as
     | { at: number; report: RiskReport }
     | undefined;
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.report;
+  if (cached && canReuseListingReport(cached.report) && Date.now() - cached.at < CACHE_MS) return cached.report;
 
   // Photos are fingerprinted here first (part of "Reading the listing" in the sidebar).
-  const photoHashes = await Promise.all(listing.photos.slice(0, HASHED_PHOTOS).map(photoHash));
+  const photos = await Promise.all(listing.photos.slice(0, HASHED_PHOTOS).map(preparePhoto));
+  const photoHashes = photos.map((p) => p.hash);
+  const photoData = photos.map((p) => p.data);
   const res = await fetch(`${SERVER_URL}/analyze-listing?progress=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ listing, photoHashes }),
+    body: JSON.stringify({ listing, photoHashes, photoData }),
   });
   if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
 
@@ -162,6 +182,7 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
       const key = tabKey(msg.tabId);
       const state = (await chrome.storage.session.get(key))[key] as TabState | undefined;
       if (!state) return;
+      await chrome.storage.session.remove(`report:${state.listing.platform}:${state.listing.id}`);
       const res = await runListing(msg.tabId, state.listing);
       const note: ContentMessage = { type: "LISTING_RESULT", listingId: state.listing.id, res };
       chrome.tabs.sendMessage(msg.tabId, note).catch(() => {});

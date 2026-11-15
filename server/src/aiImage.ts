@@ -6,7 +6,7 @@
 // None of this changes the score. Detectors get it wrong both ways, so we show
 // the user what we found and let them decide.
 
-import type { AiImageCheck, EvidenceLink, Listing, WebPhotoMatch } from "../../shared/types";
+import type { AiImageCheck, EvidenceLink, Listing, PhotoAssessment, WebPhotoMatch } from "../../shared/types";
 import { cacheGet, cacheSet } from "./db";
 
 export const DETECTOR_PHOTOS = 2;
@@ -41,6 +41,20 @@ export interface ClaudeAiPhotoView {
   verdict: "likely" | "possible" | "no";
   photo_numbers: number[];
   evidence: string[];
+}
+
+/**
+ * Claude's per-photo assessment (one entry per photo it saw) as the view
+ * combineAiImage takes: the strongest verdict, which photos, and the notes.
+ */
+export function claudeAiPhotoView(photos: PhotoAssessment[] | undefined): ClaudeAiPhotoView | undefined {
+  const flagged = (photos ?? []).filter((p) => p.ai_generated !== "no");
+  if (!flagged.length) return photos ? { verdict: "no", photo_numbers: [], evidence: [] } : undefined;
+  return {
+    verdict: flagged.some((p) => p.ai_generated === "likely") ? "likely" : "possible",
+    photo_numbers: flagged.map((p) => p.index + 1),
+    evidence: flagged.map((p) => `Photo ${p.index + 1}: ${p.note || "it shows signs of AI generation or heavy editing"}`),
+  };
 }
 
 /** Combine the three sources into one notice, or undefined when nothing points to AI. Pure, tested. */

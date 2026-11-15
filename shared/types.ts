@@ -77,7 +77,7 @@ export interface Signal {
   severity: Severity;
   text: string; // one line, shown to the user
   source: "rules" | "ai" | "community";
-  /** Risk points this signal added to the score (0 for good/info signals). */
+  /** Risk points this signal added to the score (0 for good signals and most info signals). */
   points: number;
   /** Proof the user can open: the duplicate listing, the page with the same text, ... */
   links?: EvidenceLink[];
@@ -115,6 +115,23 @@ export interface NormalizedItem {
 }
 
 export type RiskLevel = "low" | "medium" | "high";
+
+export type ListingType = "item_for_sale" | "rental" | "service" | "event_or_promo" | "job" | "wanted_post" | "unclear";
+
+export interface PhotoAssessment {
+  index: number; // index in the original listing, including skipped images
+  kind: "real_photo_of_item" | "stock_or_catalog" | "graphic_flyer_or_ad" | "screenshot" | "likely_ai_generated" | "unclear";
+  ai_generated: "no" | "possible" | "likely";
+  shows_listed_item: boolean;
+  note: string;
+}
+
+export interface CheckCoverage {
+  seller: boolean;
+  photos: { checked: number; total: number };
+  ai: boolean; // listing analysis succeeded; a generated summary alone doesn't count
+  price: boolean;
+}
 
 /** Another listing that uses the same (or a mirrored) photo, from DealDig's shared index. */
 export interface PhotoMatch {
@@ -211,6 +228,11 @@ export interface RiskReport {
   /** Set when a photo may be AI-generated. A notice for the user, not part of the score. */
   aiImage?: AiImageCheck;
   webCheck?: WebCheckStatus;
+  coverage: CheckCoverage;
+  listingType?: ListingType;
+  photoAssessments?: PhotoAssessment[];
+  /** Sanitized reason for a failed/skipped AI check; never raw API errors or image URLs. */
+  aiUnavailableReason?: string;
   aiUsed: boolean;
   checkedAt: string;
 }

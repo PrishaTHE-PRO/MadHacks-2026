@@ -3,7 +3,8 @@
 // reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
-import type { RiskLevel, RiskReport } from "../../../shared/types";
+import type { RiskReport } from "../../../shared/types";
+import { riskLabel } from "../../../shared/listingCheck";
 import { bubbleSvg } from "../ui/bubbleSvg";
 import tokens from "../ui/tokens.css";
 import motion from "../ui/motion.css";
@@ -16,8 +17,6 @@ export type BadgeState =
   // Sell pages: a reminder, or photos held by the upload guard (with Skip).
   | { state: "sell" }
   | { state: "held"; count: number; onSkip: () => void };
-
-const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 
 export const BADGE_CSS = [tokens, motion, badgeCss].join("\n");
 
@@ -79,22 +78,18 @@ export function renderBadge(
     pill.setAttribute("aria-label", `DealDig: can't check this page. ${s.message}. Open DealDig`);
     pill.title = s.message;
   } else {
-    // The level, then the score out of 100 so the scale is clear.
-    const { level, score } = s.report;
-    const max = s.report.maxScore ?? 100;
-    pill.append(
-      mark(28, level === "low" ? "check" : "alert", "pd"),
-      el("span", `dd-word ${level}`, LEVEL_WORD[level]),
-      el("span", "dd-score", `${score}/${max}`),
-    );
-    pill.setAttribute("aria-label", `DealDig: ${LEVEL_WORD[level]}, risk score ${score} out of ${max}. Open details`);
+    // Levels only: the score picks the level but is never shown.
+    const { level } = s.report;
+    const label = riskLabel(s.report);
+    pill.append(mark(28, level === "low" ? "check" : "alert", "pd"), el("span", `dd-word ${level}`, label));
+    pill.setAttribute("aria-label", `DealDig: ${label}. Open details`);
 
     // Hover card: bubble + level, the top reason, "See details".
     const card = el("div", "dd-hover");
     card.setAttribute("role", "note");
     const top = el("div", "dd-hover-top");
     const words = el("div");
-    words.append(el("div", `dd-hover-level dd-word ${level}`, `${LEVEL_WORD[level]} · ${score}/${max}`));
+    words.append(el("div", `dd-hover-level dd-word ${level}`, label));
     top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
     const reason = s.report.topReasons[0] ?? s.report.summary;
     const link = el("button", "dd-hover-link", "See details");

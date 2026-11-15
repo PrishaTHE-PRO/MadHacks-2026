@@ -43,6 +43,7 @@ export const lowListing: Listing = {
 };
 
 export const lowReport: RiskReport = {
+  coverage: { seller: true, photos: { checked: 1, total: 1 }, ai: true, price: true },
   listingId: lowListing.id,
   platform: "ebay",
   score: 5,
@@ -92,6 +93,7 @@ export const mediumListing: Listing = {
 };
 
 export const mediumReport: RiskReport = {
+  coverage: { seller: true, photos: { checked: 1, total: 1 }, ai: true, price: true },
   listingId: mediumListing.id,
   platform: "poshmark",
   score: 45,
@@ -195,6 +197,7 @@ export const highListing: Listing = {
 };
 
 export const highReport: RiskReport = {
+  coverage: { seller: true, photos: { checked: 0, total: 0 }, ai: true, price: true },
   listingId: highListing.id,
   platform: "facebook",
   score: 80,

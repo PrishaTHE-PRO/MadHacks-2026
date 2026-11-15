@@ -1,0 +1,20 @@
+{
+  "_fixture": "The Food/comida bug listing (docs/photo-check-task.md), exactly as the extension's Facebook reader (collectPageData + parseFacebookPage) read it from the saved overlay page facebook-flyer.html. Two substitutions: the photo is a local stand-in (test/fixtures/images/flyer.jpg, a made-up AI-style event flyer) instead of the signed Facebook URL, and nothing else is changed. The seller is empty because the overlay has no /marketplace/profile/ link, and the description includes Facebook's 'Related searches' links because the reader swept them in.",
+  "platform": "facebook",
+  "id": "1610701347365365",
+  "url": "https://www.facebook.com/marketplace/item/1610701347365365/",
+  "title": "Food/comida",
+  "description": "UWGB!\nGreen Bay, WI · Location is approximate\nRelated searches\nfood\npizza food truck\nifood\ncarro food truck\nbag delivery food\nfood truck\nfood truck rent",
+  "condition": "New",
+  "price": 1,
+  "currency": "USD",
+  "photos": ["test/fixtures/images/flyer.jpg"],
+  "listedAt": "2026-09-19T12:00:00.000Z",
+  "location": "Green Bay, WI",
+  "seller": {
+    "platform": "facebook",
+    "id": "",
+    "username": "",
+    "profileUrl": ""
+  }
+}
