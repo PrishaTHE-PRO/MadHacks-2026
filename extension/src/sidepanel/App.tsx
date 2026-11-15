@@ -134,6 +134,7 @@ const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 const ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 const ICON: Record<Severity, string> = { danger: "⛔", caution: "⚠️", info: "ℹ️", good: "✅" };
+const LEVEL_TITLE = { low: "Low risk", medium: "Be careful", high: "High risk" } as const;
 
 function Report({ report, listing, history }: { report: RiskReport; listing: Listing; history: HistoryEntry[] }) {
   const signals = [...report.signals].sort((a, b) => b.points - a.points || ORDER[a.severity] - ORDER[b.severity]);
@@ -142,11 +143,8 @@ function Report({ report, listing, history }: { report: RiskReport; listing: Lis
     <>
       <CommunityFlag community={report.community} />
       <section className={`card score ${report.level}`}>
-        <div className="num">{report.score}</div>
         <div>
-          <div className="level">
-            {report.level === "low" ? "Low risk" : report.level === "medium" ? "Be careful" : "High risk"}
-          </div>
+          <div className="level">{LEVEL_TITLE[report.level]}</div>
           <div className="summary">{report.summary}</div>
           {report.topReasons.length > 0 && (
             <ol className="reasons">
@@ -177,11 +175,10 @@ function Report({ report, listing, history }: { report: RiskReport; listing: Lis
             <li key={s.id} className={s.severity}>
               <span aria-hidden>{ICON[s.severity]}</span>
               <span className="grow">{s.text}</span>
-              {s.points > 0 && <span className="points">+{s.points}</span>}
             </li>
           ))}
         </ul>
-        <p className="muted small">Score = sum of the points above, capped at 100.</p>
+        <p className="muted small">Most serious first.</p>
       </section>
 
       {p && (p.median !== null || p.note) && (
@@ -278,6 +275,7 @@ const ago = (ms: number) => {
 };
 
 const LEVEL_LABEL = { low: "low risk", medium: "be careful", high: "high risk" } as const;
+const PILL = { low: "Low", medium: "Careful", high: "High" } as const;
 
 /** Live view of this device's history (it changes when the background saves a check). */
 function useHistory(): HistoryEntry[] {
@@ -301,7 +299,7 @@ function EarlierVisits({ listing, history }: { listing: Listing; history: Histor
     <section className="card earlier">
       {previous && (
         <p>
-          You looked at this listing {ago(previous.seenAt)}: score {previous.score} ({LEVEL_LABEL[previous.level]}).
+          You looked at this listing {ago(previous.seenAt)}. It was {LEVEL_LABEL[previous.level]} then.
         </p>
       )}
       {otherListings.length > 0 && (
@@ -317,7 +315,7 @@ function EarlierVisits({ listing, history }: { listing: Listing; history: Histor
                   {h.title}
                 </a>{" "}
                 <span className="muted">
-                  · score {h.score} · {ago(h.lastSeenAt)}
+                  · {LEVEL_LABEL[h.level]} · {ago(h.lastSeenAt)}
                 </span>
               </li>
             ))}
@@ -387,7 +385,7 @@ function ReportSeller({ listing }: { listing: Listing }) {
       const data = (await res.json()) as ReportResponse;
       const next = method === "POST" && category ? { category, at: Date.now() } : null;
       await setMyReport(platform, sellerId, next);
-      // Drop the cached score so the next check includes this report.
+      // Drop the cached result so the next check includes this report.
       await chrome.storage.session.remove(`report:${platform}:${listingId}`);
       setMine(next ?? undefined);
       setCommunity(data.community);
@@ -486,7 +484,7 @@ function HistoryCard({ history }: { history: HistoryEntry[] }) {
       <ul>
         {history.slice(0, 30).map((h) => (
           <li key={`${h.platform}:${h.listingId}`}>
-            <span className={`pill ${h.level}`}>{h.score}</span>
+            <span className={`pill ${h.level}`}>{PILL[h.level]}</span>
             <div className="grow">
               <a href={h.url} target="_blank" rel="noreferrer">
                 {h.title}

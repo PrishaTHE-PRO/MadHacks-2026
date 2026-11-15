@@ -53,10 +53,10 @@ export function showBadge(s: BadgeState) {
     label.innerHTML = `DealDig <span class="sub"></span>`;
     label.querySelector(".sub")!.textContent = s.message;
   } else {
-    const { level, score } = s.report;
+    const { level } = s.report;
     dot.style.background = COLORS[level];
     const word = level === "low" ? "Low risk" : level === "medium" ? "Be careful" : "High risk";
-    label.innerHTML = `DealDig <span class="sub">${word} · ${score}/100</span>`;
+    label.innerHTML = `DealDig <span class="sub">${word}</span>`;
   }
 }
 
