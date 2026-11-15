@@ -94,7 +94,10 @@ export function renderBadge(
     card.setAttribute("role", "note");
     const top = el("div", "dd-hover-top");
     const words = el("div");
-    words.append(el("div", `dd-hover-level dd-word ${level}`, `${LEVEL_WORD[level]} · ${score}/${max}`));
+    // Same shape as the pill: the level in color, the score muted beside it.
+    const head = el("div", "dd-hover-head");
+    head.append(el("span", `dd-hover-level dd-word ${level}`, LEVEL_WORD[level]), el("span", "dd-score", `${score}/${max}`));
+    words.append(head);
     top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
     const reason = s.report.topReasons[0] ?? s.report.summary;
     const link = el("button", "dd-hover-link", "See details");

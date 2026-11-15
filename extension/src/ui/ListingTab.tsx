@@ -21,8 +21,8 @@ const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 
 export function ListingTab({ listing, report, history }: { listing: Listing; report: RiskReport; history: HistoryEntry[] }) {
   return (
     <>
-      <CommunityFlag community={report.community} />
       <Verdict report={report} />
+      <CommunityFlag community={report.community} />
       <AiPhotoNotice report={report} listing={listing} />
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
@@ -35,11 +35,17 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
           <MeetupHelper listing={listing} report={report} />
         </div>
       )}
-      <p className="dd-foot-note">
-        Score computed in code from the reasons above · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
-        {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-      </p>
     </>
+  );
+}
+
+/** How the score was made; the Panel puts it last, under the history card. */
+export function ListingFootNote({ report }: { report: RiskReport }) {
+  return (
+    <p className="dd-foot-note">
+      Score computed in code from the reasons above · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
+      {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+    </p>
   );
 }
 
@@ -88,9 +94,8 @@ function Verdict({ report }: { report: RiskReport }) {
 }
 
 function ListingCard({ listing, report }: { listing: Listing; report: RiskReport }) {
+  // Reports aren't repeated here: the flag card and "Why N/100" already show them.
   const facts = sellerFacts(listing);
-  if (report.communityReports > 0)
-    facts.push(`reported by ${report.communityReports} ${report.communityReports === 1 ? "person" : "people"}`);
   const p = report.priceCheck;
   const hasRange = p && p.typicalLow !== null && p.typicalHigh !== null;
   const who = sellerName(listing);
@@ -172,7 +177,16 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
       </div>
       <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
         <span className="dd-range" style={{ left: pct(low), width: `calc(${pct(high)} - ${pct(low)})` }} />
-        <span className="dd-pin" style={{ left: pct(price) }} />
+        <span className={`dd-pin${price < low ? " under" : ""}`} style={{ left: pct(price) }} />
+      </div>
+      <div className="dd-track-labels" aria-hidden="true">
+        <span style={{ left: pct(price) }}>{money(price)}</span>
+        {/* Only when the pin sits outside the range; otherwise the two labels collide. */}
+        {(price < low || price > high) && (
+          <span className="range" style={{ left: `calc((${pct(low)} + ${pct(high)}) / 2)` }}>
+            typical
+          </span>
+        )}
       </div>
     </>
   );
