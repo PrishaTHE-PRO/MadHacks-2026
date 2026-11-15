@@ -35,6 +35,7 @@ marketplace page
                                                                        db.ts      SQLite: reports + check history
                                                                        photos.ts  stolen-photo matches (dHash index)
                                                                        meetup.ts  safe spots (OSM) + daylight
+                                                                       reply.ts   drafted meetup reply
 ```
 
 - **Why re-fetch the page?** Poshmark puts all listing and seller data in an inline `window.__INITIAL_STATE__` script that deletes itself after running, so the content script can't read it from the DOM. Fetching the same URL again gets the HTML with that script still in it, and it keeps working when you click between listings without a full page load.
@@ -46,7 +47,7 @@ marketplace page
 - **History (on the device only):** every checked listing is saved in `chrome.storage.local` (`extension/src/history.ts`) for 90 days. Coming back shows "You looked at this listing 3 days ago: score 72" and other listings you've seen from the same seller. The "Your history" card has **Forget seller** and **Clear all**; clearing history never removes reports already sent.
 - **Stolen photos:** the background worker downloads the first 4 listing photos and computes a 64-bit dHash of each (`shared/photohash.ts`). Only the hashes go to the server, which compares them with every listing DealDig has checked (`photos.ts`, table `photo_hashes`). Within 8 bits counts as the same photo, mirrored copies included. A match with another seller on the same site adds +25; on another site +10, since it may be the seller crossposting, and a matching handle on the other site doesn't count. A photo used by 4+ sellers is treated as a stock photo (info, no points). The side panel also has free **Lens** and **TinEye** links for each photo; the user clicks them, nothing runs automatically.
 - **Check something the seller sent:** for a buyer who got a receipt, tracking screenshot, ID, vehicle title or lease from the seller. The side panel card reads the file **on the device only**, with no upload and no network call. For images (JPEG, PNG, WebP) it reads EXIF and XMP for editing apps (Photoshop, Canva, Snapseed...), "saved after it was taken" dates, and camera vs screenshot, and draws an edit heatmap by re-saving the image and showing what changed (error level analysis). For PDFs it reads which app made the file (online PDF editors are a caution; Word is info, since it's normal for a lease), saves after creation, and created vs modified dates. Findings are "things to check", never a verdict. The buyer picks what kind of document it is and gets how to verify it at the source (call the store using a number they find themselves, type the tracking number into the carrier's site, check the county property records, run the VIN). Code: `extension/src/tamper/`.
-- **Meetup helper** (Facebook Marketplace only; Poshmark and eBay are safer kept on-platform): the side panel asks where you're coming from (text only, never GPS), geocodes that and the item's location with OpenStreetMap Nominatim, and searches halfway between with the Overpass API for police stations, libraries, grocery stores, community centers, bank lobbies and cafés. `meetup.ts` ranks them in code (kind, minus 10 points per km) and returns 3 of different kinds; items $250+ or high-risk listings put a police station first. Times are daylight only (sunset computed from the location). If Overpass is down, a curated Madison list is used. DealDig doesn't read or write chat messages.
+- **Meetup helper** (Facebook Marketplace only; Poshmark and eBay are safer kept on-platform): the side panel asks where you're coming from (text only, never GPS), geocodes that and the item's location with OpenStreetMap Nominatim, and searches halfway between with the Overpass API for police stations, libraries, grocery stores, community centers, bank lobbies and cafés. `meetup.ts` ranks them in code (kind, minus 10 points per km) and returns 3 of different kinds; items $250+ or high-risk listings put a police station first. Time options are daylight only (sunset computed from the location). Sonnet 5.5 drafts the reply in a friendly or firm tone, optionally answering the other person's pasted message (declining deposits, payment apps, codes, couriers, off-platform moves); without a key, `reply.ts` fills a template. The user copies it into the chat and sends it themselves. If Overpass is down, a curated Madison list is used.
 - **Price check:** with `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` set, the server compares against the median of up to 20 similar eBay listings (Browse API, asking prices). Otherwise it uses Claude's estimate, labeled as one; a low-confidence estimate only adds half the bait points.
 
 ## Layout
@@ -65,6 +66,7 @@ marketplace page
 | `server/src/db.ts` | SQLite tables `reports` (anonymous, one per reporter per seller), `listing_checks` and `photo_hashes`. `DEALDIG_DB=:memory:` for tests. |
 | `extension/src/history.ts` | On-device history, the anonymous reporter id, and "my reports". Pure logic in `historyCore.ts`. |
 | `server/src/meetup.ts` | Meeting spots: geocoding, Overpass lookup, ranking, sunrise/sunset, curated Madison spots. |
+| `server/src/reply.ts` | Drafted meetup reply: Claude, or a template without a key. |
 | `extension/src/sidepanel/Meetup.tsx` | The "Meet safely" card. |
 | `extension/src/tamper/` | On-device edit checks: `metadata.ts` (image and PDF metadata, pure and tested), `ela.ts` (edit heatmap). UI in `sidepanel/DocCheck.tsx`. |
 
@@ -77,6 +79,7 @@ marketplace page
 | `POST /report` | `{ platform, sellerId, sellerUsername, listingId?, category, details?, reporterId }` | `{ ok, community }` |
 | `DELETE /report` | `{ platform, sellerId, reporterId }` (undo) | `{ ok, community }` |
 | `POST /meetup/spots` | `{ area, listingLocation?, price?, riskLevel? }` | `MeetupSpotsResponse`: 3 spots, center, daylight, notes |
+| `POST /meetup/reply` | `DraftReplyInput`: listing, role, tone, spot, time, theirMessage? | `{ reply, aiUsed }` |
 
 ## Adding another site
 
@@ -88,6 +91,7 @@ marketplace page
 
 ## Next up
 
+- Chat/offer checks (`/analyze-chat`): flag off-platform pushes, overpayment, and deposit requests in messages.
 - Seller privacy tools: strip photo metadata, blur faces and addresses on the device.
 - Read amounts and names from screenshots on the device (Tesseract.js) and compare them with the deal terms.
 - Handshake link and receipts.

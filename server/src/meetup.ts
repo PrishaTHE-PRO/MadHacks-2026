@@ -1,4 +1,4 @@
-// Safe meeting spots (implementation spec §4.1).
+// Safe meeting spots (implementation spec §4.2).
 //
 // 1. Geocode the area the user typed and the listing's location with
 //    OpenStreetMap Nominatim. We never use the user's GPS: ask, don't track.
