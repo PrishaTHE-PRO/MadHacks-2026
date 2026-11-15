@@ -44,12 +44,11 @@ a { color: var(--accent); }
 .listing img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; flex: none; }
 .listing .title { font-weight: 600; }
 
-.score { display: flex; gap: 12px; align-items: center; border-width: 2px; }
-.score .num { font-size: 34px; font-weight: 800; min-width: 56px; text-align: center; }
-.score .level { font-weight: 700; }
-.score.low { border-color: var(--low); } .score.low .num, .score.low .level { color: var(--low); }
-.score.medium { border-color: var(--medium); } .score.medium .num, .score.medium .level { color: var(--medium); }
-.score.high { border-color: var(--high); } .score.high .num, .score.high .level { color: var(--high); }
+.score { border-width: 2px; }
+.score .level { font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }
+.score.low { border-color: var(--low); } .score.low .level { color: var(--low); }
+.score.medium { border-color: var(--medium); } .score.medium .level { color: var(--medium); }
+.score.high { border-color: var(--high); } .score.high .level { color: var(--high); }
 
 .signals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .signals li { display: flex; gap: 6px; }
@@ -80,7 +79,6 @@ button.secondary { background: transparent; color: var(--high); border: 1px soli
 .reasons { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
 .reasons li { margin: 2px 0; }
 .signals .grow { flex: 1; }
-.signals .points { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
 
 /* Meetup helper */
 .meetup { display: flex; flex-direction: column; gap: 10px; }
@@ -161,5 +159,5 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .history ul { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .history li { display: flex; gap: 8px; align-items: flex-start; }
 .history .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.pill { font-weight: 800; font-size: 12px; min-width: 30px; text-align: center; padding: 2px 6px; border-radius: 999px; color: #fff; }
+.pill { font-weight: 700; font-size: 11px; min-width: 48px; text-align: center; padding: 2px 6px; border-radius: 999px; color: #fff; }
 .pill.low { background: var(--low); } .pill.medium { background: var(--medium); } .pill.high { background: var(--high); }
