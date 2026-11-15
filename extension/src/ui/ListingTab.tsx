@@ -9,7 +9,7 @@ import type { HistoryEntry } from "../historyCore";
 import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
 import { AiPhotoNotice, CommunityFlag, CopiesCard, EarlierVisits } from "./ListingExtras";
-import { money, sellerFacts, sellerName } from "./listingFacts";
+import { displayName, money, sellerFacts, sellerName } from "./listingFacts";
 
 /** Watch-out rows come in one after another, most serious first. */
 const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
@@ -96,20 +96,14 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
   return (
     <section className="dd-card dd-listing" aria-label="Listing">
       <div className="dd-item">
-        {listing.photos[0] ? (
-          <img className="dd-thumb" src={listing.photos[0]} alt="" />
-        ) : (
-          <div className="dd-thumb" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="16" rx="3" />
-              <circle cx="9" cy="10" r="2" />
-              <path d="M21 16l-5-5-9 9" />
-            </svg>
-          </div>
-        )}
+        {/* The asking price where the photo thumbnail used to be. */}
+        <div className="dd-price-tag" aria-label={`Price ${listing.price ? money(listing.price) : "free"}`}>
+          {listing.price ? money(listing.price) : "Free"}
+        </div>
         <div className="dd-item-text">
+          {/* The full title is in the tooltip; the card shows a short name. */}
           <div className="dd-title" title={listing.title}>
-            {listing.title}
+            {displayName(listing, report.item?.name)}
           </div>
           <div className="dd-meta">
             {listing.seller.profileUrl ? (
@@ -140,20 +134,20 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
       )}
       {p && hasRange && (
         <div className="dd-price">
-          <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} />
+          <PriceRow low={p.typicalLow!} high={p.typicalHigh!} />
         </div>
       )}
     </section>
   );
 }
 
-/** "Price  usually $40–$90 · $40": the usual range, then this listing's price in bold. */
-function PriceRow({ low, high, price }: { low: number; high: number; price: number }) {
+/** "Price  usually $40–$90": the usual range (this listing's price is in the tile at the top left). */
+function PriceRow({ low, high }: { low: number; high: number }) {
   return (
     <div className="dd-price-line">
       <span className="dd-label">Price</span>
       <span className="dd-muted">
-        usually {money(low)}–{money(high)} · <strong className="dd-ink">{money(price)}</strong>
+        usually {money(low)}–{money(high)}
       </span>
     </div>
   );
