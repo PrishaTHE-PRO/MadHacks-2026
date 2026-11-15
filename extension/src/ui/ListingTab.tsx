@@ -1,14 +1,14 @@
-// Listing tab: verdict (level only, never a number), community flag, AI-photo
-// notice, earlier visits, listing + price, "What we found" (every reason with its
-// proof links, biggest first), photo and description checks
-// and (for local deals) the meetup helper.
+// Listing tab: verdict (level only, never a number, with "See more" listing
+// every reason and its proof links), community flag, AI-photo notice, earlier
+// visits, listing + price, one card for copied photos
+// and text, and (for local deals) the meetup helper.
 
 import { useState } from "react";
 import { LOCAL_PLATFORMS, type Listing, type RiskLevel, type RiskReport, type Severity, type Signal } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
-import { AiPhotoNotice, CommunityFlag, CopiedText, EarlierVisits, PhotoCheck } from "./ListingExtras";
+import { AiPhotoNotice, CommunityFlag, CopiesCard, EarlierVisits } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
 import { coverageGaps, riskLabel } from "../../../shared/listingCheck";
 
@@ -33,9 +33,7 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
       <button className="dd-btn secondary" onClick={onRetry}>Check again</button>
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
-      <WhyScore report={report} />
-      <PhotoCheck report={report} listing={listing} />
-      <CopiedText report={report} />
+      <CopiesCard report={report} listing={listing} />
       {LOCAL_PLATFORMS.includes(listing.platform) && (
         // Main's meetup helper, styled for the sidebar by legacy.css.
         <div className="dd-legacy">
@@ -46,18 +44,6 @@ export function ListingTab({ listing, report, history, onRetry }: { listing: Lis
   );
 }
 
-/** How the check was made; the Panel puts it last, under the history card. */
-export function ListingFootNote({ report }: { report: RiskReport }) {
-  return (
-    <p className="dd-foot-note">
-      Most serious first · {report.coverage?.ai ? "rules + Claude" : "rules only · AI analysis unavailable"} ·{" "}
-      {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-    </p>
-  );
-}
-
-/** Where each level starts on the 0-100 scale (rules.ts levelFor). */
-const LEVEL_FROM: Record<RiskLevel, number> = { low: 0, medium: 30, high: 60 };
 
 function Verdict({ report }: { report: RiskReport }) {
   const { level } = report;
@@ -74,7 +60,7 @@ function Verdict({ report }: { report: RiskReport }) {
       </div>
       {gaps.length > 0 && <p className="dd-summary">Partial check: {gaps.join("; ")}.</p>}
       {report.aiUnavailableReason && <p className="dd-summary">AI check unavailable: {report.aiUnavailableReason}.</p>}
-      {report.photoAssessments?.filter((p) => p.note && (p.ai_generated !== "no" || !p.shows_listed_item)).map((p) => (
+      {report.photoAssessments?.filter((p) => p.note && !p.shows_listed_item).map((p) => (
         <p className="dd-summary" key={p.index}>Photo {p.index + 1}: {p.note}</p>
       ))}
       <div className="dd-bar" role="img" aria-label={`Risk level: ${label}`}>
@@ -82,13 +68,17 @@ function Verdict({ report }: { report: RiskReport }) {
           <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
         ))}
       </div>
+      <WhyScore report={report} />
     </section>
   );
 }
 
 function ListingCard({ listing, report }: { listing: Listing; report: RiskReport }) {
-  // Reports aren't repeated here: the flag card and "What we found" already show them.
-  const facts = sellerFacts(listing);
+  // Reports aren't repeated here: the flag card already shows them.
+  const allFacts = sellerFacts(listing);
+  // "joined Sep 2016" goes next to the seller's name; the rest are chips.
+  const joined = allFacts.find((f) => f.startsWith("joined "));
+  const facts = allFacts.filter((f) => f !== joined);
   const p = report.priceCheck;
   const hasRange = p && p.typicalLow !== null && p.typicalHigh !== null;
   const who = sellerName(listing);
@@ -113,8 +103,6 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
             {listing.title}
           </div>
           <div className="dd-meta">
-            {money(listing.price)}
-            {listing.size ? ` · ${listing.size}` : ""} ·{" "}
             {listing.seller.profileUrl ? (
               <a href={listing.seller.profileUrl} target="_blank" rel="noreferrer">
                 {who}
@@ -122,6 +110,7 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
             ) : (
               who
             )}
+            {joined ? ` · ${joined}` : ""}
           </div>
         </div>
       </div>
@@ -140,24 +129,16 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
           ))}
         </div>
       )}
-      {p && (hasRange || p.note) && (
+      {p && hasRange && (
         <div className="dd-price">
-          {hasRange && <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} />}
-          {p.note && (
-            <p className="dd-price-note">
-              {p.note}{" "}
-              {p.basis === "ai-estimate"
-                ? `(AI estimate, ${p.confidence} confidence, not live sales data.)`
-                : `(${p.sampleSize ? `${p.sampleSize} eBay listings, ` : ""}${p.confidence} confidence.)`}
-            </p>
-          )}
+          <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} estimate={p.basis === "ai-estimate"} />
         </div>
       )}
     </section>
   );
 }
 
-function PriceRow({ low, high, price }: { low: number; high: number; price: number }) {
+function PriceRow({ low, high, price, estimate }: { low: number; high: number; price: number; estimate: boolean }) {
   const max = Math.max(high, price) * 1.3 || 1;
   const pct = (n: number) => `${Math.min(100, Math.max(0, (n / max) * 100))}%`;
   return (
@@ -165,7 +146,8 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
       <div className="dd-price-line">
         <span className="dd-label">Price</span>
         <span className="dd-muted">
-          usually {money(low)}–{money(high)} · <strong className="dd-ink">this one {money(price)}</strong>
+          usually {money(low)}–{money(high)}
+          {estimate ? " (est.)" : ""} · <strong className="dd-ink">this one {money(price)}</strong>
         </span>
       </div>
       <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
@@ -185,23 +167,36 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
   );
 }
 
+/** Site name for a proof link: the reason text above already says what it is. */
+const siteOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "link";
+  }
+};
+
 /** Proof links under a reason: the duplicate listing, the page with the same text... */
 function Proof({ signal }: { signal: Signal }) {
   if (!signal.links?.length) return null;
   return (
     <span className="dd-proof">
       {signal.links.map((l) => (
-        <a key={l.url} href={l.url} target="_blank" rel="noreferrer noopener" title={l.url}>
-          {l.label} ↗
+        <a key={l.url} href={l.url} target="_blank" rel="noreferrer noopener" title={l.label}>
+          {siteOf(l.url)} ↗
         </a>
       ))}
     </span>
   );
 }
 
-/** Every reason, biggest first, with its proof. No numbers: users see the level only. */
+/**
+ * "See more" at the bottom of the verdict box: every warning, biggest first
+ * (a red or yellow "!"), then good signs (a green "+") and notes in the same
+ * list. No numbers: users see the level only.
+ */
 function WhyScore({ report }: { report: RiskReport }) {
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   // Points only set the order (biggest reason first); users never see numbers.
   const risky = report.signals
     .filter((s) => s.points > 0)
@@ -209,23 +204,39 @@ function WhyScore({ report }: { report: RiskReport }) {
   // Everything else: good signs first, then notes (e.g. "account is about 73 days old").
   const order = { good: 0, caution: 1, info: 2, danger: 3 } as const;
   const rest = report.signals.filter((s) => s.points === 0).sort((a, b) => order[a.severity] - order[b.severity]);
-  const goodCount = rest.filter((s) => s.severity === "good").length;
-  const noteCount = rest.length - goodCount;
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  const restLabel = [goodCount && `✓ ${plural(goodCount, "good sign")}`, noteCount && plural(noteCount, "note")]
-    .filter(Boolean)
-    .join(" · ");
+  if (!risky.length && !rest.length) return null;
   return (
-    <section className="dd-card" aria-label="What we found">
-      <div className="dd-watch-head">
-        <h3>What we found</h3>
-      </div>
-      {risky.length ? (
-        <>
+    <div className="dd-why" aria-label="Why this level">
+      <button className="dd-why-head" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+        <span>See more</span>
+        <svg className="chev" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="dd-why-body">
           <ul className="dd-rows">
             {risky.map((s, i) => (
               <li key={s.id} {...rowIn(i)}>
-                <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
+                <span className={`dd-points ${s.severity}`} aria-label={s.severity === "danger" ? "Red flag" : "Warning"}>
+                  !
+                </span>
+                <span className="dd-row-text">
+                  <span>{s.text}</span>
+                  <Proof signal={s} />
+                </span>
+              </li>
+            ))}
+            {rest.map((s, i) => (
+              <li key={s.id} {...rowIn(risky.length + i)}>
+                {s.severity === "good" ? (
+                  <span className="dd-points good" aria-label="Good sign">
+                    +
+                  </span>
+                ) : (
+                  // Notes have no marker; the empty slot keeps the text lined up.
+                  <span className="dd-points blank" aria-hidden="true" />
+                )}
                 <span className="dd-row-text">
                   <span>{s.text}</span>
                   <Proof signal={s} />
@@ -233,33 +244,8 @@ function WhyScore({ report }: { report: RiskReport }) {
               </li>
             ))}
           </ul>
-        </>
-      ) : (
-        <p className="dd-note">No warning signs found.</p>
+        </div>
       )}
-      {rest.length > 0 && (
-        <>
-          <button className="dd-disclose" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {restLabel}
-            <svg className="chev" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
-          </button>
-          {open && (
-            <ul className="dd-rows dd-good">
-              {rest.map((s) => (
-                <li key={s.id}>
-                  <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
-                  <span className="dd-row-text">
-                    <span>{s.text}</span>
-                    <Proof signal={s} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-    </section>
+    </div>
   );
 }

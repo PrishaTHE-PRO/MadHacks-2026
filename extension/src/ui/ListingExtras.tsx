@@ -1,7 +1,7 @@
 // Listing-tab cards from main's side panel, in the sidebar's style:
 // community flag (spec §7.2), earlier visits from on-device history (§7.1)
-// the stolen-photo check (DealDig's index + reverse image search on the web),
-// the copied-description check and the AI-photo notice.
+// "Copies elsewhere" (stolen photos from DealDig's index and the web, plus the
+// copied description, in one card) and the AI-photo notice.
 
 import {
   PLATFORM_NAMES,
@@ -27,7 +27,7 @@ export function CommunityFlag({ community }: { community?: CommunityInfo }) {
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M3.5 14V2.5m0 0h8l-1.8 3 1.8 3h-8" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Flagged by {community.reportersLast30Days} people in the last 30 days
+        Reported by {community.reportersLast30Days} people this month
       </div>
       <ul className="dd-list">
         {community.categories.slice(0, 3).map((c) => (
@@ -36,9 +36,7 @@ export function CommunityFlag({ community }: { community?: CommunityInfo }) {
           </li>
         ))}
       </ul>
-      <p className="dd-fine">
-        Reports come from other DealDig users and can be wrong. DealDig doesn't block sellers, so weigh this with everything else.
-      </p>
+      <p className="dd-fine">From other users. Reports can be wrong.</p>
     </section>
   );
 }
@@ -52,15 +50,12 @@ export function EarlierVisits({ listing, history }: { listing: Listing; history:
       <h3>Earlier visits</h3>
       {previous && (
         <p>
-          You looked at this listing {ago(previous.seenAt)}. It was {LEVEL_LABEL[previous.level]} then.
+          Seen {ago(previous.seenAt)} <span className="dd-muted">· {LEVEL_LABEL[previous.level]} then</span>
         </p>
       )}
       {otherListings.length > 0 && (
         <>
-          <p>
-            You've seen {otherListings.length === 1 ? "another listing" : `${otherListings.length} other listings`} from this
-            seller:
-          </p>
+          <p>Also from this seller:</p>
           <ul className="dd-list">
             {otherListings.slice(0, 3).map((h) => (
               <li key={h.listingId}>
@@ -75,7 +70,7 @@ export function EarlierVisits({ listing, history }: { listing: Listing; history:
           </ul>
         </>
       )}
-      <p className="dd-fine">From your history on this device.</p>
+      <p className="dd-fine">History on this device only.</p>
     </section>
   );
 }
@@ -107,131 +102,126 @@ const OWNER_ORDER: Record<CopyOwner, number> = { "other-seller": 0, unknown: 1, 
 const byRisk = <T extends { owner: CopyOwner; kind: SiteKind }>(a: T, b: T) =>
   OWNER_ORDER[a.owner] - OWNER_ORDER[b.owner] || Number(a.kind === "other") - Number(b.kind === "other");
 
-const PHOTO_STATUS = {
-  off: "Web photo search isn't turned on for this server, so only listings checked with DealDig were compared.",
-  failed: "The web photo search didn't finish this time; only listings checked with DealDig were compared.",
+/** Short status lines when a web search didn't run. */
+const WEB_STATUS = {
+  off: "Web search is off; only DealDig listings were compared.",
+  failed: "Web search didn't finish; only DealDig listings were compared.",
+  skipped: "Description too short to search the web.",
 } as const;
 
-/** Stolen-photo check: matches from DealDig's index and from the web, plus free search links. */
-export function PhotoCheck({ report, listing }: { report: RiskReport; listing: Listing }) {
-  const matches = report.photoMatches;
-  const web = [...(report.webPhotoMatches ?? [])].sort(byRisk);
+/**
+ * Copies of this listing elsewhere: photos (DealDig's index + reverse image
+ * search on the web) and the description, each match linked as proof, plus
+ * free Lens / TinEye links per photo.
+ */
+export function CopiesCard({ report, listing }: { report: RiskReport; listing: Listing }) {
+  // Matches a reason already links to (in "Why N/100") aren't listed again here.
+  const linked = new Set(report.signals.flatMap((s) => s.links?.map((l) => l.url) ?? []));
+  const allWeb = report.webPhotoMatches ?? [];
+  const allText = report.textMatches ?? [];
+  const indexMatches = report.photoMatches?.filter((m) => !linked.has(m.listingUrl));
+  const web = allWeb.filter((m) => !linked.has(m.pageUrl)).sort(byRisk);
+  const text = allText.filter((t) => !linked.has(t.url)).sort(byRisk);
   const photos = listing.photos.slice(0, SEARCHABLE_PHOTOS);
-  if (!photos.length) return null;
-  const webStatus = report.webCheck?.photos;
+  const photoStatus = report.webCheck?.photos;
+  const textStatus = report.webCheck?.text;
+  if (!photos.length && !text.length && (!textStatus || textStatus === "off")) return null;
+
+  const found = web.length + (indexMatches?.length ?? 0) + text.length;
+  const foundAnywhere = allWeb.length + (report.photoMatches?.length ?? 0) + allText.length;
+  const notes = [
+    photoStatus === "off" || photoStatus === "failed" ? WEB_STATUS[photoStatus] : "",
+    indexMatches === undefined && photos.length ? "Couldn't fingerprint these photos." : "",
+    textStatus === "skipped" || textStatus === "failed" ? WEB_STATUS[textStatus] : "",
+  ].filter(Boolean);
+
   return (
-    <section className="dd-card dd-photos" aria-label="Photos">
-      <h3>Photos</h3>
-      {web.length > 0 && (
-        <>
-          <p className="dd-note">Found on the web:</p>
-          <ul className="dd-matches">
-            {web.map((m: WebPhotoMatch) => (
-              <li key={m.pageUrl}>
-                <OwnerTag owner={m.owner} kind={m.kind} />
-                <span>
-                  Photo {m.photoIndex + 1}
-                  {m.match === "partial" ? " (cropped or edited)" : ""} on{" "}
-                  <a href={m.pageUrl} target="_blank" rel="noreferrer noopener">
-                    {m.pageTitle || m.siteName}
-                  </a>{" "}
-                  <span className="dd-muted">
-                    · {m.siteName}
-                    {who(m) ? ` · ${who(m)}` : ""}
-                  </span>
+    <section className="dd-card dd-photos" aria-label="Copies elsewhere">
+      <h3>{found || !foundAnywhere ? "Copies elsewhere" : "Search photos yourself"}</h3>
+      {foundAnywhere === 0 && <p className="dd-note">✓ Photos and description not found anywhere else.</p>}
+
+      {(web.length > 0 || !!indexMatches?.length) && (
+        <ul className="dd-matches">
+          {web.map((m: WebPhotoMatch) => (
+            <li key={m.pageUrl}>
+              <OwnerTag owner={m.owner} kind={m.kind} />
+              <span>
+                Photo {m.photoIndex + 1}
+                {m.match === "partial" ? " (edited)" : ""} ·{" "}
+                <a href={m.pageUrl} target="_blank" rel="noreferrer noopener">
+                  {m.pageTitle || m.siteName}
+                </a>{" "}
+                <span className="dd-muted">
+                  · {m.siteName}
+                  {who(m) ? ` · ${who(m)}` : ""}
                 </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {webStatus === "done" && !web.length && <p className="dd-fine">No other page on the web shows these photos.</p>}
-      {(webStatus === "off" || webStatus === "failed") && <p className="dd-fine">{PHOTO_STATUS[webStatus]}</p>}
-      {matches === undefined && <p className="dd-fine">Couldn't fingerprint these photos, so they weren't compared with other DealDig checks.</p>}
-      {matches?.length === 0 && <p className="dd-fine">No other listing checked with DealDig uses these photos.</p>}
-      {matches && matches.length > 0 && (
-        <ul className="dd-list dd-matches">
-          {matches.map((m) => (
+              </span>
+            </li>
+          ))}
+          {indexMatches?.map((m) => (
             <li key={`${m.photoIndex}-${m.platform}-${m.listingUrl}`}>
-              Photo {m.photoIndex + 1}
-              {m.mirrored ? " (flipped)" : ""} is also in{" "}
-              <a href={m.listingUrl} target="_blank" rel="noreferrer">
-                {m.listingTitle || "another listing"}
-              </a>{" "}
-              <span className="dd-muted">
-                · {PLATFORM_NAMES[m.platform]} · {m.platform === "facebook" ? m.sellerUsername : `@${m.sellerUsername}`} · checked{" "}
-                {new Date(m.seenAt).toLocaleDateString()}
+              <span>
+                Photo {m.photoIndex + 1}
+                {m.mirrored ? " (flipped)" : ""} ·{" "}
+                <a href={m.listingUrl} target="_blank" rel="noreferrer">
+                  {m.listingTitle || "another listing"}
+                </a>{" "}
+                <span className="dd-muted">
+                  · {PLATFORM_NAMES[m.platform]} · {m.platform === "facebook" ? m.sellerUsername : `@${m.sellerUsername}`}
+                </span>
               </span>
             </li>
           ))}
         </ul>
       )}
-      <p className="dd-note">Search the web yourself for a photo:</p>
-      <div className="dd-photo-grid">
-        {photos.map((url, i) => {
-          const links = reverseSearchLinks(url);
-          return (
-            <figure key={url}>
-              <img src={url} alt={`Photo ${i + 1}`} />
-              <figcaption>
-                <a href={links.lens} target="_blank" rel="noreferrer">
-                  Lens
-                </a>{" "}
-                ·{" "}
-                <a href={links.tineye} target="_blank" rel="noreferrer">
-                  TinEye
-                </a>
-              </figcaption>
-            </figure>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
-const TEXT_STATUS = {
-  off: "Web search for the description isn't turned on for this server.",
-  skipped: "The description is too short or generic to search the web for.",
-  failed: "The web search for the description didn't finish this time.",
-} as const;
-
-/** Copied description: the same text in other listings or pages, quoted and linked. */
-export function CopiedText({ report }: { report: RiskReport }) {
-  const matches = [...(report.textMatches ?? [])].sort(byRisk);
-  const status = report.webCheck?.text;
-  if (!matches.length && status !== "done") {
-    return status && status !== "off" ? (
-      <section className="dd-card dd-photos" aria-label="Description">
-        <h3>Description</h3>
-        <p className="dd-fine">{TEXT_STATUS[status]}</p>
-      </section>
-    ) : null;
-  }
-  return (
-    <section className="dd-card dd-photos" aria-label="Description">
-      <h3>Description</h3>
-      {matches.length ? (
+      {text.length > 0 && (
         <ul className="dd-matches">
-          {matches.map((t: TextMatch) => (
+          {text.map((t: TextMatch) => (
             <li key={t.url}>
               <OwnerTag owner={t.owner} kind={t.kind} />
               <span>
-                {Math.round(t.overlap * 100)}% the same as{" "}
+                Description {Math.round(t.overlap * 100)}% same ·{" "}
                 <a href={t.url} target="_blank" rel="noreferrer noopener">
                   {t.title || t.siteName}
                 </a>{" "}
                 <span className="dd-muted">
                   · {t.siteName}
-                  {who(t) ? ` · ${who(t)}` : ""} · {t.source === "web" ? "web search, confirmed on the page" : "checked with DealDig"}
+                  {who(t) ? ` · ${who(t)}` : ""}
                 </span>
                 <q className="dd-quote">{t.excerpt}</q>
               </span>
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="dd-fine">This description doesn't appear in other listings or on the web.</p>
+      )}
+
+      {notes.map((n) => (
+        <p key={n} className="dd-fine">
+          {n}
+        </p>
+      ))}
+
+      {photos.length > 0 && (
+        <div className="dd-photo-grid" aria-label="Search a photo yourself">
+          {photos.map((url, i) => {
+            const links = reverseSearchLinks(url);
+            return (
+              <figure key={url}>
+                <img src={url} alt={`Photo ${i + 1}`} />
+                <figcaption>
+                  <a href={links.lens} target="_blank" rel="noreferrer">
+                    Lens
+                  </a>{" "}
+                  ·{" "}
+                  <a href={links.tineye} target="_blank" rel="noreferrer">
+                    TinEye
+                  </a>
+                </figcaption>
+              </figure>
+            );
+          })}
+        </div>
       )}
     </section>
   );
@@ -269,8 +259,7 @@ export function AiPhotoNotice({ report, listing }: { report: RiskReport; listing
         </ul>
       </div>
       <p className="dd-fine">
-        Not counted in the score: AI checks can be wrong, so it's your call. If it matters, ask the seller for a new photo of
-        the item next to a note with today's date and their username.
+        Not scored: AI checks can be wrong. Ask for a new photo with today's date and their username.
       </p>
     </section>
   );

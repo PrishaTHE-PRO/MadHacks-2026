@@ -290,10 +290,11 @@ test("combineAiImage merges Claude, the detector and AI-art matches", () => {
 
 // --- Levels only: no numbers in the summary ---
 
-test("fallback summary names the level and the biggest reason, never a number", () => {
+test("fallback summary says what to do next without repeating the score or reasons", () => {
   const r = runRules(listing(), { webPhotoMatches: [webMatch()] });
   const text = fallbackSummary(r, levelFor(r.score));
-  assert.doesNotMatch(text, /\/100|\(\+\d+\)|points/);
-  assert.match(text, /@thriftqueen/);
+  assert.doesNotMatch(text, /\/100|\+\d/);
+  assert.match(fallbackSummary(r, "medium"), /before you pay/);
+  assert.match(fallbackSummary(r, "high"), /^Don't pay/);
   assert.match(fallbackSummary(runRules(listing({ photos: ["a", "b"] })), "low"), /^No red flags/);
 });

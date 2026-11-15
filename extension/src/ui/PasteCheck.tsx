@@ -21,7 +21,7 @@ const MAX_MESSAGES = 10;
 const MAX_CHARS = 2000;
 const SERVER_TIMEOUT_MS = 20_000;
 
-const platformLabel = (p: ChatPlatform) => (p === "generic" ? "Other (Craigslist, Instagram, text, email)" : PLATFORM_NAMES[p]);
+const platformLabel = (p: ChatPlatform) => (p === "generic" ? "Other (text, email, IG…)" : PLATFORM_NAMES[p]);
 
 type Result = { ctx: ChatContext; flags: ChatFlag[]; status: "checking" | "done" | "offline"; aiUsed: boolean };
 
@@ -43,12 +43,12 @@ function toContext(text: string, platform: ChatPlatform, role: ChatRole): ChatCo
 
 export function statusNote(status: Result["status"], aiUsed: boolean) {
   return status === "checking"
-    ? "Instant check done. Asking the AI for a second look…"
+    ? "Double-checking with AI…"
     : status === "offline"
-      ? "AI check unavailable (server not reachable). Showing the instant check only."
+      ? "Server offline: quick check only."
       : aiUsed
-        ? "Checked with rules + Claude."
-        : "Rules only (no AI key on the server).";
+        ? "Rules + AI"
+        : "Rules only";
 }
 
 export function PasteCheck({ onClose }: { onClose(): void }) {
@@ -90,12 +90,12 @@ export function PasteCheck({ onClose }: { onClose(): void }) {
     <>
       <section className="dd-card dd-paste" aria-label="Check a pasted message">
         <div className="dd-paste-head">
-          <h3>Check a pasted message</h3>
+          <h3>Paste a chat</h3>
           <button className="dd-link" onClick={onClose}>
             Close
           </button>
         </div>
-        <p className="dd-note">Paste messages from a chat DealDig can't read. Put a blank line between messages.</p>
+        <p className="dd-fine">Blank line between messages.</p>
         <textarea
           className="dd-input"
           value={text}
@@ -126,7 +126,7 @@ export function PasteCheck({ onClose }: { onClose(): void }) {
           <WarningList flags={result.flags} quotes={quotes} />
         ) : (
           <p className="dd-note dd-center">
-            {result.status === "checking" ? "No obvious warning signs. Double-checking…" : "No warning signs in these messages."}
+            {result.status === "checking" ? "Nothing yet. Double-checking…" : "No warning signs."}
           </p>
         ))}
       {result && <p className="dd-foot-note">{statusNote(result.status, result.aiUsed)}</p>}

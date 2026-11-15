@@ -3,12 +3,12 @@
 // the preview page can drive it with mock data and the side panel with the
 // real per-tab state. It fills its container (the side panel window).
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
 import { ImageTab } from "./ImageTab";
-import { ListingFootNote, ListingTab } from "./ListingTab";
+import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
 import { CantConnectState, EmptyState, ErrorState, LoadingState } from "./States";
 
@@ -44,13 +44,6 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "report", label: "Report" },
 ];
 
-/** Three tiny sparkles thrown off as the new tab's pill blooms (docs/design/dealdig-tabs-motion-instructions.md). */
-const SPARKS = [
-  { x: "-12px", y: "-9px", c: "#b9a9f5" },
-  { x: "3px", y: "-14px", c: "#8fb6ee" },
-  { x: "13px", y: "-6px", c: "#e9cf6b" },
-];
-
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function Panel(props: PanelProps) {
@@ -65,7 +58,6 @@ export function Panel(props: PanelProps) {
   const listing = view.kind === "listing" ? view.listing : undefined;
 
   const tabRefs = useRef(new Map<PanelTab, HTMLButtonElement>());
-  const glowRef = useRef<HTMLDivElement>(null);
 
   const select = (next: PanelTab) => {
     if (next === tab) return;
@@ -82,28 +74,6 @@ export function Panel(props: PanelProps) {
     const id = setTimeout(() => setLeaving((l) => (l === leaving ? null : l)), 130);
     return () => clearTimeout(id);
   }, [leaving, switches]);
-
-  // The traveller: a soft iridescent glow slides from the old tab to the new one,
-  // visible only in flight. Its ends change every click, so it's animated from JS.
-  useLayoutEffect(() => {
-    const glow = glowRef.current;
-    const from = prev && tabRefs.current.get(prev);
-    const to = tabRefs.current.get(tab);
-    if (!switches || !glow || !from || !to || reducedMotion() || !glow.animate) return;
-    const center = (b: HTMLElement) => b.offsetLeft + b.offsetWidth / 2;
-    const slide = glow.animate(
-      [{ transform: `translateX(${center(from)}px)` }, { transform: `translateX(${center(to)}px)` }],
-      { duration: 580, delay: 50, easing: "cubic-bezier(.65,0,.35,1)", fill: "both" },
-    );
-    const fade = glow.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.25 }, { opacity: 0.6, offset: 0.7 }, { opacity: 0 }], {
-      duration: 630,
-      fill: "both",
-    });
-    return () => {
-      slide.cancel();
-      fade.cancel();
-    };
-  }, [switches]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arrow keys / Home / End move between tabs (WAI-ARIA tabs pattern).
   const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -145,7 +115,6 @@ export function Panel(props: PanelProps) {
       <>
         <ListingTab listing={view.listing} report={view.report} history={props.history} onRetry={props.onRetry} />
         {props.tools}
-        <ListingFootNote report={view.report} />
       </>
     );
     footer = (
@@ -179,7 +148,6 @@ export function Panel(props: PanelProps) {
       </header>
 
       <div className="dd-tabs" role="tablist" aria-label="DealDig sections" onKeyDown={onTabKey}>
-        <div ref={glowRef} className="dd-tab-glow" aria-hidden="true" />
         {TABS.map((t) => {
           const motion = t.id === tab ? (switches ? "on" : "static") : t.id === prev ? "off" : "";
           return (
@@ -215,15 +183,6 @@ export function Panel(props: PanelProps) {
                   {chatCount}
                 </span>
               )}
-              {motion === "on" &&
-                SPARKS.map((sp, i) => (
-                  <span
-                    key={`spark${switches}-${i}`}
-                    className="dd-tab-spark"
-                    aria-hidden="true"
-                    style={{ "--sx": sp.x, "--sy": sp.y, background: sp.c } as CSSProperties}
-                  />
-                ))}
             </button>
           );
         })}

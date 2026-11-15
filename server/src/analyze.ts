@@ -241,13 +241,16 @@ export async function analyzeListing(
   };
 }
 
-/** The explanation when Claude isn't available: the level, then the biggest reasons. Never a score number. */
+/**
+ * The one-line summary when Claude isn't available: what to do next. The
+ * level and every reason are shown right below it, so it doesn't repeat them.
+ */
 export function fallbackSummary(result: RuleResult, level: RiskLevel, partial = false): string {
-  const risky = result.signals.filter((s) => s.points > 0).sort((a, b) => b.points - a.points);
-  if (partial) return `Partial check: ${risky[0]?.text ?? "Some checks couldn't run. Review what wasn't checked before deciding."}`;
-  if (!risky.length) return "No red flags found in the listing, its photos or the seller's history.";
-  const lead = level === "high" ? "High risk" : level === "medium" ? "Be careful" : "Mostly fine";
-  const reasons = risky.slice(0, 2).map((s) => s.text.replace(/\.$/, ""));
-  const rest = risky.length > 2 ? ` Plus ${risky.length - 2} smaller ${risky.length === 3 ? "reason" : "reasons"}, listed below.` : "";
-  return `${lead}. ${reasons.join(". ")}.${rest}`;
+  if (partial) return "Partial check: some checks couldn't run. Review what wasn't checked before you pay.";
+  if (!result.signals.some((s) => s.points > 0)) return "No red flags found. Still pay through the platform.";
+  return level === "high"
+    ? "Don't pay or share details until you've checked the reasons below."
+    : level === "medium"
+      ? "Check the reasons below before you pay."
+      : "Minor flags only. Pay through the platform.";
 }

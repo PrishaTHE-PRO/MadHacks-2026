@@ -5,13 +5,12 @@
 
 .dd-legacy .card {
   background: var(--dd-surface); border: 1px solid rgba(16,24,40,.04); border-radius: var(--dd-r-card);
-  padding: 14px; box-shadow: var(--dd-shadow); display: flex; flex-direction: column; gap: 10px; font-size: 13px;
+  padding: 14px; box-shadow: var(--dd-shadow); display: flex; flex-direction: column; gap: 10px; font-size: 15px;
 }
 .dd-legacy .card.dragging { border: 1px dashed var(--dd-accent); }
-.dd-legacy h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--dd-ink-2); letter-spacing: -.005em; }
 .dd-legacy p { margin: 0; }
 .dd-legacy .muted { color: var(--dd-muted); }
-.dd-legacy .small { font-size: 12px; }
+.dd-legacy .small { font-size: 13px; }
 .dd-legacy .error { color: var(--dd-high-ink); font-weight: 500; }
 .dd-legacy .title { font-weight: 500; overflow-wrap: anywhere; }
 .dd-legacy .grow { flex: 1; min-width: 0; }
@@ -22,7 +21,7 @@
 .dd-legacy .row { display: flex; gap: 8px; }
 .dd-legacy .row input { flex: 1; min-width: 0; }
 .dd-legacy input:not([type]), .dd-legacy input[type="text"], .dd-legacy textarea {
-  font: inherit; font-size: 14px; color: var(--dd-ink); width: 100%;
+  font: inherit; font-size: 16px; color: var(--dd-ink); width: 100%;
   padding: 9px 14px; border-radius: 14px; border: 1px solid transparent; background: #F6F7F8;
 }
 .dd-legacy input:not([type]), .dd-legacy input[type="text"] { border-radius: 999px; }
@@ -32,7 +31,7 @@
 /* Plain buttons are the primary action; chips and links are styled below. */
 .dd-legacy button:not(.chip):not(.link) {
   align-self: flex-start; height: 36px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer;
-  background: var(--dd-accent); color: #fff; font-size: 13px; font-weight: 500;
+  background: var(--dd-accent); color: #fff; font-size: 15px; font-weight: 500;
 }
 .dd-legacy button:not(.chip):not(.link):hover { background: #4456B3; }
 .dd-legacy button:disabled { opacity: .5; cursor: default; }
@@ -40,7 +39,7 @@
 
 .dd-legacy .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .dd-legacy button.chip {
-  border: 0; cursor: pointer; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 500;
+  border: 0; cursor: pointer; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 500;
   background: var(--dd-surface-2); color: var(--dd-ink-2);
 }
 .dd-legacy button.chip:hover { background: #E7E8EB; }

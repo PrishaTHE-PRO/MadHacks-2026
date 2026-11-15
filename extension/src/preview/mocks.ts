@@ -48,7 +48,7 @@ export const lowReport: RiskReport = {
   platform: "ebay",
   score: 5,
   level: "low",
-  summary: "Established seller with strong feedback and a fair price. Still pay through eBay checkout.",
+  summary: "Looks fine. Still pay through eBay checkout.",
   topReasons: ["Only one photo. Ask for more angles and a tag or serial photo."],
   signals: [
     sig("few-photos", "caution", "Only one photo. Ask for more angles and a tag or serial photo.", 5),
@@ -99,8 +99,7 @@ export const mediumReport: RiskReport = {
   score: 45,
   maxScore: 100,
   level: "medium",
-  summary:
-    "Be careful: photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller, and it's priced 55% below similar bags. Ask for a tag and serial photo before you buy. Photo 2 may be AI-generated; that's your call.",
+  summary: "Ask for a photo of the tag and serial number before you pay.",
   topReasons: [
     "Photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller. This seller is likely using someone else's photos.",
     "Priced 55% below the typical $310 (estimate). Classic bait pricing.",
@@ -202,7 +201,7 @@ export const highReport: RiskReport = {
   platform: "facebook",
   score: 80,
   level: "high",
-  summary: "Several classic rental-scam signs: far below local rent, a new account, and a push to pay off-platform.",
+  summary: "Don't send a deposit. See the room in person first.",
   topReasons: [
     "Reported by 3 DealDig users.",
     "Priced 52% below the typical $780 (estimate). Classic bait pricing.",

@@ -2,7 +2,7 @@
    .dd-legacy. Several selectors repeat :not(.chip):not(.link) so they beat
    legacy.css's "every plain button is a primary pill" rule. */
 
-.dd-legacy .privacy { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.dd-legacy .privacy { display: flex; flex-direction: column; gap: 12px; font-size: 15px; }
 .dd-legacy .verified { color: var(--dd-low-ink); font-weight: 600; }
 
 /* Photos held back from the listing form */
@@ -25,7 +25,7 @@
 .dd-legacy .photo-head { display: flex; align-items: center; gap: 8px; }
 .dd-legacy .photo-head .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dd-legacy .tag {
-  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
   background: var(--dd-accent-wash); color: var(--dd-accent-ink);
 }
 .dd-legacy .photo-head button.icon:not(.chip):not(.link),
