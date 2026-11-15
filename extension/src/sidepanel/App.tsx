@@ -6,9 +6,10 @@
 
 import { useEffect, useState } from "react";
 import { PLATFORM_NAMES, type ChatRole } from "../../../shared/types";
-import { SERVER_URL } from "../config";
 import { chatKey, dismissedKey, roleKey, tabKey, threadKey, type ChatTabState, type TabState } from "../messages";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
+import { HistoryCard, useHistory } from "../ui/HistoryCard";
+import { DocCheck } from "./DocCheck";
 import { Panel, type PanelView } from "../ui/Panel";
 
 function useActiveTabId(): number | null {
@@ -45,23 +46,6 @@ function viewFor(state: TabState | undefined): PanelView {
   return { kind: "listing", listing: state.listing, report: state.report };
 }
 
-async function sendReport(state: TabState | undefined, reason: string): Promise<boolean> {
-  if (!state) return false;
-  const { listing } = state;
-  const res = await fetch(`${SERVER_URL}/report`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      platform: listing.platform,
-      sellerId: listing.seller.id,
-      sellerUsername: listing.seller.username,
-      listingId: listing.id,
-      reason,
-    }),
-  });
-  return res.ok;
-}
-
 export function App() {
   const tabId = useActiveTabId();
   const listingState = useStored<TabState>("session", tabId === null ? null : tabKey(tabId));
@@ -69,6 +53,7 @@ export function App() {
   const thread = chat ? threadKey(chat.platform, chat.threadId) : null;
   const role = useStored<ChatRole>("local", thread && roleKey(thread)) ?? "unknown";
   const dismissed = useStored<string[]>("local", thread && dismissedKey(thread)) ?? [];
+  const history = useHistory();
 
   // Esc closes the sidebar, like the close button.
   useEffect(() => {
@@ -101,9 +86,18 @@ export function App() {
           onShowDismissed={() => thread && void chrome.storage.local.remove(dismissedKey(thread))}
         />
       }
+      history={history}
+      tools={
+        <>
+          {/* Main's document check, styled for the sidebar by legacy.css. */}
+          <div className="dd-legacy">
+            <DocCheck />
+          </div>
+          <HistoryCard history={history} />
+        </>
+      }
       onClose={() => window.close()}
       onRetry={() => tabId !== null && void chrome.runtime.sendMessage({ type: "RETRY_LISTING", tabId })}
-      onSubmitReport={(reason) => sendReport(listingState, reason)}
     />
   );
 }

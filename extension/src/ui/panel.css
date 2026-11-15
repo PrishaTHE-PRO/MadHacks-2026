@@ -62,7 +62,6 @@
 .dd-verdict-text { flex: 1; min-width: 0; }
 .dd-level-row { display: flex; align-items: baseline; gap: 8px; }
 .dd-level { font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
-.dd-score { margin-left: auto; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .dd-summary { font-size: 13px; margin-top: 2px; color: var(--dd-ink-2); }
 .dd-low { color: var(--dd-low-ink); }
 .dd-medium { color: var(--dd-careful-ink); }
@@ -91,10 +90,8 @@
 
 /* Watch out */
 .dd-watch-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-.dd-total { font-size: 12px; font-weight: 600; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
 .dd-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .dd-rows li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
-.dd-pts { font-size: 12px; font-weight: 600; background: var(--dd-accent-wash); color: var(--dd-accent-ink); border-radius: 999px; padding: 0 7px; flex: none; min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
 .dd-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 6px; background: #B8BCC6; }
 .dd-dot.good { background: var(--dd-low); }
 .dd-dot.caution { background: var(--dd-careful); }
@@ -182,3 +179,41 @@ textarea.dd-input { resize: vertical; }
 .dd-watching { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--dd-muted); }
 .dd-watch-dot { width: 7px; height: 7px; border-radius: 50%; background: #B8BCC6; flex: none; }
 .dd-watching.on .dd-watch-dot { background: var(--dd-low); }
+
+/* --- From main's side panel: flag, earlier visits, photos, report, history --- */
+.dd-fine { margin: 0; font-size: 12px; color: var(--dd-muted); }
+.dd-small { font-size: 12px; }
+.dd-list { margin: 4px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.dd-flag { border-color: rgba(217,83,79,.35); background: linear-gradient(0deg, rgba(217,83,79,.05), rgba(217,83,79,.05)), var(--dd-surface); display: flex; flex-direction: column; gap: 6px; }
+.dd-flag-title { font-weight: 600; color: var(--dd-high-ink); }
+.dd-earlier { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.dd-earlier p { margin: 0; }
+.dd-identified { font-size: 12px; color: var(--dd-muted); }
+.dd-identified strong { color: var(--dd-ink); font-weight: 500; }
+.dd-price-note { margin: 0; font-size: 12px; color: var(--dd-muted); }
+.dd-photos { display: flex; flex-direction: column; gap: 8px; }
+.dd-photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dd-photo-grid figure { margin: 0; text-align: center; font-size: 12px; }
+.dd-photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 4px; }
+.dd-report { display: flex; flex-direction: column; gap: 10px; }
+.dd-report h3 { color: var(--dd-ink); font-size: 14px; }
+.dd-options { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dd-options label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 7px 10px; border-radius: 12px; cursor: pointer; }
+.dd-options label:hover { background: #F6F7F8; }
+.dd-options label.on { background: var(--dd-accent-wash); }
+.dd-options input { margin: 2px 0 0; accent-color: var(--dd-accent); }
+.dd-btn-row { display: flex; gap: 8px; }
+.dd-history summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.dd-history summary::-webkit-details-marker { display: none; }
+.dd-history summary .chev { color: var(--dd-muted); transition: transform .15s ease; }
+.dd-history[open] summary .chev { transform: rotate(180deg); }
+.dd-history[open] { display: flex; flex-direction: column; gap: 10px; }
+.dd-history ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.dd-history li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.dd-history-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dd-history-text a { text-decoration: none; color: var(--dd-ink); }
+.dd-history-text a:hover { text-decoration: underline; }
+.dd-level-pill { flex: none; min-width: 52px; text-align: center; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 999px; color: #fff; }
+.dd-level-pill.low { background: var(--dd-low); }
+.dd-level-pill.medium { background: var(--dd-careful); }
+.dd-level-pill.high { background: var(--dd-high); }

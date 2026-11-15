@@ -15,8 +15,38 @@ import {
 } from "./messages";
 import { prefilter } from "../../shared/chatPatterns";
 import type { ChatContext, ChatFlag, ChatReport, Listing, ListingProgress, ListingStep, RiskReport } from "../../shared/types";
+import { dhashFromRgba } from "../../shared/photohash";
+import { saveCheckToHistory } from "./history";
 
 const CACHE_MS = 10 * 60 * 1000;
+const HASHED_PHOTOS = 4;
+// Decode at this size before averaging down to the 9×8 hash grid: big enough
+// to smooth out noise, small enough to be quick.
+const HASH_DECODE = { w: 72, h: 64 };
+
+/**
+ * Fingerprint a public listing photo (spec §3.1). Only the 16-character hash
+ * is sent to the server. Needs host_permissions for the photo's CDN.
+ */
+async function photoHash(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const bitmap = await createImageBitmap(await res.blob(), {
+      resizeWidth: HASH_DECODE.w,
+      resizeHeight: HASH_DECODE.h,
+      resizeQuality: "high",
+    });
+    const canvas = new OffscreenCanvas(HASH_DECODE.w, HASH_DECODE.h);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    return dhashFromRgba(ctx.getImageData(0, 0, HASH_DECODE.w, HASH_DECODE.h).data, HASH_DECODE.w, HASH_DECODE.h);
+  } catch {
+    return null; // CDN blocked or not an image: the rest of the check still runs
+  }
+}
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 
@@ -34,10 +64,12 @@ async function analyze(
     | undefined;
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.report;
 
+  // Photos are fingerprinted here first (part of "Reading the listing" in the sidebar).
+  const photoHashes = await Promise.all(listing.photos.slice(0, HASHED_PHOTOS).map(photoHash));
   const res = await fetch(`${SERVER_URL}/analyze-listing?progress=1`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ listing }),
+    body: JSON.stringify({ listing, photoHashes }),
   });
   if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
 
@@ -81,6 +113,8 @@ async function runListing(tabId: number, listing: Listing): Promise<AnalyzeRespo
       writes = writes.then(() => setTab(tabId, snapshot));
     });
     await writes;
+    // Personal history stays on this device (chrome.storage.local).
+    await saveCheckToHistory(listing, report).catch((e) => console.warn("[DealDig] history not saved", e));
     await setTab(tabId, { status: "done", listing, report });
     return { ok: true, report };
   } catch (err) {

@@ -6,8 +6,9 @@ import tokens from "./tokens.css";
 import motion from "./motion.css";
 import panel from "./panel.css";
 import backdrop from "./backdrop.css";
+import legacy from "./legacy.css";
 
-export const UI_CSS = [tokens, motion, panel, backdrop].join("\n");
+export const UI_CSS = [tokens, motion, panel, backdrop, legacy].join("\n");
 
 /** Attach a shadow root to `host`, add the styles (plus any extra CSS), and return a React root inside it. */
 export function mountInShadow(host: HTMLElement, extraCss = ""): Root {

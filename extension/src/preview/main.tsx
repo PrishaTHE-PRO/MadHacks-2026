@@ -9,10 +9,13 @@ import { Bubble, type BubbleIcon } from "../ui/Bubble";
 import { ChatTab, chatWarningCount } from "../ui/ChatTab";
 import { Panel, type PanelTab, type PanelView } from "../ui/Panel";
 import { mountInShadow } from "../ui/shadow";
-import { arrivingFlag, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
+import { DocCheck } from "../sidepanel/DocCheck";
+import { HistoryCard } from "../ui/HistoryCard";
+import { arrivingFlag, mockHistory, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
 import type { ListingStep } from "../../../shared/types";
 
 const PLAN: ListingStep[] = ["seller", "item", "price", "summary"];
+const TALL = new URLSearchParams(location.search).has("tall");
 import { OnPagePreview } from "./OnPage";
 
 const PREVIEW_CSS = `
@@ -48,7 +51,7 @@ const PREVIEW_CSS = `
   .pv-msg.me { align-self: flex-end; background: #0866ff; color: #fff; border-bottom-right-radius: 4px; }
 `;
 
-type StateId = "bubbles" | "onpage" | "low" | "medium" | "high" | "chat" | "nochat" | "loading" | "empty" | "offline" | "unreadable";
+type StateId = "bubbles" | "onpage" | "low" | "medium" | "high" | "chat" | "report" | "nochat" | "loading" | "empty" | "offline" | "unreadable";
 
 const STATES: { id: StateId; label: string }[] = [
   { id: "bubbles", label: "Bubble mark" },
@@ -57,6 +60,7 @@ const STATES: { id: StateId; label: string }[] = [
   { id: "medium", label: "Be careful" },
   { id: "high", label: "High risk" },
   { id: "chat", label: "Chat" },
+  { id: "report", label: "Report" },
   { id: "nochat", label: "Chat: none open" },
   { id: "loading", label: "Loading" },
   { id: "empty", label: "Empty" },
@@ -74,6 +78,8 @@ function viewFor(id: Exclude<StateId, "bubbles" | "onpage">): { view: PanelView;
       return { view: { kind: "listing", listing: highListing, report: highReport }, site: "Facebook", chat: true };
     case "chat":
       return { view: { kind: "listing", listing: highListing, report: highReport }, site: "Facebook", tab: "chat", chat: true };
+    case "report":
+      return { view: { kind: "listing", listing: highListing, report: highReport }, site: "Facebook", tab: "report", chat: true };
     case "nochat":
       return { view: { kind: "empty" }, tab: "chat" };
     case "loading":
@@ -151,7 +157,8 @@ function Preview() {
       ) : !v ? (
         <BubbleGrid />
       ) : open ? (
-        <div className="pv-frame dd-backdrop">
+        // ?tall=1 shows the whole tab without scrolling (for reviews and screenshots).
+        <div className="pv-frame dd-backdrop" style={TALL ? { height: "auto" } : undefined}>
           <div className="dd-fill">
             <Panel
               key={`${state}:${replay}`}
@@ -170,10 +177,15 @@ function Preview() {
               }
               onClose={() => setOpen(false)}
               onRetry={() => setToast("Try again: would re-run the listing check.")}
-              onSubmitReport={async () => {
-                await new Promise((r) => setTimeout(r, 600));
-                return true;
-              }}
+              history={mockHistory}
+              tools={
+                <>
+                  <div className="dd-legacy">
+                    <DocCheck />
+                  </div>
+                  <HistoryCard history={mockHistory} />
+                </>
+              }
             />
           </div>
         </div>

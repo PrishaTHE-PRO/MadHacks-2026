@@ -2,6 +2,7 @@
 
 import type { Listing, RiskReport, Signal } from "../../../shared/types";
 import type { ChatTabState } from "../messages";
+import type { HistoryEntry } from "../historyCore";
 
 /** A soft gradient "photo" so the preview needs no network. */
 const photo = (a: string, b: string) =>
@@ -149,12 +150,12 @@ export const highReport: RiskReport = {
   level: "high",
   summary: "Several classic rental-scam signs: far below local rent, a new account, and a push to pay off-platform.",
   topReasons: [
-    "Reported by 2 DealDig users.",
+    "Reported by 3 DealDig users.",
     "Priced 52% below the typical $780 (estimate). Classic bait pricing.",
     "Listing mentions paying or contacting outside Facebook Marketplace. That removes your buyer protection.",
   ],
   signals: [
-    sig("community-reports", "danger", "Reported by 2 DealDig users.", 20, "community"),
+    sig("community-reports", "danger", "Reported by 3 DealDig users.", 30, "community"),
     sig("price-bait", "danger", "Priced 52% below the typical $780 (estimate). Classic bait pricing.", 20),
     sig("off-platform", "danger", "Listing mentions paying or contacting outside Facebook Marketplace. That removes your buyer protection.", 15),
     sig("joined-this-year", "caution", "Seller joined Facebook this year (2026).", 10),
@@ -169,7 +170,16 @@ export const highReport: RiskReport = {
     basis: "ai-estimate",
     note: "Single rooms near campus.",
   },
-  communityReports: 2,
+  communityReports: 3,
+  community: {
+    reporters: 3,
+    reportersLast30Days: 3,
+    flagged: true,
+    categories: [
+      { category: "deposit-before-viewing", count: 2 },
+      { category: "off-platform-payment", count: 1 },
+    ],
+  },
   aiUsed: true,
   checkedAt: CHECKED_AT,
 };
@@ -242,3 +252,46 @@ export const mockChat: ChatTabState = {
     },
   ],
 };
+
+// --- On-device history (made-up listings) ---
+
+const HOUR = 60 * 60 * 1000;
+
+export const mockHistory: HistoryEntry[] = [
+  {
+    platform: "facebook",
+    listingId: highListing.id,
+    url: highListing.url,
+    title: highListing.title,
+    sellerId: highListing.seller.id,
+    sellerName: highListing.seller.displayName!,
+    score: 72,
+    level: "high",
+    firstSeenAt: Date.now() - 3 * 24 * HOUR,
+    lastSeenAt: Date.now() - 3 * 24 * HOUR,
+  },
+  {
+    platform: "facebook",
+    listingId: "mock-high-2",
+    url: "https://www.facebook.com/marketplace/item/0000000004",
+    title: "Studio apartment downtown, all utilities, available now",
+    sellerId: highListing.seller.id,
+    sellerName: highListing.seller.displayName!,
+    score: 64,
+    level: "high",
+    firstSeenAt: Date.now() - 26 * HOUR,
+    lastSeenAt: Date.now() - 26 * HOUR,
+  },
+  {
+    platform: "ebay",
+    listingId: lowListing.id,
+    url: lowListing.url,
+    title: lowListing.title,
+    sellerId: lowListing.seller.id,
+    sellerName: lowListing.seller.username,
+    score: 5,
+    level: "low",
+    firstSeenAt: Date.now() - 5 * HOUR,
+    lastSeenAt: Date.now() - 5 * HOUR,
+  },
+];

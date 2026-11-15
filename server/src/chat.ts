@@ -18,7 +18,7 @@ import {
 } from "../../shared/chatPatterns";
 import { PLATFORMS, type ChatContext, type ChatFlag, type ChatReport, type Platform, type Severity } from "../../shared/types";
 import { aiEnabled, classifyChat, type ChatInputMessage } from "./claude";
-import { countReports } from "./db";
+import { communityStats } from "./db";
 import { demoMode, demoRecord, demoReplay } from "./demoCache";
 
 const RANK: Record<Severity, number> = { good: 0, info: 1, caution: 2, danger: 3 };
@@ -107,7 +107,8 @@ export async function analyzeChat(ctx: ChatContext): Promise<ChatReport> {
   };
   const otherId = ctx.otherParty?.id;
   if (otherId && (PLATFORMS as readonly string[]).includes(ctx.platform)) {
-    report.communityReports = countReports(ctx.platform as Platform, otherId);
+    // Distinct people who reported them (main's anonymous reports, last 12 months).
+    report.communityReports = communityStats(ctx.platform as Platform, otherId).reporters;
   }
   return report;
 }

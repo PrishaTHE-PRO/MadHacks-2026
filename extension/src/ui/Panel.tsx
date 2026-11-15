@@ -5,6 +5,7 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
+import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
 import { ListingTab } from "./ListingTab";
 import { ReportTab } from "./ReportTab";
@@ -27,10 +28,12 @@ export interface PanelProps {
   /** Chat warnings count for the Chat tab pill. */
   chatCount?: number;
   initialTab?: PanelTab;
+  /** This device's check history (earlier visits on the Listing tab). */
+  history: HistoryEntry[];
+  /** Always available under the Listing tab, whatever its state: document check and history. */
+  tools?: ReactNode;
   onClose(): void;
   onRetry(): void;
-  /** Send a seller report; resolves true when it was saved. */
-  onSubmitReport(reason: string): Promise<boolean>;
 }
 
 const TABS: { id: PanelTab; label: string }[] = [
@@ -64,15 +67,30 @@ export function Panel(props: PanelProps) {
   if (tab === "chat") {
     body = props.chatTab;
   } else if (tab === "report") {
-    body = <ReportTab listing={listing} onSubmit={props.onSubmitReport} onCancel={() => setTab("listing")} />;
+    body = <ReportTab listing={listing} onCancel={() => setTab("listing")} />;
   } else if (view.kind === "empty") {
-    body = <EmptyState />;
+    body = (
+      <>
+        <EmptyState />
+        {props.tools}
+      </>
+    );
   } else if (view.kind === "loading") {
     body = <LoadingState plan={view.plan} step={view.step} />;
   } else if (view.kind === "error") {
-    body = view.offline ? <CantConnectState onRetry={props.onRetry} /> : <ErrorState message={view.message} onRetry={props.onRetry} />;
+    body = (
+      <>
+        {view.offline ? <CantConnectState onRetry={props.onRetry} /> : <ErrorState message={view.message} onRetry={props.onRetry} />}
+        {props.tools}
+      </>
+    );
   } else {
-    body = <ListingTab listing={view.listing} report={view.report} />;
+    body = (
+      <>
+        <ListingTab listing={view.listing} report={view.report} history={props.history} />
+        {props.tools}
+      </>
+    );
     footer = (
       <button className="dd-btn secondary" onClick={() => setTab("report")}>
         Report seller

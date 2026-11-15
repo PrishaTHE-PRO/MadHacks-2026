@@ -1,5 +1,5 @@
 // Small floating badge on listing pages (docs/ui-redesign-task.md, Phase 4).
-// A white pill: bubble · verdict · score, with a hover card showing the top
+// A white pill: bubble · verdict (levels only, no score), with a hover card showing the top
 // reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
@@ -61,20 +61,17 @@ export function renderBadge(
     pill.setAttribute("aria-label", `DealDig: can't check this page. ${s.message}. Open DealDig`);
     pill.title = s.message;
   } else {
-    const { level, score } = s.report;
-    pill.append(
-      mark(28, level === "low" ? "check" : "alert", "pd"),
-      el("span", `dd-word ${level}`, LEVEL_WORD[level]),
-      el("span", "dd-num", String(score)),
-    );
-    pill.setAttribute("aria-label", `DealDig: ${LEVEL_WORD[level]}, ${score} out of 100. Open details`);
+    // Levels only: the score picks the level but is never shown.
+    const { level } = s.report;
+    pill.append(mark(28, level === "low" ? "check" : "alert", "pd"), el("span", `dd-word ${level}`, LEVEL_WORD[level]));
+    pill.setAttribute("aria-label", `DealDig: ${LEVEL_WORD[level]}. Open details`);
 
-    // Hover card: bubble + level + score/100, the top reason, "See details".
+    // Hover card: bubble + level, the top reason, "See details".
     const card = el("div", "dd-hover");
     card.setAttribute("role", "note");
     const top = el("div", "dd-hover-top");
     const words = el("div");
-    words.append(el("div", `dd-hover-level dd-word ${level}`, LEVEL_WORD[level]), el("div", "dd-hover-score", `${score} / 100`));
+    words.append(el("div", `dd-hover-level dd-word ${level}`, LEVEL_WORD[level]));
     top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
     const reason = s.report.topReasons[0] ?? s.report.summary;
     const link = el("button", "dd-hover-link", "See details");

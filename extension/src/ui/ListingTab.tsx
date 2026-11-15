@@ -1,25 +1,40 @@
-// Listing tab: verdict, listing + price, "Watch out" signals. Maps a RiskReport.
+// Listing tab: community flag, verdict, earlier visits, listing + price,
+// "Watch out" signals, photo check and (for local deals) the meetup helper.
+// Levels only: the score picks the level in rules.ts but is never shown, and
+// signals are listed most serious first without points.
 
 import { useState } from "react";
-import type { Listing, RiskLevel, RiskReport } from "../../../shared/types";
+import { LOCAL_PLATFORMS, type Listing, type RiskLevel, type RiskReport, type Severity } from "../../../shared/types";
+import type { HistoryEntry } from "../historyCore";
+import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
+import { CommunityFlag, EarlierVisits, PhotoCheck } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
-import { useCountUp } from "./useCountUp";
 
-/** Watch-out rows come in one after another, biggest first. */
+/** Watch-out rows come in one after another, most serious first. */
 const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
 
 const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 const LEVELS: RiskLevel[] = ["low", "medium", "high"];
+const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 
-export function ListingTab({ listing, report }: { listing: Listing; report: RiskReport }) {
+export function ListingTab({ listing, report, history }: { listing: Listing; report: RiskReport; history: HistoryEntry[] }) {
   return (
     <>
+      <CommunityFlag community={report.community} />
       <Verdict report={report} />
+      <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
       <WatchOut report={report} />
+      <PhotoCheck report={report} listing={listing} />
+      {LOCAL_PLATFORMS.includes(listing.platform) && (
+        // Main's meetup helper, styled for the sidebar by legacy.css.
+        <div className="dd-legacy">
+          <MeetupHelper listing={listing} report={report} />
+        </div>
+      )}
       <p className="dd-foot-note">
-        Score = the points above, added up · {report.aiUsed ? "rules + Claude" : "rules only"} ·{" "}
+        Most serious first · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
         {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
       </p>
     </>
@@ -28,22 +43,16 @@ export function ListingTab({ listing, report }: { listing: Listing; report: Risk
 
 function Verdict({ report }: { report: RiskReport }) {
   const { level } = report;
-  const shown = useCountUp(report.score);
   return (
     <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
         <Bubble size={40} icon={iconForLevel(level)} />
         <div className="dd-verdict-text">
-          <div className="dd-level-row">
-            <span className={`dd-level dd-${level}`}>{LEVEL_WORD[level]}</span>
-            <span className={`dd-score dd-${level}`} aria-label={`${report.score} out of 100`}>
-              {shown} / 100
-            </span>
-          </div>
+          <div className={`dd-level dd-${level} dd-word-in`}>{LEVEL_WORD[level]}</div>
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
-      <div className="dd-bar" role="img" aria-label={`Risk: ${LEVEL_WORD[level]}`}>
+      <div className="dd-bar" role="img" aria-label={`Risk level: ${LEVEL_WORD[level]}`}>
         {LEVELS.map((l) => (
           <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
         ))}
@@ -55,10 +64,12 @@ function Verdict({ report }: { report: RiskReport }) {
 function ListingCard({ listing, report }: { listing: Listing; report: RiskReport }) {
   const facts = sellerFacts(listing);
   if (report.communityReports > 0)
-    facts.push(`${report.communityReports} DealDig report${report.communityReports > 1 ? "s" : ""}`);
+    facts.push(`reported by ${report.communityReports} ${report.communityReports === 1 ? "person" : "people"}`);
   const p = report.priceCheck;
   const hasRange = p && p.typicalLow !== null && p.typicalHigh !== null;
   const who = sellerName(listing);
+  const item = report.item;
+  const itemName = item ? [item.brand, item.model].filter(Boolean).join(" ") || item.category : "";
   return (
     <section className="dd-card dd-listing" aria-label="Listing">
       <div className="dd-item">
@@ -90,6 +101,12 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
           </div>
         </div>
       </div>
+      {item && (
+        <div className="dd-identified">
+          Identified as <strong>{itemName}</strong>
+          {item.brand || item.model ? ` (${item.category})` : ""}
+        </div>
+      )}
       {facts.length > 0 && (
         <div className="dd-chips">
           {facts.map((f) => (
@@ -99,7 +116,19 @@ function ListingCard({ listing, report }: { listing: Listing; report: RiskReport
           ))}
         </div>
       )}
-      {hasRange && <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} />}
+      {p && (hasRange || p.note) && (
+        <div className="dd-price">
+          {hasRange && <PriceRow low={p.typicalLow!} high={p.typicalHigh!} price={listing.price} />}
+          {p.note && (
+            <p className="dd-price-note">
+              {p.note}{" "}
+              {p.basis === "ai-estimate"
+                ? `(AI estimate, ${p.confidence} confidence, not live sales data.)`
+                : `(${p.sampleSize ? `${p.sampleSize} eBay listings, ` : ""}${p.confidence} confidence.)`}
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -108,29 +137,28 @@ function PriceRow({ low, high, price }: { low: number; high: number; price: numb
   const max = Math.max(high, price) * 1.3 || 1;
   const pct = (n: number) => `${Math.min(100, Math.max(0, (n / max) * 100))}%`;
   return (
-    <div className="dd-price">
+    <>
       <div className="dd-price-line">
         <span className="dd-label">Price</span>
         <span className="dd-muted">
           usually {money(low)}–{money(high)} · <strong className="dd-ink">this one {money(price)}</strong>
         </span>
       </div>
-      <div
-        className="dd-track"
-        role="img"
-        aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}
-      >
+      <div className="dd-track" role="img" aria-label={`Asking ${money(price)}; usually ${money(low)} to ${money(high)}`}>
         <span className="dd-range" style={{ left: pct(low), width: `calc(${pct(high)} - ${pct(low)})` }} />
         <span className="dd-pin" style={{ left: pct(price) }} />
       </div>
-    </div>
+    </>
   );
 }
 
 function WatchOut({ report }: { report: RiskReport }) {
   const [open, setOpen] = useState(false);
-  const risky = report.signals.filter((s) => s.points > 0).sort((a, b) => b.points - a.points);
-  // Everything that didn't add points: good signs first, then notes (e.g. "account is about 73 days old").
+  // Signals that raised the risk, most serious first (points only decide the order).
+  const risky = report.signals
+    .filter((s) => s.points > 0)
+    .sort((a, b) => b.points - a.points || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  // Everything else: good signs first, then notes (e.g. "account is about 73 days old").
   const order = { good: 0, caution: 1, info: 2, danger: 3 } as const;
   const rest = report.signals.filter((s) => s.points === 0).sort((a, b) => order[a.severity] - order[b.severity]);
   const goodCount = rest.filter((s) => s.severity === "good").length;
@@ -139,24 +167,22 @@ function WatchOut({ report }: { report: RiskReport }) {
   const restLabel = [goodCount && `✓ ${plural(goodCount, "good sign")}`, noteCount && plural(noteCount, "note")]
     .filter(Boolean)
     .join(" · ");
-  const total = risky.reduce((n, s) => n + s.points, 0);
   return (
     <section className="dd-card" aria-label="Watch out">
       <div className="dd-watch-head">
         <h3>Watch out</h3>
-        {total > 0 && <span className="dd-total">+{total} points</span>}
       </div>
       {risky.length ? (
         <ul className="dd-rows">
           {risky.map((s, i) => (
             <li key={s.id} {...rowIn(i)}>
-              <span className="dd-pts">+{s.points}</span>
+              <span className={`dd-dot ${s.severity}`} aria-hidden="true" />
               <span>{s.text}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="dd-note">Nothing added to the score.</p>
+        <p className="dd-note">No warning signs found.</p>
       )}
       {rest.length > 0 && (
         <>

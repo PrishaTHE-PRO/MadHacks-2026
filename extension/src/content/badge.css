@@ -13,7 +13,6 @@
 .dd-pill:focus-visible { outline: 2px solid var(--dd-accent); outline-offset: 3px; }
 .dd-pill .dd-mark { display: inline-flex; line-height: 0; }
 .dd-word { font-weight: 600; }
-.dd-num { font-weight: 500; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
 .dd-word.low { color: var(--dd-low-ink); }
 .dd-word.medium { color: var(--dd-careful-ink); }
 .dd-word.high { color: var(--dd-high-ink); }
@@ -28,7 +27,6 @@
 .dd-badge:hover .dd-hover, .dd-badge:focus-within .dd-hover, .dd-badge.show-card .dd-hover { opacity: 1; transform: none; pointer-events: auto; }
 .dd-hover-top { display: flex; align-items: center; gap: 8px; }
 .dd-hover-level { font: 600 14px/1.2 var(--dd-font); }
-.dd-hover-score { font: 500 12px/1.2 var(--dd-font); color: var(--dd-muted); font-variant-numeric: tabular-nums; }
 .dd-hover-reason { font: 400 12px/1.45 var(--dd-font); color: var(--dd-ink-2); margin: 8px 0; }
 .dd-hover-link { all: unset; cursor: pointer; font: 600 12px/1.2 var(--dd-font); color: var(--dd-accent-ink); }
 .dd-hover-link:hover { text-decoration: underline; }
@@ -37,5 +35,4 @@
 /* Verdict arriving after "Checking…" (see renderBadge `arrive`). */
 .dd-badge.arrive .dd-pill .dd-mark { animation: dd-fade-in .3s ease-out both; }
 .dd-badge.arrive .dd-pill .dd-word { animation: dd-word-in .35s ease-out .05s both; }
-.dd-badge.arrive .dd-pill .dd-num { animation: dd-word-in .35s ease-out .12s both; }
 .dd-badge.arrive .dd-pill { transition: box-shadow .3s ease; }
