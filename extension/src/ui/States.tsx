@@ -6,6 +6,7 @@ import { Bubble } from "./Bubble";
 const STEP_LABEL: Record<ListingStep | "read", string> = {
   read: "Reading the listing",
   seller: "Checking the seller's history",
+  web: "Searching the web for these photos and text",
   item: "Identifying the item with Claude",
   price: "Comparing prices",
   summary: "Writing the summary",

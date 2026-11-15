@@ -16,6 +16,7 @@
 .dd-word.low { color: var(--dd-low-ink); }
 .dd-word.medium { color: var(--dd-careful-ink); }
 .dd-word.high { color: var(--dd-high-ink); }
+.dd-score { font-size: 12px; font-weight: 500; color: var(--dd-muted); font-variant-numeric: tabular-nums; }
 .dd-word.sheen { color: var(--dd-ink-2); border-radius: 4px; }
 
 /* Hover card above the pill. */

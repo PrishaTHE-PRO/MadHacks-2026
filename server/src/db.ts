@@ -51,6 +51,28 @@ db.exec(`
     seen_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (platform, listing_id, photo_index)
   );
+
+  -- Each checked listing's description (public text), so later checks can
+  -- spot the same text under another seller. One row per listing.
+  CREATE TABLE IF NOT EXISTS listing_texts (
+    platform TEXT NOT NULL,
+    listing_id TEXT NOT NULL,
+    seller_id TEXT NOT NULL,
+    seller_username TEXT NOT NULL,
+    listing_url TEXT NOT NULL,
+    listing_title TEXT NOT NULL,
+    text TEXT NOT NULL,
+    seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (platform, listing_id)
+  );
+
+  -- Results of paid lookups (reverse image search, web text search, AI
+  -- detector), so re-checking a listing doesn't pay twice.
+  CREATE TABLE IF NOT EXISTS web_cache (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Older databases: add the anonymous reporter and category columns.
@@ -102,6 +124,83 @@ export function savePhotoHashes(
     if (hash)
       upsert.run(listing.platform, listing.id, i, hash, listing.sellerId, listing.sellerUsername, listing.url, listing.title.slice(0, 200));
   });
+}
+
+/** The seller of a listing DealDig has already checked, found by its URL. */
+export function knownListingByUrl(url: string): { platform: string; sellerId: string; sellerUsername: string } | null {
+  const clean = url.split(/[?#]/)[0].replace(/\/$/, "");
+  const row = db
+    .prepare(
+      `SELECT platform, seller_id AS sellerId, seller_username AS sellerUsername FROM photo_hashes
+       WHERE listing_url = ? OR listing_url = ? LIMIT 1`,
+    )
+    .get(clean, `${clean}/`) as { platform: string; sellerId: string; sellerUsername: string } | undefined;
+  if (row) return row;
+  return (
+    (db
+      .prepare(
+        `SELECT platform, seller_id AS sellerId, seller_username AS sellerUsername FROM listing_texts
+         WHERE listing_url = ? OR listing_url = ? LIMIT 1`,
+      )
+      .get(clean, `${clean}/`) as { platform: string; sellerId: string; sellerUsername: string } | undefined) ?? null
+  );
+}
+
+export interface StoredText {
+  platform: string;
+  listingId: string;
+  sellerId: string;
+  sellerUsername: string;
+  listingUrl: string;
+  listingTitle: string;
+  text: string;
+}
+
+/** Every stored description except this listing's own. Scanned in JS, like photos. */
+export function otherListingTexts(platform: string, listingId: string): StoredText[] {
+  return db
+    .prepare(
+      `SELECT platform, listing_id AS listingId, seller_id AS sellerId, seller_username AS sellerUsername,
+              listing_url AS listingUrl, listing_title AS listingTitle, text
+       FROM listing_texts WHERE NOT (platform = ? AND listing_id = ?)`,
+    )
+    .all(platform, listingId) as unknown as StoredText[];
+}
+
+export function saveListingText(listing: {
+  platform: string;
+  id: string;
+  url: string;
+  title: string;
+  sellerId: string;
+  sellerUsername: string;
+  text: string;
+}) {
+  if (!listing.text.trim()) return;
+  db.prepare(
+    `INSERT INTO listing_texts (platform, listing_id, seller_id, seller_username, listing_url, listing_title, text)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (platform, listing_id) DO UPDATE SET
+       seller_id = excluded.seller_id, seller_username = excluded.seller_username, listing_url = excluded.listing_url,
+       listing_title = excluded.listing_title, text = excluded.text, seen_at = datetime('now')`,
+  ).run(listing.platform, listing.id, listing.sellerId, listing.sellerUsername, listing.url, listing.title.slice(0, 200), listing.text.slice(0, 5000));
+}
+
+const CACHE_DAYS = 7;
+
+/** A cached lookup result, or undefined when missing or older than a week. */
+export function cacheGet<T>(key: string): T | undefined {
+  const row = db
+    .prepare(`SELECT value FROM web_cache WHERE key = ? AND created_at >= datetime('now', '-${CACHE_DAYS} days')`)
+    .get(key) as { value: string } | undefined;
+  return row ? (JSON.parse(row.value) as T) : undefined;
+}
+
+export function cacheSet(key: string, value: unknown) {
+  db.prepare(
+    `INSERT INTO web_cache (key, value) VALUES (?, ?)
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value, created_at = datetime('now')`,
+  ).run(key, JSON.stringify(value));
 }
 
 // --- Community reports ---------------------------------------------------

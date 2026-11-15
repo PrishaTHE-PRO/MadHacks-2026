@@ -10,11 +10,15 @@
 import {
   PLATFORM_NAMES,
   REPORT_CATEGORY_SHORT,
+  SCORE_MAX,
   type CommunityInfo,
+  type EvidenceLink,
   type Listing,
   type PhotoMatch,
   type PriceCheck,
   type Signal,
+  type TextMatch,
+  type WebPhotoMatch,
 } from "../../shared/types";
 // Off-platform payment/contact regexes, shared with the chat check.
 import { OFF_PLATFORM } from "../../shared/chatPatterns";
@@ -38,6 +42,17 @@ export const POINTS = {
   fewPhotos: 5,
   photoReused: 25, // spec §3.1: same photo in another seller's listing on the same site
   photoReusedOtherSite: 10, // same, on another site: could be the seller crossposting
+  // Reverse image search (webPhotos.ts). The seller's own pages never add points.
+  webPhotoOtherSeller: 25, // the photo is in a listing or post by a different account
+  webPhotoUnknownListing: 10, // in another marketplace listing whose seller we couldn't read
+  webPhotoStock: 10, // on a stock-photo site, for a used item
+  webPhotoOtherSite: 8, // on other websites (shops, blogs), for a used item
+  photosMax: 30, // all photo findings together, index + web
+  // Copied description (textMatch.ts).
+  textCopiedOtherSeller: 15, // same description in another seller's listing
+  textCopiedUnknown: 5, // in another listing whose seller we couldn't read
+  textCopiedOtherSite: 5, // on another website, for a used item
+  copiedTextMax: 15,
 } as const;
 // Not wired yet (needs a later feature): verified handshakes -5 each, max -20 (§4.4).
 
@@ -91,6 +106,10 @@ export interface RuleInput {
   community?: CommunityInfo;
   /** Other sellers' listings with the same photos (already excludes this seller). */
   photoMatches?: PhotoMatch[];
+  /** Web pages with the same photos, this seller's own pages included. */
+  webPhotoMatches?: WebPhotoMatch[];
+  /** Listings and pages with the same description text, this seller's own included. */
+  textMatches?: TextMatch[];
   price?: PriceCheck;
   ai?: AiFindings;
   now?: number;
@@ -98,7 +117,7 @@ export interface RuleInput {
 
 export interface RuleResult {
   signals: Signal[];
-  score: number; // 0-100
+  score: number; // 0-SCORE_MAX
   topReasons: string[]; // up to 3, biggest contributors first
 }
 
@@ -107,8 +126,14 @@ export const money = (n: number, currency = "USD") =>
 
 export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
   const signals: Signal[] = [];
-  const add = (id: string, severity: Signal["severity"], text: string, points = 0, source: Signal["source"] = "rules") =>
-    signals.push({ id, severity, text, source, points });
+  const add = (
+    id: string,
+    severity: Signal["severity"],
+    text: string,
+    points = 0,
+    source: Signal["source"] = "rules",
+    links?: EvidenceLink[],
+  ) => signals.push({ id, severity, text, source, points, ...(links?.length ? { links } : {}) });
 
   const s = listing.seller;
   const now = input.now ?? Date.now();
@@ -267,8 +292,13 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     });
   }
 
-  // --- Photos reused from other sellers' listings ---
+  // --- Photos reused from other sellers' listings (DealDig's index) ---
+  const photoStart = signals.length;
   const photoMatches = input.photoMatches ?? [];
+  const indexLinks: EvidenceLink[] = photoMatches.slice(0, 3).map((m) => ({
+    label: `${PLATFORM_NAMES[m.platform]} listing by ${handle(m.platform === "facebook" ? m.sellerUsername : `@${m.sellerUsername}`)}`,
+    url: m.listingUrl,
+  }));
   if (photoMatches.length) {
     const sellers = new Set(photoMatches.map((m) => `${m.platform}:${m.sellerId}`));
     const sameSite = photoMatches.filter((m) => m.platform === listing.platform);
@@ -285,6 +315,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
         `A photo here is also in a listing by ${others > 1 ? `${others} other sellers` : `another ${site} seller, ${who}`}${flipped}. Copied photos are a common scam.`,
         POINTS.photoReused,
         "community",
+        indexLinks,
       );
     } else {
       add(
@@ -293,9 +324,132 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
         `A photo here is also in a ${PLATFORM_NAMES[first.platform]} listing by ${who}${flipped}. Could be the same person crossposting; ask the seller.`,
         POINTS.photoReusedOtherSite,
         "community",
+        indexLinks,
       );
     }
   }
+
+  // --- Photos found elsewhere on the web (reverse image search) ---
+  const isNew = isNewItem(listing);
+  const indexUrls = new Set(photoMatches.map((m) => m.listingUrl));
+  const web = (input.webPhotoMatches ?? []).filter((m) => m.kind !== "ai-art" && !indexUrls.has(m.pageUrl));
+  const others = web.filter((m) => m.owner === "other-seller");
+  const otherAccounts = new Set(others.map((m) => `${m.siteName}:${(m.username ?? m.pageUrl).toLowerCase()}`));
+  if (otherAccounts.size >= STOCK_PHOTO_SELLERS) {
+    add(
+      "web-photo-widespread",
+      isNew ? "info" : "caution",
+      `${photoLabel(others)} is used by ${otherAccounts.size} different accounts online, so it's a widely shared catalog or stock photo, not a photo of this item.${isNew ? "" : " For a used item, ask for a photo of the actual one."}`,
+      isNew ? 0 : POINTS.webPhotoStock,
+      "rules",
+      webLinks(others),
+    );
+  } else if (others.length) {
+    const m = others[0];
+    const more = others.length > 1 ? ` and ${others.length - 1} more ${others.length === 2 ? "page" : "pages"}` : "";
+    add(
+      "web-photo-other-seller",
+      "danger",
+      `${photoLabel([m])} also appears in ${where_(m)} by ${handle(m.username, m)}, a different ${m.kind === "marketplace" ? "seller" : "account"}${more}. This seller is likely using someone else's photos.`,
+      POINTS.webPhotoOtherSeller,
+      "rules",
+      webLinks(others),
+    );
+  }
+  const unknown = web.filter((m) => m.owner === "unknown" && (m.kind === "marketplace" || m.kind === "social"));
+  if (unknown.length) {
+    const m = unknown[0];
+    add(
+      "web-photo-unknown",
+      "caution",
+      `${photoLabel([m])} also appears in ${where_(m)}${unknown.length > 1 ? ` and ${unknown.length - 1} more` : ""}. DealDig couldn't read who posted it: open it and check whether it's the same seller.`,
+      POINTS.webPhotoUnknownListing,
+      "rules",
+      webLinks(unknown),
+    );
+  }
+  const stock = web.filter((m) => m.kind === "stock");
+  if (stock.length) {
+    add(
+      "web-photo-stock",
+      isNew ? "info" : "caution",
+      `${photoLabel(stock)} is a stock photo (found on ${stock[0].siteName}).${isNew ? " Common for new items." : " For a used item, ask for real photos."}`,
+      isNew ? 0 : POINTS.webPhotoStock,
+      "rules",
+      webLinks(stock),
+    );
+  }
+  const elsewhere = web.filter((m) => m.kind === "other" && m.owner !== "same-seller");
+  if (elsewhere.length) {
+    const sites = [...new Set(elsewhere.map((m) => m.siteName))];
+    add(
+      "web-photo-other-site",
+      isNew ? "info" : "caution",
+      `${photoLabel(elsewhere)} also appears on ${sites.length === 1 ? sites[0] : `${sites.length} other websites (${sites.slice(0, 2).join(", ")}…)`}. ${isNew ? "It may be the maker's catalog photo, which is normal for new items." : "For a used item that usually means a catalog or borrowed photo: ask for a photo of the actual item."}`,
+      isNew ? 0 : POINTS.webPhotoOtherSite,
+      "rules",
+      webLinks(elsewhere),
+    );
+  }
+  const mine = web.filter((m) => m.owner === "same-seller");
+  if (mine.length) {
+    const m = mine[0];
+    add(
+      "web-photo-same-seller",
+      "good",
+      `${photoLabel(mine)} also appears in ${where_(m)} by the same seller (${handle(m.username, m)}). That's crossposting, not a red flag.`,
+      0,
+      "rules",
+      webLinks(mine),
+    );
+  }
+  capPoints(signals, photoStart, POINTS.photosMax);
+
+  // --- Description copied from another listing ---
+  const textStart = signals.length;
+  const texts = input.textMatches ?? [];
+  const copied = texts.filter((t) => t.owner === "other-seller");
+  if (copied.length) {
+    const t = copied[0];
+    add(
+      "text-copied",
+      "danger",
+      `The description matches ${where_(t)} by ${handle(t.username, t)}, a different seller (${Math.round(t.overlap * 100)}% the same): "${t.excerpt}". Copied listings are a common scam.`,
+      POINTS.textCopiedOtherSeller,
+      t.source === "dealdig" ? "community" : "rules",
+      textLinks(copied),
+    );
+  }
+  const textUnknown = texts.filter((t) => t.owner === "unknown" && (t.kind === "marketplace" || t.kind === "social"));
+  if (textUnknown.length) {
+    const t = textUnknown[0];
+    add(
+      "text-copied-unknown",
+      "caution",
+      `The same description is in ${where_(t)}: "${t.excerpt}". DealDig couldn't read who posted it: check whether it's the same seller.`,
+      POINTS.textCopiedUnknown,
+      "rules",
+      textLinks(textUnknown),
+    );
+  }
+  const textElsewhere = texts.filter((t) => t.owner !== "same-seller" && t.kind !== "marketplace" && t.kind !== "social");
+  if (textElsewhere.length) {
+    const t = textElsewhere[0];
+    add(
+      "text-other-site",
+      isNew ? "info" : "caution",
+      `The description is also on ${t.siteName}: "${t.excerpt}". ${isNew ? "It may be the maker's product text, which is normal for new items." : "For a used item, a copied description is worth asking about."}`,
+      isNew ? 0 : POINTS.textCopiedOtherSite,
+      "rules",
+      textLinks(textElsewhere),
+    );
+  }
+  const textMine = texts.filter((t) => t.owner === "same-seller");
+  if (textMine.length) {
+    const t = textMine[0];
+    add("text-same-seller", "good", `The same description is in ${where_(t)} by this seller. That's crossposting, not a red flag.`, 0, "rules", textLinks(textMine));
+  }
+  capPoints(signals, textStart, POINTS.copiedTextMax);
 
   // --- Listing basics ---
   if (listing.photos.length <= 1) {
@@ -305,6 +459,51 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
 
   const score = clamp(signals.reduce((sum, sig) => sum + sig.points, 0));
   return { signals, score, topReasons: topReasons(signals) };
+}
+
+/** Keep the points from signals[start..] within `max`, trimming the later (weaker) ones first. */
+function capPoints(signals: Signal[], start: number, max: number) {
+  let left = max;
+  for (const sig of signals.slice(start)) {
+    sig.points = Math.min(sig.points, left);
+    left -= sig.points;
+  }
+}
+
+const isNewItem = (l: Listing) =>
+  (Boolean(l.condition) && /\bnew\b/i.test(l.condition!) && !/like new/i.test(l.condition!)) || NEW_CLAIM.test(`${l.title}\n${l.description}`);
+
+/** "Photo 1", "Photos 1 and 2" */
+function photoLabel(ms: { photoIndex: number }[]): string {
+  const n = [...new Set(ms.map((m) => m.photoIndex + 1))].sort((a, b) => a - b);
+  return n.length === 1 ? `Photo ${n[0]}` : `Photos ${n.slice(0, -1).join(", ")} and ${n[n.length - 1]}`;
+}
+
+/** "a Depop listing", "a Reddit post", "a page on nordstrom.com" */
+function where_(m: { kind: string; siteName: string }): string {
+  if (m.kind === "marketplace") return `${/^[aeiou]/i.test(m.siteName) ? "an" : "a"} ${m.siteName} listing`;
+  if (m.kind === "social") return `a ${m.siteName} post`;
+  return `a page on ${m.siteName}`;
+}
+
+function handle(username: string | undefined, m?: { siteName: string }): string {
+  if (!username) return "another account";
+  if (/^\d+$/.test(username) || m?.siteName === "Facebook" || username.includes(" ")) return username;
+  return username.startsWith("@") ? username : `@${username}`;
+}
+
+function webLinks(ms: WebPhotoMatch[]): EvidenceLink[] {
+  return ms.slice(0, 3).map((m) => ({
+    label: `Photo ${m.photoIndex + 1} in ${where_(m)}${m.username ? ` by ${handle(m.username, m)}` : ""}`,
+    url: m.pageUrl,
+  }));
+}
+
+function textLinks(ts: TextMatch[]): EvidenceLink[] {
+  return ts.slice(0, 3).map((t) => ({
+    label: `Same text in ${where_(t)}${t.username ? ` by ${handle(t.username, t)}` : ""}`,
+    url: t.url,
+  }));
 }
 
 /** "asked for a deposit before viewing (2), asked to pay off-platform (1)" */
@@ -322,7 +521,7 @@ export function topReasons(signals: Signal[]): string[] {
   return picked.slice(0, 3).map((s) => s.text);
 }
 
-export const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+export const clamp = (n: number) => Math.max(0, Math.min(SCORE_MAX, Math.round(n)));
 
 export const levelFor = (score: number) => (score >= 60 ? "high" : score >= 30 ? "medium" : "low") as
   | "low"

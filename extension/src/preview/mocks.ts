@@ -66,6 +66,7 @@ export const lowReport: RiskReport = {
   communityReports: 0,
   aiUsed: true,
   checkedAt: CHECKED_AT,
+  maxScore: 100,
 };
 
 export const mediumListing: Listing = {
@@ -78,7 +79,7 @@ export const mediumListing: Listing = {
   price: 140,
   originalPrice: 450,
   currency: "USD",
-  photos: [photo("#f2e4d4", "#d9b99b")],
+  photos: [photo("#f2e4d4", "#d9b99b"), photo("#e8d6f0", "#b9a3d9")],
   seller: {
     platform: "poshmark",
     id: "closet_mock_lena",
@@ -93,21 +94,71 @@ export const mediumListing: Listing = {
 export const mediumReport: RiskReport = {
   listingId: mediumListing.id,
   platform: "poshmark",
-  score: 37,
+  score: 45,
+  maxScore: 100,
   level: "medium",
-  summary: "Priced well below similar bags from a newer seller. Ask for a tag and serial photo before you buy.",
+  summary:
+    "This listing scores 45/100 mainly because photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller, and it's priced 55% below similar bags. Ask for a tag and serial photo before you buy. Photo 2 may be AI-generated; that's your call.",
   topReasons: [
+    "Photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller. This seller is likely using someone else's photos.",
     "Priced 55% below the typical $310 (estimate). Classic bait pricing.",
-    "Photos look like stock images, not the actual bag.",
-    "Only one photo. Ask for more angles and a tag or serial photo.",
   ],
   signals: [
+    {
+      ...sig(
+        "web-photo-other-seller",
+        "danger",
+        "Photo 1 also appears in a Depop listing by @mock_thriftqueen, a different seller. This seller is likely using someone else's photos.",
+        25,
+      ),
+      links: [{ label: "Photo 1 in a Depop listing by @mock_thriftqueen", url: "https://www.depop.com/products/mock_thriftqueen-coach-tabby-26/" }],
+    },
     sig("price-bait", "danger", "Priced 55% below the typical $310 (estimate). Classic bait pricing.", 20),
     sig("young-account", "caution", "Seller account is about 73 days old.", 0),
-    sig("ai-0", "caution", "Photos look like stock images, not the actual bag.", 12, "ai"),
-    sig("few-photos", "caution", "Only one photo. Ask for more angles and a tag or serial photo.", 5),
+    {
+      ...sig(
+        "web-photo-same-seller",
+        "good",
+        "Photo 2 also appears in a Mercari listing by the same seller (@closet_mock_lena). That's crossposting, not a red flag.",
+        0,
+      ),
+      links: [{ label: "Photo 2 in a Mercari listing by @closet_mock_lena", url: "https://www.mercari.com/us/item/m00000000001/" }],
+    },
     sig("huge-discount", "info", "Priced 69% below the retail price the seller entered."),
   ],
+  webPhotoMatches: [
+    {
+      photoIndex: 0,
+      pageUrl: "https://www.depop.com/products/mock_thriftqueen-coach-tabby-26/",
+      pageTitle: "Coach Tabby 26 pebbled leather",
+      site: "depop.com",
+      siteName: "Depop",
+      kind: "marketplace",
+      owner: "other-seller",
+      username: "mock_thriftqueen",
+      match: "full",
+    },
+    {
+      photoIndex: 1,
+      pageUrl: "https://www.mercari.com/us/item/m00000000001/",
+      pageTitle: "Coach Tabby 26",
+      site: "mercari.com",
+      siteName: "Mercari",
+      kind: "marketplace",
+      owner: "same-seller",
+      username: "closet_mock_lena",
+      match: "full",
+    },
+  ],
+  photoMatches: [],
+  textMatches: [],
+  aiImage: {
+    verdict: "possible",
+    photoIndexes: [1],
+    evidence: ["Photo 2: the Coach lettering on the hangtag is warped and partly unreadable."],
+    links: [],
+  },
+  webCheck: { photos: "done", text: "done", aiDetector: "off" },
   priceCheck: {
     typicalLow: 240,
     typicalHigh: 380,
@@ -182,6 +233,7 @@ export const highReport: RiskReport = {
   },
   aiUsed: true,
   checkedAt: CHECKED_AT,
+  maxScore: 100,
 };
 
 // --- Chat (the demo sublet scam, made-up people) ---
