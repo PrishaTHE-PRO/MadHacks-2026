@@ -8,7 +8,8 @@
 // When unsure, a pattern is amber (caution) rather than red: false alarms on
 // honest people are a real harm.
 
-import type { ChatContext, ChatFlag, ChatMessage, ChatPatternId, ChatPlatform, Severity } from "./types";
+import { LINK_CHECK_PATTERNS, type ChatContext, type ChatFlag, type ChatMessage, type ChatPatternId, type ChatPlatform, type Severity } from "./types";
+import { checkLookalike } from "./linkCheck";
 
 // --- Off-platform regexes, shared with the listing check (server/src/rules.ts) ---
 
@@ -80,6 +81,16 @@ const hostOf = (raw: string) => {
 };
 const onDomain = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`);
 
+/** Is this link a URL shortener (bit.ly...), which hides where it really goes? */
+export const isShortener = (url: string) => SHORTENERS.some((d) => onDomain(hostOf(url), d));
+
+/** Off-marketplace links that imitate a trusted brand (on-device, no network). */
+export function lookalikeLinks(text: string, platform: ChatPlatform) {
+  return suspiciousLinks(text, platform)
+    .map(checkLookalike)
+    .filter((f): f is NonNullable<typeof f> => f !== null);
+}
+
 /** Links in the text that point off the marketplace (or through a URL shortener). */
 export function suspiciousLinks(text: string, platform: ChatPlatform): string[] {
   // A link to any known marketplace is fine in the paste box; elsewhere only the current site's.
@@ -111,6 +122,8 @@ export interface ChatPattern {
   localOnly?: RegExp[];
   /** Extra checks that need more than one regex. */
   test?: (text: string, platform: ChatPlatform) => boolean;
+  /** A message-specific reason (e.g. naming the domain). Defaults to `reason`. */
+  reasonFor?: (text: string, platform: ChatPlatform) => string;
   /** Per-platform (and per-match) severity. Defaults to `severity`. */
   severityFor?: (text: string, platform: ChatPlatform) => Severity;
   /** "Protect me" patterns: my own messages that match raise `selfReason`. */
@@ -268,6 +281,36 @@ export const CHAT_PATTERNS: ChatPattern[] = [
     ],
     test: (text, platform) => suspiciousLinks(text, platform).length > 0,
   },
+  // --- Phishing link checker (shared/linkCheck.ts, server/src/links.ts) ---
+  {
+    id: "lookalike_link",
+    name: "Look-alike link",
+    targets: "both",
+    severity: "danger",
+    reason: "This link imitates a site you trust, a common way to steal logins and card details.",
+    tip: "Don't click it. Type the real site's address yourself, or open its app.",
+    regexes: [],
+    test: (text, platform) => lookalikeLinks(text, platform).length > 0,
+    reasonFor: (text, platform) => lookalikeLinks(text, platform)[0]?.text ?? "",
+  },
+  {
+    id: "new_domain",
+    name: "Brand-new website",
+    targets: "both",
+    severity: "danger",
+    reason: "This link goes to a website registered in the last few weeks. Scam sites are usually brand new.",
+    tip: "Real stores and payment sites have been around for years. Don't enter anything on it.",
+    regexes: [], // raised by the server after a registration lookup
+  },
+  {
+    id: "unsafe_link",
+    name: "Known dangerous link",
+    targets: "both",
+    severity: "danger",
+    reason: "Google Safe Browsing lists this link as a phishing or malware site.",
+    tip: "Don't open it. If you already did, don't enter anything, and change any password you typed there.",
+    regexes: [], // raised by the server after a Safe Browsing lookup
+  },
   {
     id: "personal_info_request",
     name: "Personal info request",
@@ -325,7 +368,8 @@ function flagMessage(msg: ChatMessage, ctx: ChatContext): ChatFlag[] {
     }
     if (!appliesTo(p, ctx.role) || !matchesOther(p, msg.text, ctx.platform)) continue;
     const severity = p.severityFor?.(msg.text, ctx.platform) ?? p.severity;
-    flags.push({ pattern: p.id, severity, reason: p.reason, messageId: msg.id, source: "rules" });
+    const reason = p.reasonFor?.(msg.text, ctx.platform) || p.reason;
+    flags.push({ pattern: p.id, severity, reason, messageId: msg.id, source: "rules" });
   }
   // Pressure on its own is just info; next to another warning sign it's amber.
   const urgency = flags.find((f) => f.pattern === "urgency_pressure");
@@ -350,5 +394,17 @@ export function prefilter(ctx: ChatContext): ChatFlag[] {
       out.push(flag);
     }
   }
-  return out;
+  return preferSpecificLinkFlags(out);
+}
+
+/**
+ * A message with a specific red link warning (look-alike, brand-new, known
+ * dangerous) doesn't also need the generic "suspicious link" one. An amber
+ * "only 60 days old" keeps the generic warning, so nothing gets weaker.
+ */
+export function preferSpecificLinkFlags(flags: ChatFlag[]): ChatFlag[] {
+  const specific = new Set(
+    flags.filter((f) => LINK_CHECK_PATTERNS.includes(f.pattern) && f.severity === "danger").map((f) => f.messageId),
+  );
+  return flags.filter((f) => !(f.pattern === "suspicious_link" && specific.has(f.messageId)));
 }
