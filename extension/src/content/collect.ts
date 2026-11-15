@@ -43,6 +43,13 @@ function imageUrl(img: HTMLImageElement): string | undefined {
   return candidates.find(usable);
 }
 
+function readLabels(el: Element): string[] {
+  return [el, ...el.querySelectorAll("[aria-label]")].flatMap((e) => {
+    const label = e.getAttribute("aria-label")?.trim();
+    return label ? [label] : [];
+  });
+}
+
 function readImages(root: ParentNode): PageImage[] {
   return [...root.querySelectorAll<HTMLImageElement>("img")].slice(0, MAX_IMAGES).flatMap((img) => {
     const src = imageUrl(img);
@@ -89,7 +96,7 @@ export function collectPageData(opts: CollectOptions = {}): PageData {
   const sections: Record<string, PageSection | undefined> = {};
   for (const [name, selector] of Object.entries(opts.sections ?? {})) {
     const el = document.querySelector<HTMLElement>(selector);
-    sections[name] = el ? { text: el.innerText, links: readLinks(el) } : undefined;
+    sections[name] = el ? { text: el.innerText, links: readLinks(el), labels: readLabels(el) } : undefined;
   }
   // Images from a named "photos" section (e.g. eBay's carousel) beat the whole root,
   // which also has thumbnails of other listings.

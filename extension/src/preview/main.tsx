@@ -14,7 +14,7 @@ import { PrivacyCard } from "../ui/PrivacyCard";
 import { PrivacySettingsCard } from "../ui/PrivacySettings";
 import { DEFAULT_SETTINGS, type PrivacySettings } from "../privacy/settings";
 import { mockSent, mockShield } from "./mocks";
-import { arrivingFlag, mockHistory, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
+import { depopListing, depopReport, arrivingFlag, mockHistory, highListing, highReport, lowListing, lowReport, mediumListing, mediumReport, mockChat } from "./mocks";
 import type { ListingStep } from "../../../shared/types";
 
 const PLAN: ListingStep[] = ["seller", "item", "price", "summary"];
@@ -54,7 +54,7 @@ const PREVIEW_CSS = `
   .pv-msg.me { align-self: flex-end; background: #0866ff; color: #fff; border-bottom-right-radius: 4px; }
 `;
 
-type StateId = "bubbles" | "onpage" | "low" | "medium" | "high" | "chat" | "report" | "nochat" | "loading" | "empty" | "offline" | "unreadable";
+type StateId = "bubbles" | "onpage" | "low" | "medium" | "high" | "depop" | "chat" | "report" | "nochat" | "loading" | "empty" | "offline" | "unreadable";
 
 const STATES: { id: StateId; label: string }[] = [
   { id: "bubbles", label: "Bubble mark" },
@@ -62,6 +62,7 @@ const STATES: { id: StateId; label: string }[] = [
   { id: "low", label: "Low risk" },
   { id: "medium", label: "Be careful" },
   { id: "high", label: "High risk" },
+  { id: "depop", label: "Depop" },
   { id: "chat", label: "Chat" },
   { id: "report", label: "Report" },
   { id: "nochat", label: "Chat: none open" },
@@ -79,6 +80,8 @@ function viewFor(id: Exclude<StateId, "bubbles" | "onpage">): { view: PanelView;
       return { view: { kind: "listing", listing: mediumListing, report: mediumReport }, site: PLATFORM_NAMES.poshmark };
     case "high":
       return { view: { kind: "listing", listing: highListing, report: highReport }, site: "Facebook", chat: true };
+    case "depop":
+      return { view: { kind: "listing", listing: depopListing, report: depopReport }, site: PLATFORM_NAMES.depop };
     case "chat":
       return { view: { kind: "listing", listing: highListing, report: highReport }, site: "Facebook", tab: "chat", chat: true };
     case "report":

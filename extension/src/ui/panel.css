@@ -71,9 +71,11 @@
 }
 
 /* Views: all mounted, stacked; the old one fades out fast, the new one rises in. */
-.dd-views { flex: 1; position: relative; min-height: 0; }
-.dd-body { flex: 1; overflow: auto; padding: 4px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
-.dd-views > .dd-body { position: absolute; inset: 0; }
+/* The active view stays in the flow (so an auto-height frame sizes to it); only
+   the outgoing view is lifted on top while it fades. */
+.dd-views { flex: 1; position: relative; min-height: 0; display: flex; flex-direction: column; }
+.dd-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+.dd-views > .dd-view-out { position: absolute; inset: 0; }
 .dd-body[hidden] { display: none; }
 .dd-view-out { animation: dd-view-out 120ms linear both; pointer-events: none; }
 .dd-view-in  { animation: dd-view-in 340ms var(--ease-pop, cubic-bezier(.22,.9,.3,1)) 220ms backwards; }

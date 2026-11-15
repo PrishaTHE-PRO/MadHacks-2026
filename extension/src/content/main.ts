@@ -1,6 +1,6 @@
 // One content script for every supported marketplace. It picks the reader for
 // the current URL, turns the page into a `Listing`, and asks the background
-// worker to score it. Facebook and Poshmark are single-page apps, so we watch
+// worker to score it. Facebook, Poshmark and Depop are single-page apps, so we watch
 // for URL changes instead of relying on page loads.
 //
 // Alongside that, if a chat adapter matches the URL, a chat watcher flags scam
@@ -10,6 +10,7 @@
 import { isPoshmarkListingUrl, parsePoshmarkHtml } from "../adapters/poshmark";
 import { EBAY_SECTIONS, isEbayListingUrl, parseEbayPage } from "../adapters/ebay";
 import { isFacebookListingUrl, parseFacebookPage } from "../adapters/facebook";
+import { DEPOP_SECTIONS, isDepopListingUrl, parseDepopPage } from "../adapters/depop";
 import type { Listing, RiskReport } from "../../../shared/types";
 import type { AnalyzeResponse, ContentMessage } from "../messages";
 import { collectPageData } from "./collect";
@@ -107,7 +108,25 @@ const facebook: SiteReader = {
   },
 };
 
-const READERS: SiteReader[] = [poshmark, ebay, facebook];
+// Depop: renders client-side and swaps pages without reloading. Wait for the
+// seller card and photos, and (as on Facebook) for the previous item's DOM to
+// be replaced: a different URL must show a different product id.
+let lastDepop = { url: "", id: "" };
+const depop: SiteReader = {
+  matches: isDepopListingUrl,
+  async read(url) {
+    const listing = await poll(
+      url,
+      6000,
+      () => parseDepopPage(collectPageData({ sections: DEPOP_SECTIONS })),
+      (l) => (l.id !== lastDepop.id || url === lastDepop.url) && Boolean(l.seller.username) && l.photos.length > 0,
+    );
+    if (listing) lastDepop = { url, id: listing.id };
+    return listing;
+  },
+};
+
+const READERS: SiteReader[] = [poshmark, ebay, facebook, depop];
 
 async function check(url: string) {
   // Creating your own listing: point to the photo privacy tool instead of scoring.

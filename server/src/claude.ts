@@ -85,6 +85,9 @@ const PLATFORM_CONTEXT: Record<Platform, string> = {
   facebook: `- Facebook Marketplace is mostly local pickup with cash or a payment app, so buyers have little protection. Deposits before viewing, "shipping only" for a local item, and pushes to Zelle, Cash App, gift cards or WhatsApp are the biggest red flags.
 - The join date shown is when the Facebook account was created, not when they started selling.
 - Rentals and sublets at far below local rent, and "I'm out of town, my agent will handle it", are common scams.`,
+  depop: `- Paying through Depop checkout is covered by Depop's buyer protection. Requests to pay by PayPal Friends & Family, Zelle, Cash App or bank transfer, or to "DM me on Instagram", void it and are the biggest red flag.
+- Depop is mostly streetwear, vintage and designer resale, so counterfeit sneakers, bags and designer clothes are the main item risk. Stock or brand-website photos on a used item are a warning sign.
+- The seller's star rating and review count are the main trust signals; a seller with no reviews selling in-demand designer items cheaply is a classic pattern.`,
 };
 
 // One system prompt per platform, so each stays byte-identical across calls and can be cached.

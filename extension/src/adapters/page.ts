@@ -26,6 +26,8 @@ export interface PageImage {
 export interface PageSection {
   text: string;
   links: PageLink[];
+  /** aria-labels in the section (its own first), for values only shown as icons, e.g. "shop rating 5 stars". */
+  labels?: string[];
 }
 
 export interface PageData {

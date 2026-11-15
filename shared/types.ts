@@ -2,7 +2,7 @@
 // Every site adapter (Poshmark, eBay, Facebook Marketplace, ...) produces a
 // `Listing`, and the server always answers with a `RiskReport`.
 
-export const PLATFORMS = ["poshmark", "ebay", "facebook"] as const;
+export const PLATFORMS = ["poshmark", "ebay", "facebook", "depop"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 /**
@@ -46,6 +46,10 @@ export interface SellerInfo {
   positiveFeedbackPercent?: number;
   // Facebook Marketplace
   ratingsCount?: number;
+  // Depop: star rating out of 5 from buyer reviews, and items sold
+  reviewsCount?: number;
+  rating?: number;
+  itemsSold?: number;
 }
 
 export interface Listing {

@@ -12,6 +12,13 @@ export function sellerFacts(l: Listing): string[] {
   if (s.positiveFeedbackPercent !== undefined) facts.push(`${s.positiveFeedbackPercent}% positive`);
   if (s.feedbackScore !== undefined) facts.push(`${s.feedbackScore.toLocaleString()} feedback`);
   if (s.ratingsCount !== undefined) facts.push(s.ratingsCount ? `${s.ratingsCount} ratings` : "no ratings");
+  if (s.reviewsCount !== undefined)
+    facts.push(
+      s.reviewsCount
+        ? `${s.rating !== undefined ? `★ ${s.rating.toFixed(1)} · ` : ""}${s.reviewsCount.toLocaleString()} reviews`
+        : "no reviews",
+    );
+  if (s.itemsSold !== undefined) facts.push(`${s.itemsSold.toLocaleString()} sold`);
   if (s.joinedAt) {
     const d = new Date(s.joinedAt);
     facts.push(

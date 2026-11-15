@@ -58,7 +58,7 @@ export const listingPlan = (opts: CheckOptions = DEFAULT_OPTIONS): ListingStep[]
 const indexLookup: IndexLookup = (url) => {
   const row = knownListingByUrl(url);
   if (!row) return null;
-  const siteName = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook" }[row.platform] ?? row.platform;
+  const siteName = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook", depop: "Depop" }[row.platform] ?? row.platform;
   return { siteName, id: row.sellerId, username: row.sellerUsername };
 };
 

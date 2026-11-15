@@ -149,7 +149,7 @@ export function accountFromHtml(url: string, html: string): PageAccount | null {
 
 const norm = (s?: string) => (s ?? "").trim().toLowerCase().replace(/^@/, "");
 
-const PLATFORM_SITE: Record<Platform, string> = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook" };
+const PLATFORM_SITE: Record<Platform, string> = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook", depop: "Depop" };
 
 /** Compare an account to this listing's seller. */
 export function compareAccount(listing: Listing, account: PageAccount | null): CopyOwner {

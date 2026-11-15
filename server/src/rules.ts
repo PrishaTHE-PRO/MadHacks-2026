@@ -243,7 +243,9 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
   const noRecord =
     (s.ordersShipped === 0 && "Seller hasn't shipped any orders yet.") ||
     (s.feedbackScore !== undefined && s.feedbackScore < 5 && `Seller has only ${s.feedbackScore} feedback.`) ||
-    (s.ratingsCount === 0 && "Seller has no Marketplace ratings yet.");
+    (s.ratingsCount === 0 && "Seller has no Marketplace ratings yet.") ||
+    (s.reviewsCount === 0 && `Seller has no ${site} reviews yet.`) ||
+    (s.itemsSold === 0 && `Seller hasn't sold anything on ${site} yet.`);
   if (noRecord) add("no-track-record", "caution", noRecord, POINTS.noTrackRecord);
 
   const poorFeedback =
@@ -254,7 +256,11 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     (s.ordersShipped !== undefined &&
       s.ordersShipped >= 20 &&
       (s.fiveStarReviews ?? 0) === 0 &&
-      "Many sales but no 5-star reviews.");
+      "Many sales but no 5-star reviews.") ||
+    (s.rating !== undefined &&
+      s.rating < 4.5 &&
+      (s.reviewsCount ?? 0) >= 10 &&
+      `Seller is rated only ${s.rating.toFixed(1)} out of 5 from ${s.reviewsCount} reviews.`);
   if (poorFeedback) add("poor-feedback", "caution", poorFeedback, POINTS.poorFeedback);
 
   const goodRecord =
@@ -263,7 +269,11 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
       s.feedbackScore >= 500 &&
       (s.positiveFeedbackPercent ?? 0) >= 98 &&
       `Seller has ${s.feedbackScore.toLocaleString("en-US")} feedback, ${s.positiveFeedbackPercent}% positive.`) ||
-    (s.ratingsCount !== undefined && s.ratingsCount >= 10 && `Seller has ${s.ratingsCount} Marketplace ratings.`);
+    (s.ratingsCount !== undefined && s.ratingsCount >= 10 && `Seller has ${s.ratingsCount} Marketplace ratings.`) ||
+    (s.reviewsCount !== undefined &&
+      s.reviewsCount >= 50 &&
+      (s.rating ?? 0) >= 4.8 &&
+      `Seller has ${s.reviewsCount.toLocaleString("en-US")} reviews, rated ${s.rating!.toFixed(1)} out of 5.`);
   if (goodRecord && !poorFeedback) add("track-record", "good", goodRecord);
 
   if (s.lastActiveAt && now - Date.parse(s.lastActiveAt) > 60 * DAY) {

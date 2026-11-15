@@ -12,6 +12,8 @@ test("recognizes pages where the user is creating a listing", () => {
     ["https://www.facebook.com/marketplace/create/item", "facebook"],
     ["https://www.facebook.com/marketplace/create/vehicle", "facebook"],
     ["https://www.facebook.com/marketplace/edit/?listing_id=1", "facebook"],
+    ["https://www.depop.com/products/create/", "depop"],
+    ["https://www.depop.com/products/edit/janedoe-vintage-levis-501-jeans/", "depop"],
     // buying, browsing and lookalikes are not sell pages
     ["https://poshmark.com/listing/Coach-Bag-6ad1bb5c3869377bc8952e3f", null],
     ["https://poshmark.com/closet/someone", null],
@@ -19,6 +21,9 @@ test("recognizes pages where the user is creating a listing", () => {
     ["https://www.ebay.com/sh/ovw", null],
     ["https://www.facebook.com/marketplace/item/123", null],
     ["https://www.facebook.com/marketplace/createlisting-scam", null],
+    ["https://www.depop.com/products/janedoe-vintage-levis-501-jeans/", null],
+    ["https://www.depop.com/products/createdbyme-tee/", null],
+    ["https://www.depop.com/messages/", null],
     ["https://poshmark.com.evil.example/create-listing", null],
     ["http://poshmark.com/create-listing", null],
     ["not a url", null],

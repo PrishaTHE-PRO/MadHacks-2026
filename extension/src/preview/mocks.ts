@@ -71,6 +71,56 @@ export const lowReport: RiskReport = {
   maxScore: 100,
 };
 
+export const depopListing: Listing = {
+  platform: "depop",
+  id: "mock-depop",
+  url: "https://www.depop.com/products/kicksbymock-nike-dunk-low-panda-0000/",
+  title: "Nike Dunk Low Panda",
+  description: "Brand new never worn, no box. Size 9. Fast shipping!!",
+  brand: "Nike",
+  category: "Men > Shoes > Trainers",
+  condition: "Brand new",
+  size: "US 9",
+  price: 45,
+  currency: "USD",
+  photos: [photo("#f1f1f1", "#2b2b2b")],
+  seller: {
+    platform: "depop",
+    id: "00000001",
+    username: "kicksbymock",
+    profileUrl: "https://www.depop.com/kicksbymock/",
+    reviewsCount: 0,
+    itemsSold: 0,
+    lastActiveAt: new Date().toISOString(),
+  },
+};
+
+export const depopReport: RiskReport = {
+  listingId: depopListing.id,
+  platform: "depop",
+  score: 30,
+  level: "medium",
+  summary: "Priced far below what Dunk Lows usually sell for, by a seller with no Depop reviews yet. Pay only through Depop checkout.",
+  topReasons: ["Priced 62% below the typical $120 on 24 eBay listings. Classic bait pricing.", "Seller has no Depop reviews yet."],
+  signals: [
+    sig("price-bait", "danger", "Priced 62% below the typical $120 on 24 eBay listings. Classic bait pricing.", 20),
+    sig("no-track-record", "caution", "Seller has no Depop reviews yet.", 10),
+  ],
+  priceCheck: {
+    typicalLow: 95,
+    typicalHigh: 150,
+    median: 120,
+    confidence: "high",
+    basis: "ebay-listings",
+    sampleSize: 24,
+    note: "Nike Dunk Low Panda, size 9.",
+  },
+  communityReports: 0,
+  aiUsed: true,
+  checkedAt: CHECKED_AT,
+  maxScore: 100,
+};
+
 export const mediumListing: Listing = {
   platform: "poshmark",
   id: "mock-medium",

@@ -172,3 +172,36 @@ test("eBay comps: median and quartiles, skipping the listing itself", () => {
   assert.equal(compsFromBrowse({}), null);
   assert.equal(quantile([1, 2, 3, 4], 0.5), 2.5);
 });
+
+// Depop shows a star rating with a review count instead of feedback or orders.
+const depop = (seller: Partial<Listing["seller"]>) =>
+  listing(
+    { platform: "depop", url: "https://www.depop.com/products/s-tee/" },
+    { platform: "depop", feedbackScore: undefined, positiveFeedbackPercent: undefined, ...seller },
+  );
+
+test("Depop: a seller with no reviews has no track record", () => {
+  const r = runRules(depop({ reviewsCount: 0 }), { now: NOW });
+  const s = r.signals.find((x) => x.id === "no-track-record");
+  assert.equal(s?.text, "Seller has no Depop reviews yet.");
+  assert.equal(s?.points, POINTS.noTrackRecord);
+});
+
+test("Depop: a seller with no sales has no track record", () => {
+  const r = runRules(depop({ itemsSold: 0 }), { now: NOW });
+  assert.equal(r.signals.find((x) => x.id === "no-track-record")?.text, "Seller hasn't sold anything on Depop yet.");
+});
+
+test("Depop: a low star rating over enough reviews is poor feedback", () => {
+  const r = runRules(depop({ reviewsCount: 40, rating: 3.9 }), { now: NOW });
+  const s = r.signals.find((x) => x.id === "poor-feedback");
+  assert.equal(s?.text, "Seller is rated only 3.9 out of 5 from 40 reviews.");
+  // A couple of bad reviews isn't enough to judge.
+  assert.ok(!ids(runRules(depop({ reviewsCount: 4, rating: 3 }), { now: NOW })).includes("poor-feedback"));
+});
+
+test("Depop: many high reviews count as a good track record", () => {
+  const r = runRules(depop({ reviewsCount: 1250, rating: 4.9 }), { now: NOW });
+  assert.equal(r.signals.find((x) => x.id === "track-record")?.text, "Seller has 1,250 reviews, rated 4.9 out of 5.");
+  assert.ok(!ids(r).includes("no-track-record"));
+});

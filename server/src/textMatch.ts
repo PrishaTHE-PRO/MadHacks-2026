@@ -103,7 +103,7 @@ export function localTextMatches(listing: Listing, stored: StoredText[]): TextMa
     if (words(theirs).length < MIN_WORDS) continue;
     const o = overlap(mine, theirs);
     if (o.overlap < COPY_OVERLAP) continue;
-    const site = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook" }[s.platform] ?? s.platform;
+    const site = { poshmark: "Poshmark", ebay: "eBay", facebook: "Facebook", depop: "Depop" }[s.platform] ?? s.platform;
     out.push({
       source: "dealdig",
       url: s.listingUrl,

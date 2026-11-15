@@ -45,7 +45,7 @@
         "https://mesg.ebay.com/*",
         "https://www.facebook.com/*",
         "https://www.etsy.com/messages/*",
-        "https://www.depop.com/messages/*",
+        "https://www.depop.com/*",
         "https://www.mercari.com/*",
         "http://localhost:8787/demo/*"
       ],

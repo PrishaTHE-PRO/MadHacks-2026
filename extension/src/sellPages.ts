@@ -14,6 +14,8 @@ const SELL_PAGES: { platform: Platform; host: RegExp; path: RegExp }[] = [
   { platform: "ebay", host: /(^|\.)ebay\.com$/, path: /^\/(sl\/(sell|prelist|list)|lstng)(\/|$|\?)/ },
   // facebook.com/marketplace/create/item (also /create/vehicle, /create/rental), /marketplace/edit/?listing_id=...
   { platform: "facebook", host: /(^|\.)facebook\.com$/, path: /^\/marketplace\/(create|edit)(\/|$)/ },
+  // depop.com/products/create/, depop.com/products/edit/<slug>/
+  { platform: "depop", host: /(^|\.)depop\.com$/, path: /^\/products\/(create|edit)(\/|$)/ },
 ];
 
 /** The platform whose sell page this is, or null if it isn't one. */
