@@ -3,7 +3,7 @@
 // the preview page can drive it with mock data and the side panel with the
 // real per-tab state. It fills its container (the side panel window).
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { Listing, ListingStep, RiskReport } from "../../../shared/types";
 import type { HistoryEntry } from "../historyCore";
 import { Bubble } from "./Bubble";
@@ -44,10 +44,66 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: "report", label: "Report" },
 ];
 
+/** Three tiny sparkles thrown off as the new tab's pill blooms (docs/design/dealdig-tabs-motion-instructions.md). */
+const SPARKS = [
+  { x: "-12px", y: "-9px", c: "#b9a9f5" },
+  { x: "3px", y: "-14px", c: "#8fb6ee" },
+  { x: "13px", y: "-6px", c: "#e9cf6b" },
+];
+
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export function Panel(props: PanelProps) {
   const { view, site, chatCount = 0, onClose } = props;
   const [tab, setTab] = useState<PanelTab>(props.initialTab ?? "listing");
+  // The tab just left (its pill tucks out), and its view while it fades out.
+  const [prev, setPrev] = useState<PanelTab | null>(null);
+  const [leaving, setLeaving] = useState<PanelTab | null>(null);
+  // Bumped on every switch: keys the pills and labels so their animations replay
+  // cleanly even on fast clicks. 0 = first render, shown without animation.
+  const [switches, setSwitches] = useState(0);
   const listing = view.kind === "listing" ? view.listing : undefined;
+
+  const tabRefs = useRef(new Map<PanelTab, HTMLButtonElement>());
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  const select = (next: PanelTab) => {
+    if (next === tab) return;
+    setPrev(tab);
+    setLeaving(reducedMotion() ? null : tab);
+    setTab(next);
+    setSwitches((n) => n + 1);
+  };
+
+  // Hide the old view once its 120ms fade is done. Guarded: only clears the view
+  // it was set for, so a quick switch back never hides the tab the user returned to.
+  useEffect(() => {
+    if (!leaving) return;
+    const id = setTimeout(() => setLeaving((l) => (l === leaving ? null : l)), 130);
+    return () => clearTimeout(id);
+  }, [leaving, switches]);
+
+  // The traveller: a soft iridescent glow slides from the old tab to the new one,
+  // visible only in flight. Its ends change every click, so it's animated from JS.
+  useLayoutEffect(() => {
+    const glow = glowRef.current;
+    const from = prev && tabRefs.current.get(prev);
+    const to = tabRefs.current.get(tab);
+    if (!switches || !glow || !from || !to || reducedMotion() || !glow.animate) return;
+    const center = (b: HTMLElement) => b.offsetLeft + b.offsetWidth / 2;
+    const slide = glow.animate(
+      [{ transform: `translateX(${center(from)}px)` }, { transform: `translateX(${center(to)}px)` }],
+      { duration: 580, delay: 50, easing: "cubic-bezier(.65,0,.35,1)", fill: "both" },
+    );
+    const fade = glow.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.25 }, { opacity: 0.6, offset: 0.7 }, { opacity: 0 }], {
+      duration: 630,
+      fill: "both",
+    });
+    return () => {
+      slide.cancel();
+      fade.cancel();
+    };
+  }, [switches]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arrow keys / Home / End move between tabs (WAI-ARIA tabs pattern).
   const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -60,47 +116,50 @@ export function Panel(props: PanelProps) {
       : -1;
     if (next < 0) return;
     e.preventDefault();
-    setTab(TABS[next].id);
-    e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+    select(TABS[next].id);
+    tabRefs.current.get(TABS[next].id)?.focus();
   };
 
-  let body: ReactNode;
+  // Every view stays mounted (just hidden), so a half-written report or a
+  // checked image survives a trip to another tab.
+  let listingBody: ReactNode;
   let footer: ReactNode = null;
-  if (tab === "chat") {
-    body = props.chatTab;
-  } else if (tab === "image") {
-    body = <ImageTab />;
-  } else if (tab === "report") {
-    body = <ReportTab listing={listing} onCancel={() => setTab("listing")} />;
-  } else if (view.kind === "empty") {
-    body = (
+  if (view.kind === "empty") {
+    listingBody = (
       <>
         <EmptyState />
         {props.tools}
       </>
     );
   } else if (view.kind === "loading") {
-    body = <LoadingState plan={view.plan} step={view.step} />;
+    listingBody = <LoadingState plan={view.plan} step={view.step} />;
   } else if (view.kind === "error") {
-    body = (
+    listingBody = (
       <>
         {view.offline ? <CantConnectState onRetry={props.onRetry} /> : <ErrorState message={view.message} onRetry={props.onRetry} />}
         {props.tools}
       </>
     );
   } else {
-    body = (
+    listingBody = (
       <>
         <ListingTab listing={view.listing} report={view.report} history={props.history} />
         {props.tools}
       </>
     );
     footer = (
-      <button className="dd-btn secondary" onClick={() => setTab("report")}>
+      <button className="dd-btn secondary" onClick={() => select("report")}>
         Report seller
       </button>
     );
   }
+
+  const bodies: Record<PanelTab, ReactNode> = {
+    listing: listingBody,
+    chat: props.chatTab,
+    image: <ImageTab />,
+    report: <ReportTab listing={listing} onCancel={() => select("listing")} />,
+  };
 
   return (
     // Keyed by tab/page in the side panel, so switching browser tabs crossfades.
@@ -119,32 +178,75 @@ export function Panel(props: PanelProps) {
       </header>
 
       <div className="dd-tabs" role="tablist" aria-label="DealDig sections" onKeyDown={onTabKey}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            id={`dd-tab-${t.id}`}
-            className="dd-tab"
-            role="tab"
-            aria-selected={tab === t.id}
-            aria-controls="dd-tabpanel"
-            tabIndex={tab === t.id ? 0 : -1} // roving tabindex: Tab enters the list, arrows move within it
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-            {t.id === "chat" && chatCount > 0 && (
-              // key: remount (and bump) whenever the count changes
-              <span key={chatCount} className="dd-count dd-bump" aria-label={`${chatCount} warnings`}>
-                {chatCount}
+        <div ref={glowRef} className="dd-tab-glow" aria-hidden="true" />
+        {TABS.map((t) => {
+          const motion = t.id === tab ? (switches ? "on" : "static") : t.id === prev ? "off" : "";
+          return (
+            <button
+              key={t.id}
+              ref={(b) => {
+                if (b) tabRefs.current.set(t.id, b);
+                else tabRefs.current.delete(t.id);
+              }}
+              id={`dd-tab-${t.id}`}
+              className={`dd-tab ${motion}`}
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-controls={`dd-tabpanel-${t.id}`}
+              tabIndex={tab === t.id ? 0 : -1} // roving tabindex: Tab enters the list, arrows move within it
+              onClick={() => select(t.id)}
+            >
+              {/* Keyed by the switch count so each switch replays the animations from the start. */}
+              <span key={`pill${switches}`} className="dd-tab-pill" aria-hidden="true">
+                <span className="dd-tab-sheen" />
               </span>
-            )}
-          </button>
-        ))}
+              <span key={`label${switches}`} className="dd-tab-label" aria-hidden="true">
+                {[...t.label].map((ch, i) => (
+                  <span key={i} style={{ "--i": i } as CSSProperties}>
+                    {ch}
+                  </span>
+                ))}
+              </span>
+              <span className="dd-sr">{t.label}</span>
+              {t.id === "chat" && chatCount > 0 && (
+                // key: remount (and bump) whenever the count changes
+                <span key={chatCount} className="dd-count dd-bump" aria-label={`${chatCount} warnings`}>
+                  {chatCount}
+                </span>
+              )}
+              {motion === "on" &&
+                SPARKS.map((sp, i) => (
+                  <span
+                    key={`spark${switches}-${i}`}
+                    className="dd-tab-spark"
+                    aria-hidden="true"
+                    style={{ "--sx": sp.x, "--sy": sp.y, background: sp.c } as CSSProperties}
+                  />
+                ))}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="dd-body" id="dd-tabpanel" role="tabpanel" aria-labelledby={`dd-tab-${tab}`}>
-        {body}
+      <div className="dd-views">
+        {TABS.map((t) => {
+          const active = t.id === tab;
+          const out = !active && t.id === leaving;
+          return (
+            <div
+              key={t.id}
+              className={`dd-body${active && switches ? " dd-view-in" : ""}${out ? " dd-view-out" : ""}`}
+              id={`dd-tabpanel-${t.id}`}
+              role="tabpanel"
+              aria-labelledby={`dd-tab-${t.id}`}
+              hidden={!active && !out}
+            >
+              {bodies[t.id]}
+            </div>
+          );
+        })}
       </div>
-      {footer && <footer className="dd-foot">{footer}</footer>}
+      {footer && tab === "listing" && <footer className="dd-foot">{footer}</footer>}
     </div>
   );
 }

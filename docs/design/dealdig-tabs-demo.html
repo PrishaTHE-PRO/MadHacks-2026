@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealDig tabs: motion reference</title>
+<style>
+  :root {
+    /* Tokens sampled from the DealDig side panel screenshot */
+    --ink: #20232f;          /* active tab text, headings */
+    --muted: #5c606f;        /* inactive tab text, subtitle */
+    --pill: #f0f1f3;         /* active pill + chips */
+    --panel: #fff;
+    /* Iridescent palette pulled from the orb logo */
+    --iri: linear-gradient(115deg, #d8d0fb 0%, #c3d6f6 38%, #f6efc6 68%, #f5d5ea 100%);
+    --iri-1: #b9a9f5; --iri-2: #8fb6ee; --iri-3: #e9cf6b;
+
+    /* Motion: same structure and timings as the reference tab bar */
+    --ease-slide: cubic-bezier(.65, 0, .35, 1);  /* the traveller: slow, fast, long soft landing */
+    --ease-pop: cubic-bezier(.22, .9, .3, 1);    /* bloom + letters: strong ease-out */
+  }
+
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #2c3b3d;
+         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: var(--ink); }
+
+  .panel { width: 372px; height: 748px; background: var(--panel); border-radius: 12px; display: flex; flex-direction: column;
+           overflow: hidden; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 20px 22px 0; }
+  .orb { width: 34px; height: 34px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 1px 3px rgba(60,70,120,.18);
+         background: radial-gradient(circle at 68% 30%, #fffbe6 0 10%, transparent 26%),
+                     radial-gradient(circle at 30% 70%, #c6b8f6 0, transparent 60%),
+                     radial-gradient(circle at 70% 75%, #9fc3f0 0, transparent 55%), #dfe6fb; }
+  header h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+  header p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
+  .close { margin-left: auto; appearance: none; border: 0; background: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+
+  /* ---------- Tabs ---------- */
+  .tabs { position: relative; display: flex; gap: 4px; padding: 16px 21px 0; }
+  .tab { position: relative; appearance: none; border: 0; background: none; margin: 0; cursor: pointer;
+         height: 32px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 15px; font-weight: 500;
+         color: var(--muted); transition: color 200ms linear; }
+  .tab:hover:not([aria-selected="true"]) { color: var(--ink); }
+  .tab:focus-visible { outline: 2px solid #8a90f0; outline-offset: 2px; }
+  .tab[aria-selected="true"] { color: var(--ink); }
+
+  .pill { position: absolute; inset: 0; border-radius: 999px; background: var(--pill); overflow: hidden; opacity: 0; }
+  .sheen { position: absolute; inset: 0; background: var(--iri); opacity: 0; }
+  .label { position: relative; white-space: pre; }
+  .label span { display: inline-block; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* The traveller: a soft iridescent glow that slides between tabs (the "hump" of the reference) */
+  .glow { position: absolute; left: 0; top: 16px; width: 46px; height: 32px; margin-left: -23px; border-radius: 50%;
+          background: var(--iri); filter: blur(9px); opacity: 0; pointer-events: none; }
+
+  /* ENTERING tab */
+  .tab.on .pill  { animation: bloom 410ms var(--ease-pop) 150ms both; }
+  .tab.on .sheen { animation: sheen 330ms linear 300ms both; }
+  .tab.on .label { animation: dim 520ms linear both; }
+  .tab.on .label span { animation: wave 380ms cubic-bezier(.3,.7,.3,1) calc(240ms + var(--i) * 18ms); }
+  .tab.on .spark { animation: spark 150ms ease-out 150ms both; }
+
+  @keyframes bloom {
+    0%   { opacity: 1; clip-path: inset(calc(50% - 4px) calc(50% - 4px) round 999px); transform: translateY(3px); }
+    12%  { opacity: 1; clip-path: inset(calc(50% - 5px) calc(50% - 5px) round 999px); transform: translateY(3px); }
+    100% { opacity: 1; clip-path: inset(0 0 round 999px); transform: translateY(0); }
+  }
+  @keyframes sheen  { from { opacity: 1; } to { opacity: 0; } }
+  /* label mirrors the reference icon: fades out first, then comes back as a staggered wave */
+  @keyframes dim  { 0% { opacity: 1; } 29% { opacity: .35; } 58% { opacity: .35; } 100% { opacity: 1; } }
+  @keyframes wave { 0% { transform: none; } 35% { transform: translateY(3px); } 100% { transform: none; } }
+
+  /* LEAVING tab: pill tucks in and fades, text drains to grey */
+  .tab.static .pill { opacity: 1; animation: none !important; }
+  .tab.static * { animation: none !important; }
+  .tab.off .pill { animation: tuck 200ms cubic-bezier(.4, 0, 1, 1) both; }
+  @keyframes tuck {
+    from { opacity: 1; clip-path: inset(0 0 round 999px); }
+    to   { opacity: 0; clip-path: inset(3px 7px round 999px); }
+  }
+
+  .spark { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; border-radius: 50%; opacity: 0; pointer-events: none; }
+  @keyframes spark {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4); }
+    40%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); }
+  }
+
+  /* ---------- Content ---------- */
+  main { flex: 1; position: relative; }
+  .view { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          text-align: center; padding: 0 28px; gap: 10px;
+          background: radial-gradient(closest-side, rgba(200,205,250,.18), transparent) center / 300px 340px no-repeat; }
+  .view[hidden] { display: none; }
+  .view .orb { width: 50px; height: 50px; margin-bottom: 18px; }
+  .view h2 { margin: 0; font-family: "Iowan Old Style", "Palatino", Georgia, serif; font-weight: 400; font-size: 24px; color: #6f727f; }
+  .view p { margin: 0; font-size: 14px; line-height: 1.4; color: #3a3d48; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+  .chips span { background: var(--pill); border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 500; }
+
+  .history { margin: 0 20px 20px; padding: 14px 15px; border-radius: 12px; display: flex; justify-content: space-between;
+             font-size: 14px; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tab.on .pill { animation: fade 150ms linear both; }
+    .tab.on .sheen, .tab.on .label, .tab.on .label span, .tab.on .spark, .tab.off .pill { animation: none; }
+    .glow { display: none; }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  }
+</style>
+</head>
+<body>
+<div class="panel">
+  <header>
+    <div class="orb" aria-hidden="true"></div>
+    <div><h1>DealDig</h1><p>Scam checks for listings and chats</p></div>
+    <button class="close" aria-label="Close">✕</button>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="DealDig">
+    <div class="glow" aria-hidden="true"></div>
+  </div>
+
+  <main id="views"></main>
+
+  <div class="history"><span>Your history (4)</span><span aria-hidden="true">⌄</span></div>
+</div>
+
+<script>
+  const TABS = [
+    { id: 'listing', label: 'Listing', title: 'Open a listing or a chat', body: 'DealDig checks it for scam signs automatically.', chips: ['Poshmark', 'eBay', 'Facebook Marketplace'] },
+    { id: 'chat', label: 'Chat', title: 'No chat open', body: 'Open a conversation and DealDig checks each message as it arrives.' },
+    { id: 'image', label: 'Check image', title: 'Check an image', body: 'Drop a listing photo to see if it appears anywhere else online.' },
+    { id: 'report', label: 'Report', title: 'Report a seller', body: 'Anonymous. Other buyers only see how many people picked each reason.' },
+  ];
+  const SPARKS = [['-12px', '-9px', 'var(--iri-1)'], ['3px', '-14px', 'var(--iri-2)'], ['13px', '-6px', 'var(--iri-3)']];
+
+  const row = document.querySelector('.tabs');
+  const glow = row.querySelector('.glow');
+  const views = document.getElementById('views');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+  const tabs = TABS.map((t, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab'; b.id = 'tab-' + t.id;
+    b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', 'false'); b.setAttribute('aria-controls', 'view-' + t.id);
+    b.tabIndex = -1;
+    const letters = [...t.label].map((ch, k) => `<span style="--i:${k}">${ch}</span>`).join('');
+    const sparks = SPARKS.map(([x, y, c]) => `<span class="spark" style="--sx:${x};--sy:${y};background:${c}"></span>`).join('');
+    b.innerHTML = `<span class="pill"><span class="sheen"></span></span><span class="label" aria-hidden="true">${letters}</span><span class="sr">${t.label}</span>${sparks}`;
+    b.addEventListener('click', () => select(i));
+    b.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      const n = (i + d + TABS.length) % TABS.length;
+      select(n); tabs[n].focus();
+    });
+    row.appendChild(b);
+
+    const v = document.createElement('section');
+    v.className = 'view'; v.id = 'view-' + t.id; v.hidden = true;
+    v.setAttribute('role', 'tabpanel'); v.setAttribute('aria-labelledby', b.id);
+    v.innerHTML = `<div class="orb" aria-hidden="true"></div><h2>${t.title}</h2><p>${t.body}</p>` +
+      (t.chips ? `<div class="chips">${t.chips.map(c => `<span>${c}</span>`).join('')}</div>` : '');
+    views.appendChild(v);
+    return b;
+  });
+
+  const center = (b) => b.offsetLeft + b.offsetWidth / 2;
+  const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  let current = -1;
+
+  function select(i, instant) {
+    if (i === current) return;
+    const prev = tabs[current], next = tabs[i];
+    const prevView = views.children[current], nextView = views.children[i];
+
+    if (prev) {
+      prev.classList.remove('on');
+      prev.setAttribute('aria-selected', 'false'); prev.tabIndex = -1;
+      restart(prev, 'off');
+    }
+    tabs.forEach(t => t.classList.remove('static'));
+    next.classList.remove('off');
+    next.setAttribute('aria-selected', 'true'); next.tabIndex = 0;
+    if (instant) next.classList.add('on', 'static'); else restart(next, 'on');
+
+    if (!instant && prev && !reduce.matches) {
+      // Traveller: slides on the reference's slow-fast-slow curve, visible only in flight
+      glow.animate(
+        [{ transform: `translateX(${center(prev)}px)` }, { transform: `translateX(${center(next)}px)` }],
+        { duration: 580, delay: 50, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'both' });
+      glow.animate(
+        [{ opacity: 0 }, { opacity: .85, offset: .25 }, { opacity: .6, offset: .7 }, { opacity: 0 }],
+        { duration: 630, fill: 'both' });
+    }
+
+    // Content: old view out fast, new view in with the same ease-out as the bloom
+    if (prevView) {
+      if (instant || reduce.matches) prevView.hidden = true;
+      else prevView.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'linear' }).onfinish = () => {
+        if (current !== [...views.children].indexOf(prevView)) prevView.hidden = true;
+      };
+    }
+    nextView.hidden = false;
+    if (!instant && !reduce.matches) {
+      nextView.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 340, delay: 220, easing: 'cubic-bezier(.22,.9,.3,1)', fill: 'backwards' });
+    }
+    current = i;
+  }
+
+  select(0, true);
+</script>
+</body>
+</html>
