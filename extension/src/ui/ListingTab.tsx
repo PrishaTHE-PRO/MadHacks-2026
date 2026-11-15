@@ -10,19 +10,35 @@ import { MeetupHelper } from "../sidepanel/Meetup";
 import { Bubble, iconForLevel } from "./Bubble";
 import { CommunityFlag, EarlierVisits, PhotoCheck } from "./ListingExtras";
 import { money, sellerFacts, sellerName } from "./listingFacts";
+import { coverageGaps, riskLabel } from "../../../shared/listingCheck";
 
 /** Watch-out rows come in one after another, most serious first. */
 const rowIn = (i: number) => ({ className: "dd-row-in", style: { animationDelay: `${120 + i * 40}ms` } });
 
-const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 const LEVELS: RiskLevel[] = ["low", "medium", "high"];
 const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, caution: 1, info: 2, good: 3 };
 
-export function ListingTab({ listing, report, history }: { listing: Listing; report: RiskReport; history: HistoryEntry[] }) {
+export function ListingTab({ listing, report, history, onRetry }: { listing: Listing; report: RiskReport; history: HistoryEntry[]; onRetry(): void }) {
+  const imageFinding = report.signals.find((s) => s.id === "ai-photo-likely" || s.id === "ai-photo-possible");
   return (
     <>
       <CommunityFlag community={report.community} />
+      {report.signals.some((s) => s.id === "not-an-item") && (
+        <section className="dd-card" aria-label="Listing type">
+          <strong>Not a normal item listing</strong>
+          <p>This appears to be an ad, service or event. These checks are designed for items for sale.</p>
+        </section>
+      )}
       <Verdict report={report} />
+      <button className="dd-btn secondary" onClick={onRetry}>Check again</button>
+      {imageFinding && (
+        <section className="dd-card" aria-label="Image authenticity notice">
+          <strong>{imageFinding.text}</strong>
+          <p className="dd-summary">
+            This is an automated assessment and may be wrong. You can decide whether to ask the seller for an original photo before buying.
+          </p>
+        </section>
+      )}
       <EarlierVisits listing={listing} history={history} />
       <ListingCard listing={listing} report={report} />
       <WatchOut report={report} />
@@ -34,7 +50,7 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
         </div>
       )}
       <p className="dd-foot-note">
-        Most serious first · {report.aiUsed ? "rules + Claude" : "rules only (no AI key on the server)"} ·{" "}
+        Most serious first · {report.coverage?.ai ? "rules + Claude" : "rules only · AI analysis unavailable"} ·{" "}
         {new Date(report.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
       </p>
     </>
@@ -43,16 +59,23 @@ export function ListingTab({ listing, report, history }: { listing: Listing; rep
 
 function Verdict({ report }: { report: RiskReport }) {
   const { level } = report;
+  const label = riskLabel(report);
+  const gaps = coverageGaps(report.coverage);
   return (
     <section className="dd-card dd-glow dd-verdict" aria-label="Verdict">
       <div className="dd-verdict-top">
         <Bubble size={40} icon={iconForLevel(level)} />
         <div className="dd-verdict-text">
-          <div className={`dd-level dd-${level} dd-word-in`}>{LEVEL_WORD[level]}</div>
+          <div className={`dd-level dd-${level} dd-word-in`}>{label}</div>
           <div className="dd-summary">{report.summary}</div>
         </div>
       </div>
-      <div className="dd-bar" role="img" aria-label={`Risk level: ${LEVEL_WORD[level]}`}>
+      {gaps.length > 0 && <p className="dd-summary">Partial check: {gaps.join("; ")}.</p>}
+      {report.aiUnavailableReason && <p className="dd-summary">AI check unavailable: {report.aiUnavailableReason}.</p>}
+      {report.photoAssessments?.filter((p) => p.note && (p.ai_generated !== "no" || !p.shows_listed_item)).map((p) => (
+        <p className="dd-summary" key={p.index}>Photo {p.index + 1}: {p.note}</p>
+      ))}
+      <div className="dd-bar" role="img" aria-label={`Risk level: ${label}`}>
         {LEVELS.map((l) => (
           <span key={l} className={l === level ? `on ${l} dd-grow` : undefined} />
         ))}

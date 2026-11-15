@@ -3,7 +3,8 @@
 // reason. Clicking opens the DealDig sidebar. Lives in a shadow root so the
 // site's CSS can't break it (and ours can't break the site).
 
-import type { RiskLevel, RiskReport } from "../../../shared/types";
+import type { RiskReport } from "../../../shared/types";
+import { riskLabel } from "../../../shared/listingCheck";
 import { bubbleSvg } from "../ui/bubbleSvg";
 import tokens from "../ui/tokens.css";
 import motion from "../ui/motion.css";
@@ -13,8 +14,6 @@ export type BadgeState =
   | { state: "loading" }
   | { state: "done"; report: RiskReport }
   | { state: "error"; message: string };
-
-const LEVEL_WORD: Record<RiskLevel, string> = { low: "Low risk", medium: "Be careful", high: "High risk" };
 
 export const BADGE_CSS = [tokens, motion, badgeCss].join("\n");
 
@@ -63,15 +62,16 @@ export function renderBadge(
   } else {
     // Levels only: the score picks the level but is never shown.
     const { level } = s.report;
-    pill.append(mark(28, level === "low" ? "check" : "alert", "pd"), el("span", `dd-word ${level}`, LEVEL_WORD[level]));
-    pill.setAttribute("aria-label", `DealDig: ${LEVEL_WORD[level]}. Open details`);
+    const label = riskLabel(s.report);
+    pill.append(mark(28, level === "low" ? "check" : "alert", "pd"), el("span", `dd-word ${level}`, label));
+    pill.setAttribute("aria-label", `DealDig: ${label}. Open details`);
 
     // Hover card: bubble + level, the top reason, "See details".
     const card = el("div", "dd-hover");
     card.setAttribute("role", "note");
     const top = el("div", "dd-hover-top");
     const words = el("div");
-    words.append(el("div", `dd-hover-level dd-word ${level}`, LEVEL_WORD[level]));
+    words.append(el("div", `dd-hover-level dd-word ${level}`, label));
     top.append(mark(28, level === "low" ? "check" : "alert", "hc"), words);
     const reason = s.report.topReasons[0] ?? s.report.summary;
     const link = el("button", "dd-hover-link", "See details");

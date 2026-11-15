@@ -21,7 +21,7 @@ import { isPhotoHash } from "../../shared/photohash";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "8mb" }));
 
 // Light validation: enough to reject junk, loose enough that adapters can add fields.
 const ListingBody = z.object({
@@ -39,6 +39,7 @@ const ListingBody = z.object({
     .loose(),
   /** dHash per photo (same order as listing.photos), null where the extension couldn't read it. */
   photoHashes: z.array(z.string().refine(isPhotoHash).nullable()).max(20).optional(),
+  photoData: z.array(z.string().max(1500000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/).nullable()).max(4).optional(),
 });
 
 // The device's random reporter id: 128+ bits as hex, never tied to an account.
@@ -138,7 +139,7 @@ app.post("/analyze-listing", async (req, res) => {
     const send = (line: ListingProgress) => res.write(`${JSON.stringify(line)}\n`);
     send({ plan: listingPlan() });
     try {
-      const report = await analyzeListing(listing, photoHashes, (step) => send({ step }));
+      const report = await analyzeListing(listing, photoHashes, (step) => send({ step }), parsed.data.photoData);
       log(report.score, report.level);
       send({ report });
     } catch (err) {
@@ -149,7 +150,7 @@ app.post("/analyze-listing", async (req, res) => {
     return;
   }
 
-  const report = await analyzeListing(listing, photoHashes);
+  const report = await analyzeListing(listing, photoHashes, undefined, parsed.data.photoData);
   log(report.score, report.level);
   res.json(report);
 });

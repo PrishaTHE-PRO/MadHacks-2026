@@ -2,9 +2,9 @@
 //
 // The score is computed here, in code, so every point is explainable: each
 // signal carries the points it added, and the score is their sum. Claude
-// never sets the score directly. It can only add up to POINTS.textRedFlagsMax
-// for red flags it spots, which also limits what a prompt-injected listing
-// can do. This runs with no API key; Claude's findings and price data are
+// never sets the score directly. Free-text flags share POINTS.textRedFlagsMax;
+// structured photo findings use separate fixed amounts. This runs with no
+// API key; Claude's findings and price data are
 // optional inputs.
 
 import {
@@ -12,6 +12,8 @@ import {
   REPORT_CATEGORY_SHORT,
   type CommunityInfo,
   type Listing,
+  type ListingType,
+  type PhotoAssessment,
   type PhotoMatch,
   type PriceCheck,
   type Signal,
@@ -36,6 +38,10 @@ export const POINTS = {
   reportsMax: 30, // ...capped at +30
   overpricedNewClaim: 5,
   fewPhotos: 5,
+  placeholderPrice: 10,
+  noRealPhoto: 20,
+  aiPhotoLikely: 7,
+  aiPhotoPossible: 3,
   photoReused: 25, // spec §3.1: same photo in another seller's listing on the same site
   photoReusedOtherSite: 10, // same, on another site: could be the seller crossposting
 } as const;
@@ -85,6 +91,9 @@ export interface AiFindings {
   brand?: string | null;
   redFlags: string[];
   riskAdjust: number; // 0-15, clamped here anyway
+  listingType?: ListingType;
+  photos?: PhotoAssessment[];
+  priceLooksPlaceholder?: boolean;
 }
 
 export interface RuleInput {
@@ -114,6 +123,22 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
   const now = input.now ?? Date.now();
   const site = PLATFORM_NAMES[listing.platform];
 
+  const ai = input.ai;
+  const placeholder = [0, 1, 1234, 12345, 9999, 99999].includes(listing.price) || ai?.priceLooksPlaceholder;
+  if (placeholder) add("placeholder-price", "caution", "The price looks like a placeholder, so the real price is unknown. Ask before meeting.", POINTS.placeholderPrice);
+
+  const photos = ai?.photos ?? [];
+  const likely = photos.some((p) => p.ai_generated === "likely");
+  const possible = !likely && photos.some((p) => p.ai_generated === "possible");
+  if (likely) add("ai-photo-likely", "caution", "A photo is likely altered or AI-generated.", POINTS.aiPhotoLikely, "ai");
+  else if (possible) add("ai-photo-possible", "info", "A photo may be altered or AI-generated.", POINTS.aiPhotoPossible, "ai");
+  // Unseen photos cannot support a claim that none show the item.
+  const noRealPhoto = (ai?.listingType === "item_for_sale" || ai?.listingType === "rental") &&
+    photos.length > 0 && new Set(photos.map((p) => p.index)).size === listing.photos.length && !photos.some((p) => p.shows_listed_item);
+  if (noRealPhoto) add("no-real-photo", "caution", "None of the photos show the actual item. Ask for a real photo before paying.", POINTS.noRealPhoto, "ai");
+  const notAnItem = ai?.listingType && ["event_or_promo", "service", "job", "wanted_post"].includes(ai.listingType);
+  if (notAnItem) add("not-an-item", "info", "This looks like an ad, service or other non-item post. DealDig's checks are built for item listings.", 0, "ai");
+
   // --- Community reports (one per person, last 12 months) ---
   const community = input.community;
   if (community && community.reporters > 0) {
@@ -139,7 +164,7 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
   // --- Price: bait pricing and counterfeit floors ---
   const price = input.price;
   const brand = listing.brand || input.ai?.brand || undefined;
-  if (listing.price > 0) {
+  if (listing.price > 0 && !placeholder) {
     const floor = brand ? COUNTERFEIT_FLOORS[brand.toLowerCase().trim()] : undefined;
     if (floor && listing.price < floor) {
       add(
@@ -261,7 +286,14 @@ export function runRules(listing: Listing, input: RuleInput = {}): RuleResult {
     const aiPoints = Math.max(0, Math.min(POINTS.textRedFlagsMax, Math.round(input.ai.riskAdjust)));
     // Claude's points only count beyond what the regex check already added.
     let remaining = Math.max(0, aiPoints - textPoints);
-    input.ai.redFlags.forEach((flag, i) => {
+    const flags = input.ai.redFlags.filter((flag) =>
+      !((likely || possible) && /\b(ai|artificial|generated|edited|synthetic)\b/i.test(flag)) &&
+      !(placeholder && /placeholder|stand-in|real price/i.test(flag)) &&
+      !((noRealPhoto || notAnItem) && /flyer|poster|stock|catalog|actual item|real photo|event|promo/i.test(flag)),
+    );
+    // Remove the duplicate flags' share of the text budget as well.
+    remaining = Math.min(remaining, Math.round(aiPoints * flags.length / Math.max(1, input.ai.redFlags.length)));
+    flags.forEach((flag, i) => {
       add(`ai-${i}`, remaining > 0 ? "caution" : "info", flag, remaining, "ai");
       remaining = 0;
     });
