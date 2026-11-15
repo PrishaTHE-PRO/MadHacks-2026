@@ -37,7 +37,7 @@ export const POINTS = {
   photoReused: 25, // spec §3.1: same photo in another seller's listing on the same site
   photoReusedOtherSite: 10, // same, on another site: could be the seller crossposting
 } as const;
-// Not wired yet (needs a later feature): verified handshakes -5 each, max -20 (§4.4).
+// Not wired yet (needs a later feature): verified handshakes -5 each, max -20 (§4.2).
 
 /** A photo used by this many other sellers is a stock or catalog photo, not a stolen one. */
 export const STOCK_PHOTO_SELLERS = 4;

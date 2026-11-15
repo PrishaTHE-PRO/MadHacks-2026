@@ -179,7 +179,7 @@ export interface ReportResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Meetup helper (implementation spec §4.2, §4.3)
+// Meetup helper (implementation spec §4.1)
 // ---------------------------------------------------------------------------
 
 /** Platforms where buyers and sellers meet in person. Shipping platforms
@@ -219,23 +219,4 @@ export interface MeetupSpotsResponse {
   daylight: { sunrise: string; sunset: string }[];
   /** Short notes for the user, e.g. "High-value item: meet at a police station lobby." */
   notes: string[];
-}
-
-export type ReplyTone = "friendly" | "firm";
-export type DealRole = "buyer" | "seller";
-
-export interface DraftReplyInput {
-  listing: { title: string; price: number; platform: Platform };
-  role: DealRole;
-  tone: ReplyTone;
-  spot: { name: string; address?: string };
-  time: string; // human text, e.g. "Saturday 2:00 PM"
-  /** Optional: the other person's latest message, pasted by the user. */
-  theirMessage?: string;
-  riskReasons?: string[];
-}
-
-export interface DraftReplyResponse {
-  reply: string;
-  aiUsed: boolean;
 }
