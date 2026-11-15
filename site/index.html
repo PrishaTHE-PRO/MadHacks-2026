@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+  <script>document.documentElement.classList.add("js");</script>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Second Look</title>
+    <meta name="description" content="A Chrome extension that catches marketplace scams before you send money." />
+    <link rel="icon" href="assets/logo.png" />
+    <style>
+      :root {
+        --ink: #1f2330;
+        --ink-2: #3a3f4e;
+        --muted: #5b6070;
+        --accent: #4f62c4;
+        --accent-hover: #4456b3;
+        --accent-ink: #2f3c86;
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --surface-2: #f0f1f3;
+        --divider: #eceef1;
+        --high: #d9534f;
+        --careful: #d99a2b;
+        --low: #2e8b5e;
+        --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 48px rgba(16, 24, 40, 0.12);
+        --glow-a: rgba(240, 190, 210, 0.35);
+        --glow-b: rgba(190, 180, 245, 0.38);
+        --glow-c: rgba(160, 215, 240, 0.35);
+        --glow-d: rgba(190, 235, 200, 0.3);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --ink: #eceef4;
+          --ink-2: #c9ccd6;
+          --muted: #9a9fae;
+          --accent: #8090e6;
+          --accent-hover: #93a1ee;
+          --accent-ink: #aab5f2;
+          --bg: #14161c;
+          --surface: #1c1f27;
+          --surface-2: #262a34;
+          --divider: #2c303a;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.45);
+          --glow-a: rgba(240, 150, 190, 0.12);
+          --glow-b: rgba(150, 140, 245, 0.16);
+          --glow-c: rgba(120, 190, 240, 0.12);
+          --glow-d: rgba(140, 220, 170, 0.1);
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --ink: #eceef4;
+        --ink-2: #c9ccd6;
+        --muted: #9a9fae;
+        --accent: #8090e6;
+        --accent-hover: #93a1ee;
+        --accent-ink: #aab5f2;
+        --bg: #14161c;
+        --surface: #1c1f27;
+        --surface-2: #262a34;
+        --divider: #2c303a;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.45);
+        --glow-a: rgba(240, 150, 190, 0.12);
+        --glow-b: rgba(150, 140, 245, 0.16);
+        --glow-c: rgba(120, 190, 240, 0.12);
+        --glow-d: rgba(140, 220, 170, 0.1);
+        color-scheme: dark;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      img { max-width: 100%; height: auto; display: block; }
+      a { color: var(--accent-ink); }
+      .wrap { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+      /* Nav */
+      nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--divider); }
+      nav .wrap { display: flex; align-items: center; gap: 12px; height: 60px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
+      .brand img { width: 30px; height: 30px; }
+      nav .links { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+      nav .links a { color: var(--ink-2); text-decoration: none; font-size: 15px; }
+      nav .links a:hover { color: var(--ink); }
+      @media (max-width: 600px) { nav .links a.hide-sm { display: none; } }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        height: 48px; padding: 0 24px; border-radius: 999px; font-weight: 600; font-size: 16px; text-decoration: none;
+        transition: background 0.15s ease, transform 0.15s ease;
+      }
+      .btn.primary { background: var(--accent); color: #fff; }
+      .btn.primary:hover { background: var(--accent-hover); }
+      .btn.quiet { background: var(--surface-2); color: var(--ink); }
+      .btn.quiet:hover { transform: translateY(-1px); }
+      nav .btn { height: 38px; padding: 0 16px; font-size: 14px; }
+
+      /* Hero */
+      .hero { position: relative; overflow: hidden; padding: 72px 0 80px; }
+      .hero::before {
+        content: ""; position: absolute; inset: -20% -10% auto -10%; height: 140%; z-index: -1;
+        background:
+          radial-gradient(40% 45% at 10% 15%, var(--glow-a), transparent 70%),
+          radial-gradient(40% 45% at 90% 10%, var(--glow-b), transparent 70%),
+          radial-gradient(45% 40% at 20% 85%, var(--glow-d), transparent 70%),
+          radial-gradient(45% 45% at 85% 80%, var(--glow-c), transparent 70%);
+      }
+      .hero { padding: 64px 0 72px; background: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
+      .hero .wrap { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 40px; align-items: center; }
+      .logo { width: 104px; height: 104px; border-radius: 50%; margin-bottom: 22px; box-shadow: 0 0 0 10px color-mix(in srgb, var(--surface) 70%, transparent), 0 18px 40px rgba(106, 91, 214, .22); }
+      .wordmark { font-size: clamp(56px, 7vw, 88px); line-height: 1; letter-spacing: -0.045em; margin: 0 0 18px; font-weight: 700; }
+      .wordmark em { padding-right: .08em; margin-right: -.08em; }
+      .tagline { font-family: "Iowan Old Style", "Source Serif Pro", Georgia, "Times New Roman", serif; font-size: clamp(24px, 2.6vw, 32px); line-height: 1.25; color: var(--ink-2); margin: 0 0 28px; max-width: 18ch; font-weight: 400; }
+      .platforms { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 30px; }
+      .platforms span { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--surface); box-shadow: 0 2px 10px rgba(16, 24, 40, .07); font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+      .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 5px 12px; border-radius: 999px; margin-bottom: 18px; }
+      h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.04; letter-spacing: -0.035em; margin: 0 0 18px; }
+      h1 em { font-style: normal; background: linear-gradient(100deg, #6a5bd6, #4f8fd8 55%, #3aa57a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .lede { font-size: 20px; color: var(--ink-2); margin: 0 0 30px; max-width: 30ch; }
+      .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+      .sites { margin-top: 26px; font-size: 14px; color: var(--muted); }
+      .shot { width: 100%; border-radius: 22px; box-shadow: var(--shadow); }
+      
+      @media (max-width: 860px) {
+        .hero { padding: 48px 0 56px; }
+      }
+
+      /* Sections */
+      section { padding: 80px 0; }
+      .head { text-align: center; max-width: 620px; margin: 0 auto 56px; }
+      h2 { font-size: clamp(30px, 4vw, 40px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 12px; }
+      .head p { color: var(--ink-2); margin: 0; font-size: 18px; }
+
+      /* Features */
+      .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+      .feature + .feature { margin-top: 88px; }
+      .feature:nth-child(odd) .text { order: 2; }
+      .feature .shot { max-width: 420px; justify-self: center; }
+      .feature h3 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 10px; }
+      .feature p { color: var(--ink-2); margin: 0 0 16px; font-size: 18px; }
+      .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; }
+      .tag i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+      .points { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+      .points li { display: flex; gap: 10px; color: var(--ink-2); font-size: 16px; }
+      .points li::before { content: "+"; flex: none; width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: var(--low); background: color-mix(in srgb, var(--low) 13%, transparent); margin-top: 1px; }
+      @media (max-width: 860px) {
+        .feature { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+        .feature:nth-child(odd) .text { order: 0; }
+        .feature + .feature { margin-top: 64px; }
+      }
+
+      /* Privacy */
+      .privacy { background: var(--surface-2); }
+      .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .card { background: var(--surface); border-radius: 18px; padding: 24px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+      .card h3 { margin: 12px 0 6px; font-size: 19px; letter-spacing: -0.01em; }
+      .card p { margin: 0; color: var(--ink-2); font-size: 16px; }
+      .icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-ink); }
+      @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
+
+      /* Install */
+      .steps { list-style: none; counter-reset: s; padding: 0; margin: 0 auto; max-width: 680px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+      .steps li { counter-increment: s; display: flex; gap: 16px; align-items: flex-start; background: var(--surface); border: 1px solid var(--divider); border-radius: 16px; padding: 18px 20px; }
+      .steps li > div { min-width: 0; }
+      .steps li::before { content: counter(s); flex: none; width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 700; font-size: 15px; }
+      .steps b { display: block; margin-bottom: 4px; }
+      .steps span { color: var(--ink-2); font-size: 16px; }
+      code { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface-2); padding: 2px 7px; border-radius: 6px; overflow-wrap: anywhere; }
+      pre { margin: 8px 0 0; background: var(--surface-2); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+      pre code { padding: 0; background: none; }
+      .center { text-align: center; margin-top: 32px; }
+
+      footer { border-top: 1px solid var(--divider); padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
+      footer .wrap { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+
+      /* ---------- Motion ---------- */
+      :root { --ease-soft: cubic-bezier(.25, .46, .25, 1); --ease-out: cubic-bezier(.16, 1, .3, 1); --ease-pop: cubic-bezier(.34, 1.56, .64, 1); }
+
+      /* Scroll progress bar */
+      .progress { position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 20; transform-origin: 0 50%; transform: scaleX(0);
+        background: linear-gradient(90deg, #6a5bd6, #4f8fd8 55%, #3aa57a); }
+      nav { transition: box-shadow .3s ease; }
+      nav.scrolled { box-shadow: 0 6px 24px rgba(16, 24, 40, .08); }
+
+      /* Hero entrance: each piece rises in, one after another */
+      .rise { animation: rise .9s var(--ease-out) var(--d, 0s) both; }
+      @keyframes rise { from { opacity: 0; transform: translateY(26px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+      h1 .word { display: inline-block; animation: rise .9s var(--ease-out) calc(.12s + var(--i) * .07s) both; }
+
+      /* Headline gradient shimmers slowly */
+      /* The gradient is purple -> blue -> green and back, twice as wide as the words,
+         so every moment of the shimmer still shows all three colors. */
+      h1 em { background-image: linear-gradient(100deg, #5b55d6, #8a6be2 25%, #c68ad8 50%, #8a6be2 75%, #5b55d6); background-size: 200% 100%; animation: shimmer 8s linear infinite; }
+      @keyframes shimmer { from { background-position: 0% 50%; } to { background-position: -200% 50%; } }
+      /* "second look" also rises in with the other words, so it runs both animations. */
+      h1 em.word { animation: rise .9s var(--ease-out) calc(.12s + var(--i) * .07s) both, shimmer 8s linear 1s infinite; }
+
+      /* Background glow drifts */
+      .hero::before { animation: drift 16s ease-in-out infinite alternate; }
+      @keyframes drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(3%, -2%, 0) scale(1.06); } 100% { transform: translate3d(-3%, 2%, 0) scale(1.02); } }
+
+      /* Hero stage: three small UI cards drawn in HTML, floating at different speeds */
+      .stage { position: relative; height: 640px; }
+      .mock { position: relative; background: var(--surface); border-radius: 20px; box-shadow: 0 2px 6px rgba(16, 24, 40, .05), 0 24px 56px rgba(16, 24, 40, .14); }
+      .mock-in { position: absolute; animation: rise 1.4s var(--ease-out) var(--d) both; }
+      .p-steps { top: 0; left: 4%; width: 290px; }
+      .p-chat { top: 110px; right: 0; width: 340px; z-index: 2; }
+      .p-verdict { bottom: 0; left: 2%; width: 420px; z-index: 3; }
+      .bob { animation: bob 7s ease-in-out var(--b, 0s) infinite; }
+      @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+      .m-steps { padding: 22px 26px 24px; text-align: center; rotate: -3deg; }
+      .m-steps img { width: 36px; height: 36px; margin: 0 auto 10px; }
+      .m-steps h4 { margin: 0 0 14px; font: 400 21px/1.2 "Iowan Old Style", Georgia, serif; color: var(--muted); }
+      .m-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; text-align: left; font-size: 14.5px; }
+      .m-steps li { display: flex; align-items: center; gap: 10px; color: #a3a7b2; transition: color .3s ease; }
+      .m-steps li i { width: 17px; height: 17px; border-radius: 50%; border: 1.6px solid #c9ccd4; flex: none; display: grid; place-items: center; transition: background .3s ease, border-color .3s ease; }
+      .m-steps li.done { color: var(--ink-2); }
+      .m-steps li.done i { background: var(--low); border-color: var(--low); }
+      .m-steps li.done i::after { content: ""; width: 7px; height: 4px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+      .m-steps li.active { color: var(--ink); font-weight: 600; }
+      .m-steps li.active i { border-color: var(--accent); border-right-color: transparent; animation: spin .8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .m-chat { padding: 14px 14px 16px; background: #1d1f26; color: #e9eaf0; font-size: 13.5px; }
+      .m-chat .who { font-size: 11px; color: #8d91a0; margin: 0 4px 4px; }
+      .m-chat .who.me { text-align: right; }
+      .m-chat .msg { padding: 9px 13px; border-radius: 14px; line-height: 1.4; margin-bottom: 10px; }
+      .m-chat .me + .msg, .m-chat .msg.me { margin-left: auto; width: fit-content; max-width: 85%; background: #5b6be0; color: #fff; border-bottom-right-radius: 5px; }
+      .m-chat .msg.them { background: #30333d; border-bottom-left-radius: 5px; }
+      .m-chat .msg.them u { color: #9db4ff; }
+      .flag { display: flex; width: fit-content; align-items: center; gap: 7px; background: #fff; color: #8e2a1a; border-radius: 999px; padding: 5px 11px 5px 6px; font-size: 12.5px; font-weight: 600; margin-top: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, .25); animation: pop .6s var(--ease-pop) var(--d) both; }
+      .flag img { width: 18px; height: 18px; }
+      .flag b { color: #2f3c86; font-weight: 600; margin-left: 4px; }
+      @keyframes pop { from { opacity: 0; transform: scale(.5) translateY(8px); } to { opacity: 1; transform: none; } }
+
+      .m-verdict { padding: 18px 20px; rotate: 1.5deg;
+        background: radial-gradient(90% 90% at 0% 0%, rgba(240,190,210,.30), transparent 60%), radial-gradient(80% 80% at 100% 10%, rgba(190,180,245,.32), transparent 60%), radial-gradient(90% 90% at 20% 100%, rgba(190,235,200,.32), transparent 60%), var(--surface); }
+      .m-verdict .top { display: flex; gap: 12px; }
+      .m-verdict .top img { width: 38px; height: 38px; flex: none; }
+      .m-verdict strong { display: block; font-size: 20px; color: #1e6b45; letter-spacing: -0.01em; }
+      .m-verdict p { margin: 2px 0 0; font-size: 14px; color: var(--ink-2); line-height: 1.4; }
+      .m-verdict .bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin: 14px 0 12px; }
+      .m-verdict .bar span { height: 4px; border-radius: 2px; background: #e3e5ea; }
+      .m-verdict .bar span:first-child { background: var(--low); transform-origin: left; animation: grow 1s var(--ease-out) 1.4s both; }
+      @keyframes grow { from { transform: scaleX(0); } to { transform: none; } }
+      .m-verdict ul { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--divider); display: grid; gap: 7px; font-size: 14px; color: var(--ink-2); }
+      .m-verdict li { display: flex; gap: 10px; align-items: center; }
+      .m-verdict li::before { content: "+"; width: 26px; height: 20px; flex: none; border-radius: 999px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: rgba(30, 107, 69, .75); background: rgba(46, 139, 94, .12); }
+
+      @media (max-width: 1060px) { .p-chat { width: 300px; } .p-verdict { width: 370px; left: 4%; } }
+      @media (max-width: 860px) {
+        .hero .wrap { grid-template-columns: minmax(0, 1fr); }
+        .stage { height: auto; display: grid; gap: 16px; }
+        .mock-in { position: static; width: 100% !important; } .mock { rotate: none; }
+      }
+
+      /* Buttons: a light sweep on hover */
+      .btn { position: relative; overflow: hidden; }
+      .btn.primary::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; transform: skewX(-20deg);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent); transition: left .6s var(--ease-out); }
+      .btn.primary:hover::after { left: 120%; }
+      .btn.primary:hover { transform: translateY(-2px); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+      /* Scroll reveal (only when JS runs, so the page never stays hidden) */
+      .js .reveal { opacity: 0; transform: translateY(32px); transition: opacity 1.4s var(--ease-soft) var(--d, 0s), transform 1.6s var(--ease-soft) var(--d, 0s); }
+      .js .reveal.from-left, .js .reveal.from-right { transition-duration: 1.8s, 2s; }
+      .js .reveal.from-left { transform: translateX(-36px) rotate(-1.5deg); }
+      .js .reveal.from-right { transform: translateX(36px) rotate(1.5deg); }
+      .js .reveal.in { opacity: 1; transform: none; }
+      .js .points li { opacity: 0; transform: translateX(-12px); transition: opacity .5s ease, transform .5s var(--ease-out); }
+      .js .in .points li { opacity: 1; transform: none; }
+      .js .in .points li:nth-child(1) { transition-delay: .25s; }
+      .js .in .points li:nth-child(2) { transition-delay: .35s; }
+      .js .in .points li:nth-child(3) { transition-delay: .45s; }
+      .js .in .points li::before { animation: plus .5s var(--ease-pop) both; }
+      .js .in .points li:nth-child(1)::before { animation-delay: .3s; }
+      .js .in .points li:nth-child(2)::before { animation-delay: .4s; }
+      .js .in .points li:nth-child(3)::before { animation-delay: .5s; }
+      @keyframes plus { from { transform: scale(0) rotate(-90deg); } to { transform: none; } }
+
+      /* Feature screenshots and cards lift on hover */
+      .feature .shot { transition: transform .5s var(--ease-out), box-shadow .5s var(--ease-out); }
+      .feature .shot:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 2px 4px rgba(16, 24, 40, .05), 0 30px 60px rgba(16, 24, 40, .18); }
+      .card, .steps li { transition: transform .35s var(--ease-out), box-shadow .35s var(--ease-out); }
+      .card:hover, .steps li:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(16, 24, 40, .12); }
+      .card:hover .icon { animation: wiggle .6s var(--ease-pop); }
+      @keyframes wiggle { 0% { transform: none; } 30% { transform: rotate(-12deg) scale(1.1); } 60% { transform: rotate(8deg) scale(1.1); } 100% { transform: none; } }
+      .tag i { animation: pulse 2.4s ease-in-out infinite; }
+      @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); transform: scale(1); } 50% { transform: scale(1.35); } }
+      .js .steps li.in::before { animation: ping .8s var(--ease-pop) both; }
+      @keyframes ping { from { transform: scale(.3); } to { transform: none; } }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+        .js .reveal, .js .points li { opacity: 1 !important; transform: none !important; }
+        .progress { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress" aria-hidden="true"></div>
+    <nav>
+      <div class="wrap">
+        <a class="brand" href="#top"><img src="assets/logo.png" alt="" /> Second Look</a>
+        <div class="links">
+          <a class="hide-sm" href="#features">Features</a>
+          <a class="hide-sm" href="#privacy">Privacy</a>
+          <a class="btn primary" href="#install">Install</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero" id="top">
+      <div class="wrap">
+        <div>
+          <img class="logo rise" src="assets/logo.png" alt="" width="104" height="104" />
+          <h1 class="wordmark rise" style="--d: .1s">Second<em>Look</em></h1>
+          <p class="tagline rise" style="--d: .25s">A second look before you pay a stranger.</p>
+          <div class="platforms rise" style="--d: .4s" aria-label="Works on">
+            <span style="color: #7f0353">Poshmark</span>
+            <span style="color: #0064d2">eBay</span>
+            <span style="color: #1877f2">Facebook Marketplace</span>
+          </div>
+          <div class="ctas rise" style="--d: .55s">
+            <a class="btn primary" href="#install">Get the extension</a>
+            <a class="btn quiet" href="https://github.com/PrishaTHE-PRO/MadHacks-2026">View on GitHub</a>
+          </div>
+        </div>
+
+        <div class="stage" aria-hidden="true">
+          <div class="mock-in p-steps" style="--d: .3s"><div class="mock m-steps bob" style="--b: 0s">
+            <img src="assets/logo.png" alt="" />
+            <h4>Checking this listing…</h4>
+            <ol id="steps">
+              <li><i></i>Reading the listing</li>
+              <li><i></i>Checking the seller</li>
+              <li><i></i>Searching the web</li>
+              <li><i></i>Identifying the item</li>
+              <li><i></i>Comparing prices</li>
+              <li><i></i>Writing the summary</li>
+            </ol>
+          </div></div>
+
+          <div class="mock-in p-chat" style="--d: .55s"><div class="mock m-chat bob" style="--b: -2.5s">
+            <div class="who me">You</div>
+            <div class="msg me">Great, could I come see it this weekend?</div>
+            <div class="who">Jordan Reyes</div>
+            <div class="msg them">Or just pay through PayPal here, it's faster: <u>paypal-resolve.example/login</u></div>
+            <div class="flag" style="--d: 1.3s"><img src="assets/logo.png" alt="" />Unprotected payment method <b>Why?</b></div>
+            <div class="flag" style="--d: 1.6s"><img src="assets/logo.png" alt="" />Look-alike link <b>Why?</b></div>
+            <div class="flag" style="--d: 1.9s"><img src="assets/logo.png" alt="" />Deposit before viewing <b>Why?</b></div>
+          </div></div>
+
+          <div class="mock-in p-verdict" style="--d: .8s"><div class="mock m-verdict bob" style="--b: -4.5s">
+            <div class="top">
+              <img src="assets/logo.png" alt="" />
+              <div>
+                <strong>Low risk</strong>
+                <p>This listing looks fine. Stay on the platform to pay, and don't send money directly.</p>
+              </div>
+            </div>
+            <div class="bar"><span></span><span></span><span></span></div>
+            <ul>
+              <li>Seller has been selling here since 2020</li>
+              <li>Price is in the usual range</li>
+            </ul>
+          </div></div>
+        </div>
+      </div>
+    </header>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Four checks, one sidebar</h2>
+          <p>It runs while you browse. No forms, no copy-pasting.</p>
+        </div>
+
+        <div class="feature">
+          <div class="text reveal">
+            <div class="tag"><i style="background: var(--high)"></i>Listing check</div>
+            <h3>Know the risk at a glance</h3>
+            <p>Every listing gets a risk level, with the reasons right under it.</p>
+            <ul class="points">
+              <li>Prices far below normal</li>
+              <li>Photos stolen from other sellers</li>
+              <li>New or unrated seller accounts</li>
+            </ul>
+          </div>
+          <img class="shot reveal from-right" style="--d: .1s" src="assets/listing.png" width="800" height="1000" alt="Listing check showing a high risk level and its reasons" />
+        </div>
+
+        <div class="feature">
+          <div class="text reveal">
+            <div class="tag"><i style="background: var(--careful)"></i>Chat warnings</div>
+            <h3>Catch the pitch mid-chat</h3>
+            <p>Scam messages and edited invoices get flagged as they arrive.</p>
+            <ul class="points">
+              <li>Off-platform payment requests</li>
+              <li>Fake shipping and overpayment tricks</li>
+              <li>Doctored receipts and screenshots</li>
+            </ul>
+          </div>
+          <img class="shot reveal from-left" style="--d: .1s" src="assets/chat.png" width="800" height="1000" alt="A fake invoice in a chat with warnings under it" />
+        </div>
+
+        <div class="feature">
+          <div class="text reveal">
+            <div class="tag"><i style="background: var(--accent)"></i>Link guard</div>
+            <h3>Stop fake sites before they load</h3>
+            <p>Links from marketplace chats are checked before the page opens.</p>
+            <ul class="points">
+              <li>Look-alike domains like paypa1.com</li>
+              <li>Brand-new and known-bad sites</li>
+              <li>Preview a site safely, without visiting it</li>
+            </ul>
+          </div>
+          <img class="shot reveal from-right" style="--d: .1s" src="assets/links.png" width="800" height="1000" alt="Warning page for a fake PayPal link" />
+        </div>
+
+        <div class="feature">
+          <div class="text reveal">
+            <div class="tag"><i style="background: var(--low)"></i>Photo privacy</div>
+            <h3>Sell without oversharing</h3>
+            <p>Your location and address are removed from photos before you post.</p>
+            <ul class="points">
+              <li>Hidden GPS data stripped</li>
+              <li>Faces and mailing labels covered</li>
+              <li>Done on your computer</li>
+            </ul>
+          </div>
+          <img class="shot reveal from-left" style="--d: .1s" src="assets/photos.png" width="800" height="1000" alt="Photo cleaner showing hidden location data and a covered mailing label" />
+        </div>
+      </div>
+    </section>
+
+    <section class="privacy" id="privacy">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Your stuff stays yours</h2>
+          <p>Built so the checks never cost you your privacy.</p>
+        </div>
+        <div class="cards">
+          <div class="card reveal" style="--d: 0.00s">
+            <div class="icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+            </div>
+            <h3>On your device</h3>
+            <p>Your photos, screenshots and documents are checked locally and never uploaded.</p>
+          </div>
+          <div class="card reveal" style="--d: 0.12s">
+            <div class="icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" /></svg>
+            </div>
+            <h3>Only what's needed</h3>
+            <p>The server gets public listing details. Chats are sent with phone numbers and emails removed.</p>
+          </div>
+          <div class="card reveal" style="--d: 0.24s">
+            <div class="icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-5M4 16V4h11l-2 4 2 4H4" /></svg>
+            </div>
+            <h3>Anonymous reports</h3>
+            <p>Report a scammer to warn others. Nobody knows it was you, and no one is blocked.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Try it in a few minutes</h2>
+          <p>Second Look runs from source while it's in development.</p>
+        </div>
+        <ol class="steps">
+          <li class="reveal" style="--d: 0.00s">
+            <div>
+              <b>Get the code</b>
+              <span>Clone the repo and install.</span>
+              <pre><code>git clone https://github.com/PrishaTHE-PRO/MadHacks-2026.git
+cd MadHacks-2026 && npm install</code></pre>
+            </div>
+          </li>
+          <li class="reveal" style="--d: 0.12s">
+            <div>
+              <b>Start the server and build</b>
+              <span>Add an Anthropic key to <code>server/.env</code> for the full checks.</span>
+              <pre><code>npm run server
+npm run ext</code></pre>
+            </div>
+          </li>
+          <li class="reveal" style="--d: 0.24s">
+            <div>
+              <b>Load it in Chrome</b>
+              <span>Open <code>chrome://extensions</code>, turn on Developer mode, click <b style="display: inline">Load unpacked</b> and pick <code>extension/dist</code>.</span>
+            </div>
+          </li>
+        </ol>
+        <p class="center reveal"><a class="btn quiet" href="https://github.com/PrishaTHE-PRO/MadHacks-2026#readme">Full setup in the README</a></p>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span class="brand"><img src="assets/logo.png" alt="" /> Second Look</span>
+        <span>Built at MadHacks 2026</span>
+      </div>
+    </footer>
+
+    <script>
+      (() => {
+        const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // Reveal sections as they scroll into view.
+        const items = document.querySelectorAll(".reveal");
+        if ("IntersectionObserver" in window && !reduce) {
+          const io = new IntersectionObserver((entries) => {
+            for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+          }, { threshold: 0.18, rootMargin: "0px 0px -40px 0px" });
+          items.forEach((el) => io.observe(el));
+        } else items.forEach((el) => el.classList.add("in"));
+
+        // Hero: the "Checking this listing" steps tick off one by one, then start over.
+        const steps = [...document.querySelectorAll("#steps li")];
+        let step = 0;
+        const paint = () => steps.forEach((li, i) => { li.className = i < step ? "done" : i === step ? "active" : ""; });
+        paint();
+        if (!reduce) setInterval(() => { step = step > steps.length ? 0 : step + 1; paint(); }, 900);
+        else { step = steps.length; paint(); }
+
+        // Nav shadow + scroll progress.
+        const nav = document.querySelector("nav");
+        const bar = document.querySelector(".progress");
+        const onScroll = () => {
+          const max = document.documentElement.scrollHeight - innerHeight;
+          bar.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+          nav.classList.toggle("scrolled", scrollY > 8);
+        };
+        addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+
+      })();
+    </script>
+  </body>
+</html>
